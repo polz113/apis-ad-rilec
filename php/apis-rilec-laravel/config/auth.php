@@ -42,9 +42,9 @@ return [
         ],
 
         'api' => [
-            'driver' => 'token',
-            'provider' => 'users',
-            'hash' => false,
+            'driver' => 'x-api-key',
+            /* 'provider' => 'users',
+            'hash' => false,*/
         ],
     ],
 
@@ -70,7 +70,10 @@ return [
             'driver' => 'eloquent',
             'model' => App\User::class,
         ],
-
+        // 'dumbtoken' => [
+        //    'driver' => 'apisrilec',
+        //    'apis_x_api_key' => env('APIS_X_API_KEY'),
+        // ]
         // 'users' => [
         //     'driver' => 'database',
         //     'table' => 'users',

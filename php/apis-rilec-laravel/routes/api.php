@@ -12,8 +12,23 @@ use Illuminate\Support\Facades\Route;
 | routes are loaded by the RouteServiceProvider within a group which
 | is assigned the "api" middleware group. Enjoy building your API!
 |
-*/
+ */
+/*
+    /hr/HRMaster/replicate
+Route::get('hr/HRMaster/replicate', 'ApisADController@show');
 
-Route::middleware('auth:api')->get('/user', function (Request $request) {
+Route::put('/replicate', 'ApisADController@update');
+Route::middleware('auth:api')->get('/replicate', 'ApisADController@show');
+ */
+/*
+Route::get('/replicate', 'ApisADController@show');
+ */
+Route::group(['middleware'=>'auth:api'], function(){
+    /* Route::put('/replicate', 'ApisADController@update'); 
+    Route::get('/replicate', 'ApisADController@list'); */
+    Route::put('/hr/HRMaster/replicate', 'ApisADController@update');
+    Route::get('/hr/HRMaster/replicate', 'ApisADController@list'); 
+  /* Route::get('/user', function (Request $request) {
     return $request->user();
+  }); */
 });
