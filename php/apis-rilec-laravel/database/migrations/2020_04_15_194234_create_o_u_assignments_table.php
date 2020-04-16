@@ -18,7 +18,9 @@ class CreateOUAssignmentsTable extends Migration
             $table->timestamps();
             $table->foreign('h_r_master_update_id')->constrained()->onDelete('cascade');
             $table->string('orig_OU');
+            $table->string('uid');
             $table->string('OU');
+            $table->timestamp('applied_on')->nullable();
             $table->timestamp('valid_from');
             $table->timestamp('valid_to');
         });

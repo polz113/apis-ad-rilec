@@ -17,6 +17,7 @@ class CreateUserDataTable extends Migration
             $table->id();
             $table->timestamps();
             $table->foreign('h_r_master_update_id')->constrained()->onDelete('cascade');
+            $table->string('uid');
             $table->string('property');
             $table->string('value');
             $table->timestamp('valid_from');
