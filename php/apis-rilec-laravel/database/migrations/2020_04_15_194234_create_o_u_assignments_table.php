@@ -16,13 +16,13 @@ class CreateOUAssignmentsTable extends Migration
         Schema::create('o_u_assignments', function (Blueprint $table) {
             $table->id();
             $table->timestamps();
-            $table->foreign('h_r_master_update_id')->constrained()->onDelete('cascade');
+            $table->foreignId('h_r_master_update_id')->constrained()->onDelete('cascade');
             $table->string('orig_OU');
             $table->string('uid');
             $table->string('OU');
             $table->timestamp('applied_on')->nullable();
-            $table->timestamp('valid_from');
-            $table->timestamp('valid_to');
+            $table->timestamp('valid_from')->nullable();
+            $table->timestamp('valid_to')->nullable();
         });
     }
 

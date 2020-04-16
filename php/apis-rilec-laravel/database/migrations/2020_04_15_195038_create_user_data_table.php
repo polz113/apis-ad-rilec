@@ -16,12 +16,12 @@ class CreateUserDataTable extends Migration
         Schema::create('user_data', function (Blueprint $table) {
             $table->id();
             $table->timestamps();
-            $table->foreign('h_r_master_update_id')->constrained()->onDelete('cascade');
+            $table->foreignId('h_r_master_update_id')->constrained()->onDelete('cascade');
             $table->string('uid');
             $table->string('property');
             $table->string('value');
-            $table->timestamp('valid_from');
-            $table->timestamp('valid_to');
+            $table->timestamp('valid_from')->nullable();
+            $table->timestamp('valid_to')->nullable();
         });
     }
 
