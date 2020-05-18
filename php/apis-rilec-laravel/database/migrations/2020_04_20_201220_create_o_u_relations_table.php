@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreateOUAssignmentsTable extends Migration
+class CreateOURelationsTable extends Migration
 {
     /**
      * Run the migrations.
@@ -13,16 +13,15 @@ class CreateOUAssignmentsTable extends Migration
      */
     public function up()
     {
-        Schema::create('o_u_assignments', function (Blueprint $table) {
+        Schema::create('o_u_relations', function (Blueprint $table) {
             $table->id();
             $table->timestamps();
             $table->foreignId('h_r_master_update_id')->constrained()->onDelete('cascade');
-            $table->string('orig_OU');
-            $table->string('uid');
-            $table->string('OU');
-            $table->timestamp('applied_on')->nullable();
-            $table->timestamp('valid_from')->nullable();
-            $table->timestamp('valid_to')->nullable();
+            $table->string('child_uid');
+            $table->string('parent_uid'); 
+            $table->datetime('changed_at')->nullable();
+            $table->datetime('valid_from')->nullable();
+            $table->datetime('valid_to')->nullable();
         });
     }
 
@@ -33,6 +32,6 @@ class CreateOUAssignmentsTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('o_u_assignments');
+        Schema::dropIfExists('o_u_relations');
     }
 }

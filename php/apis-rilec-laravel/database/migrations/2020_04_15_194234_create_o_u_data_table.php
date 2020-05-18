@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreateUserDataTable extends Migration
+class CreateOUDataTable extends Migration
 {
     /**
      * Run the migrations.
@@ -13,13 +13,14 @@ class CreateUserDataTable extends Migration
      */
     public function up()
     {
-        Schema::create('user_data', function (Blueprint $table) {
+        Schema::create('o_u_data', function (Blueprint $table) {
             $table->id();
             $table->timestamps();
             $table->foreignId('h_r_master_update_id')->constrained()->onDelete('cascade');
+            $table->string('orig_OU');
             $table->string('uid');
-            $table->string('property');
-            $table->string('value');
+            /* $table->string('parent_uid'); */
+            $table->string('OU');
             $table->datetime('changed_at')->nullable();
             $table->datetime('valid_from')->nullable();
             $table->datetime('valid_to')->nullable();
@@ -33,6 +34,6 @@ class CreateUserDataTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('user_data');
+        Schema::dropIfExists('o_u_assignments');
     }
 }
