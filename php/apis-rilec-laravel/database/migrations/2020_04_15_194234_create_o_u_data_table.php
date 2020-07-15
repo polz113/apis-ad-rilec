@@ -22,6 +22,7 @@ class CreateOUDataTable extends Migration
             /* $table->string('parent_uid'); */
             $table->string('OU');
             $table->datetime('changed_at')->nullable();
+            $table->datetime('generated_at')->nullable();
             $table->datetime('valid_from')->nullable();
             $table->datetime('valid_to')->nullable();
         });

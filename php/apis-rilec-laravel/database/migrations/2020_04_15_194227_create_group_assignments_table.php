@@ -23,6 +23,7 @@ class CreateGroupAssignmentsTable extends Migration
             $table->string('group');
             $table->datetime('applied_on')->nullable();
             $table->datetime('changed_at')->nullable();
+            $table->datetime('generated_at')->nullable();
             $table->datetime('valid_from')->nullable();
             $table->datetime('valid_to')->nullable();
         });

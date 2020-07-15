@@ -4,13 +4,12 @@ namespace App;
 
 use Illuminate\Database\Eloquent\Model;
 
-class GroupAssignment extends Model
+class OUData extends Model
 {
     //
     protected $dates = [ 
         'valid_from',
         'valid_to',
         'changed_at',
-        'generated_at',
     ];
 }

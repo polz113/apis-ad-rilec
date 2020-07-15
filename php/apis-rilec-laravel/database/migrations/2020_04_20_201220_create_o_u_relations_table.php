@@ -20,6 +20,7 @@ class CreateOURelationsTable extends Migration
             $table->string('child_uid');
             $table->string('parent_uid'); 
             $table->datetime('changed_at')->nullable();
+            $table->datetime('generated_at')->nullable();
             $table->datetime('valid_from')->nullable();
             $table->datetime('valid_to')->nullable();
         });

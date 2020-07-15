@@ -21,6 +21,7 @@ class CreateUserDataTable extends Migration
             $table->string('property');
             $table->string('value');
             $table->datetime('changed_at')->nullable();
+            $table->datetime('generated_at')->nullable();
             $table->datetime('valid_from')->nullable();
             $table->datetime('valid_to')->nullable();
         });
