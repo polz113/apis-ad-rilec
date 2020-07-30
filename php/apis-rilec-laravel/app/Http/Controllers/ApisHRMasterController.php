@@ -9,7 +9,7 @@ use App\OUData;
 use App\OURelation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-
+use Datetime;
 
 define("FIELDNAME_DELIMITER", "/");
 define("GROUPNAME_DELIMITER", "/");
@@ -144,7 +144,7 @@ class ApisHRMasterController extends Controller
         ];
 	    /* Get timestamp */
         if (isset($data['TimeStamp'])){
-            $timestamp = $data['TimeStamp'];
+            $timestamp = new Datetime($data['TimeStamp']);
         } else {
             $timestamp = now();
         }
