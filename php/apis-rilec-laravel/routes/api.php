@@ -21,7 +21,7 @@ Route::group(['middleware'=>'auth:api'], function(){
     Route::get('/hr/HRMaster/replicate', 'ApisHRMasterController@list');
     Route::get('/api/userprofile/{date}', 'ApisUserProfileController@index');
     Route::get('/api/userprofile/{date}/{id}', 'ApisUserProfileController@show');
-    Route::get('/api/user_tree/{date}/{id}', 'ApisUserProfileController@tree_index');
+    Route::get('/api/user_tree/{date}', 'ApisUserProfileController@tree_index');
     Route::get('/api/ou/{date}', 'ApisOUController@index');
     Route::get('/api/ou_tree/{date}', 'ApisOUController@tree_index');
     Route::get('/api/ou/{date}/{id}', 'ApisOUController@show');
