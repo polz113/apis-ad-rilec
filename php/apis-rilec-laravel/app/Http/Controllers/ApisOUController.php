@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\OUData;
 use App\OURelation;
 
+use Carbon\Carbon;
 
 class OU {
     public $name;
@@ -74,9 +75,12 @@ class ApisOUController extends Controller
         return $tree;
     }
 
-    public function index(Request $request, $date){
+    public function index(Request $request, $date = Null){
         $assignments = [];
         $last_assignment = Null;
+        if (is_null($date)) {
+            $date = Carbon::now();
+        }
         foreach(OUData::whereDate('valid_from', '<=', $date)
             ->whereDate('valid_to', '>=', $date)
             ->orderBy('uid')

@@ -242,11 +242,10 @@ class ApisHRMasterController extends Controller
             }
         }
         /* transfer data into AD */
-        foreach($userids as $uid){
-            /* find latest groups for each user */
-            ad_assign_latest_groups($uid);
+        /* foreach($userids as $uid){
+            ad_assign_groups($uid);
             ad_move_user($uid);
-        }
+        } */
         return $log;
     }
 
@@ -256,7 +255,13 @@ class ApisHRMasterController extends Controller
         $data = $request->post();
         $hrmaster->data = json_encode($data);
         $hrmaster->save();
-        return $this->parseHRMasterUpdate($hrmaster->id, $data);
+        
+        try {
+            return $this->parseHRMasterUpdate($hrmaster->id, $data);
+        // Validate the value...
+        } catch (Throwable $e) {
+            return response(['Error' => $e], 406);
+        }
     }
     public function list(Request $request){
         $res = array();

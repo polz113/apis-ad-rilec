@@ -58,7 +58,7 @@ class ApisUserProfileController extends Controller
 
     public function tree_index(Request $request, $date){
         $tree = ApisOUController.tree_index($request, $date);
-
+        
         return $tree;
     }
 }
