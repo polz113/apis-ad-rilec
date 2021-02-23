@@ -3,13 +3,17 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use ApisOUController;
 use App\UserData;
+use Carbon\Carbon;
+use App\Http\Controllers\ApisOUController;
 
 class ApisUserProfileController extends Controller
 {
     //
-    public function index(Request $request, $date){
+    public function index(Request $request, $date = Null){
+        if (is_null($date)) {
+            $date = Carbon::now();
+        }
         $properties = UserData::whereDate('valid_from', '<=', $date)
             ->whereDate('valid_to', '>=', $date)
             ->orderBy('uid')
@@ -56,9 +60,4 @@ class ApisUserProfileController extends Controller
         return $user;
     }
 
-    public function tree_index(Request $request, $date){
-        $tree = ApisOUController.tree_index($request, $date);
-        
-        return $tree;
-    }
 }

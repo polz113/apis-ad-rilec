@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\OUData;
 use App\OURelation;
+use App\UserData;
+use App\GroupAssignment;
 
 use Carbon\Carbon;
 
@@ -40,16 +42,40 @@ class ApisOUController extends Controller
             ->first();
     }
 
-    public function tree_index(Request $request, $date){
-        $ous = array();
-        $assignments = $this->index($request, $date);
-        foreach($assignments as $assignment){
-            if (!isset($ous[$assignment->uid])){
+    private function _tree_index(Request $request, $date = Null, $get_users = False){
+        if (is_null($date)) {
+            $date = Carbon::now();
+        }
+        $ous_by_uid = array();
+        $ous = $this->index($request, $date);
+        foreach($ous as $oudata){
+            if (!isset($ous_by_uid[$oudata->uid])){
                 $ou = new OU;
-                $ou->name = $assignment->OU;
-                $ou->uid = $assignment->uid;
+                $ou->OU = $oudata->OU;
+                $ou->uid = $oudata->uid;
                 $ou->children = array();
-                $ous[$assignment->uid] = $ou;
+                $ous_by_uid[$oudata->uid] = $ou;
+            }
+        }
+        if ($get_users){
+            foreach($ous_by_uid as $ou){
+                $ou->users=array();
+            }
+            $last_uid = Null;
+            $assignments = GroupAssignment::where('grouptype', 'OrgDodelitev/glavnaOrganizacijskaEnota_Id')
+                ->whereDate('valid_from', '<=', $date)
+                ->whereDate('valid_to', '>=', $date)
+                ->orderBy('uid')
+                ->orderBy('changed_at')
+                ->orderBy('generated_at')
+                ->get();
+            foreach($assignments as $userassignment){
+                if ($userassignment->uid != $last_uid){
+                    if (isset($ous_by_uid[$userassignment->group])){
+                        $ous_by_uid[$userassignment->group]->users[] = $userassignment->uid;
+                        $last_uid = $userassignment->uid;
+                    }
+                }
             }
         }
         $is_child = array();
@@ -58,16 +84,16 @@ class ApisOUController extends Controller
             $child_uid = $relation->child_uid;
             if ($last_child_uid != $child_uid){
                 $parent_uid = $relation->parent_uid;
-                if (isset($ous[$parent_uid]) && isset($ous[$child_uid])){
-                    $parent = $ous[$relation->parent_uid];
-                    $parent->children[] = $ous[$child_uid];
+                if (isset($ous_by_uid[$parent_uid]) && isset($ous_by_uid[$child_uid])){
+                    $parent = $ous_by_uid[$relation->parent_uid];
+                    $parent->children[] = $ous_by_uid[$child_uid];
                     $is_child[$child_uid] = True;
                     $last_child_uid = $child_uid;
                 }
             }
         }
         $tree = array();
-        foreach($ous as $uid => $ou){
+        foreach($ous_by_uid as $uid => $ou){
             if (!isset($is_child[$uid])){
                 $tree[] = $ou;
             }
@@ -75,9 +101,15 @@ class ApisOUController extends Controller
         return $tree;
     }
 
+    public function tree_index(Request $request, $date = Null){
+        return $this->_tree_index($request, $date, False);
+    }
+    public function user_tree_index(Request $request, $date = Null){
+        return $this->_tree_index($request, $date, True);
+    }
     public function index(Request $request, $date = Null){
-        $assignments = [];
-        $last_assignment = Null;
+        $ous = [];
+        $last_ou = Null;
         if (is_null($date)) {
             $date = Carbon::now();
         }
@@ -87,12 +119,12 @@ class ApisOUController extends Controller
             ->orderBy('changed_at')
             ->orderBy('updated_at')
             ->get() 
-        as $assignment){
-            if ($assignment->uid != $last_assignment){
-                $assignments[] = $assignment;
-                $last_assignment = $assignment->uid;
+        as $oudata){
+            if ($oudata->uid != $last_ou){
+                $ous[] = $oudata;
+                $last_ou = $oudata->uid;
             }
         }
-        return $assignments;
+        return $ous;
     }
 }

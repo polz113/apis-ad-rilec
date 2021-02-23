@@ -242,10 +242,6 @@ class ApisHRMasterController extends Controller
             }
         }
         /* transfer data into AD */
-        /* foreach($userids as $uid){
-            ad_assign_groups($uid);
-            ad_move_user($uid);
-        } */
         return $log;
     }
 
