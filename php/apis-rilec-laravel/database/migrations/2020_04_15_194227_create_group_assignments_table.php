@@ -19,7 +19,6 @@ class CreateGroupAssignmentsTable extends Migration
             $table->foreignId('h_r_master_update_id')->constrained()->onDelete('cascade');
             $table->string('grouptype');
             $table->string('uid');
-            $table->string('orig_group');
             $table->string('group');
             $table->datetime('applied_on')->nullable();
             $table->datetime('changed_at')->nullable();

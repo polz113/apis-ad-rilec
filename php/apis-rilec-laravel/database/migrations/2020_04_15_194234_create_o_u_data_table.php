@@ -17,7 +17,6 @@ class CreateOUDataTable extends Migration
             $table->id();
             $table->timestamps();
             $table->foreignId('h_r_master_update_id')->constrained()->onDelete('cascade');
-            $table->string('orig_OU');
             $table->string('uid');
             /* $table->string('parent_uid'); */
             $table->string('OU');
