@@ -19,33 +19,14 @@ class ApisHRMasterController extends Controller
 {
     //
     private function set_hrmaster_dates($object, $hrmaster_id, $dateobj, $generated_at){
-        Log::debug(print_r($dateobj, True));
+        // Log::debug(print_r($dateobj, True));
         $object->h_r_master_update_id = $hrmaster_id;
         $object->valid_from = $dateobj['veljaOd'];
         $object->valid_to = $dateobj['veljaDo'];
         $object->changed_at = $dateobj['datumSpremembe'];
         $object->generated_at = $generated_at;
     }
-    private function map_groupassignment_to_ad_group($groupassignment){
-        $auto_group_root = "FRI/groups/auto";
-        $auto_group_map = [
-        ];
-    }
-    private function map_ourelation_to_ad_group($ourelation){
-        $auto_ougroup_root = "FRI/groups/auto";
-        $auto_ougroup_map = [
-        ];
-        
-    }
-    private function ad_assign_groups($uid){
-        /* find latest groupassignments */
-        
-        /* remove old groups */
-    }
-    private function ad_move_user($uid){
-        /* create missing AD OUs */
-        /* move user */
-    }
+
     private function parseHRMasterUpdate($hrmaster_id, $data){
         $grouptypes = [
             "Ukrep" => [['statusKadrovskeStevilke']],
@@ -149,13 +130,12 @@ class ApisHRMasterController extends Controller
             $timestamp = now();
         }
         /* Set user data */
-        $userids = array();
+	$userdata_array = array();
         $log = array();
         foreach ($user_data as $fieldname => $subfields){
             if (isset($data[$fieldname])){
                 foreach($data[$fieldname] as $item){
                     $uid = $item['UL_Id'];
-                    array_push($userids, $uid);
                     $infotip = $item['infotip'];
                     $podtip = '';
                     if (isset($item['podtip'])){
@@ -171,14 +151,22 @@ class ApisHRMasterController extends Controller
                                 $this->set_hrmaster_dates($userdata, $hrmaster_id, $d, $timestamp);
                                 $userdata->property = $fieldname;
                                 $userdata->value = $d[$subfield];
-                                $userdata->save();
+				// TODO disable once we get bulk inserts below to work
+				$userdata->save();
+                                // $userdata_array[] = $userdata->AttributesToArray();
                             }
                         }
                     }
                 }
             }
-        }
-        /* set group/OU membership */
+	}
+    /* bulk insert - disabled because of date formatting issues */
+/*
+	Log::debug(print_r($userdata_array, True));*/
+	// UserData::insert($userdata_array);
+ 
+	/* set group/OU membership */
+	$ga_array = array();
         foreach ($grouptypes as $grouptype => $groupfields){
             if (isset($data[$grouptype])) {
                 foreach ($data[$grouptype] as $item){
@@ -186,7 +174,6 @@ class ApisHRMasterController extends Controller
                         continue;
                     }
                     $uid = $item['UL_Id'];
-                    array_push($userids, $uid);
                     foreach ($item["data"] as $d){
                         foreach ($groupfields as $fieldarray){
                             /* fill group assignments */
@@ -206,15 +193,15 @@ class ApisHRMasterController extends Controller
                             $ga->grouptype = $grouptype 
                                 . FIELDNAME_DELIMITER 
                                 . $fieldname;
-                            $ga->orig_group = join(GROUPNAME_DELIMITER, $valarray);
-                            $ga->group = $ga->orig_group;
+			    $ga->group = join(GROUPNAME_DELIMITER, $valarray);
+			    // $ga_array[] = $ga->attributesToArray();
                             $ga->save();
                         }
                     }
                 }
             }
-        }
-        array_unique($userids);
+	}/*
+		GroupAssignment::insert($ga_array);*/
         /* create OUs */
         if (isset($data['OE'])){
             foreach($data['OE'] as $item){
@@ -223,8 +210,7 @@ class ApisHRMasterController extends Controller
                     $ou = new OUData();
                     $ou->uid = $uid;
                     $this->set_hrmaster_dates($ou, $hrmaster_id, $d, $timestamp);
-                    $ou->orig_OU = $d['organizacijskaEnota'];
-                    $ou->OU = $ou->orig_OU;
+                    $ou->OU = $d['organizacijskaEnota'];
                     $ou->save();
                 }
             }
@@ -241,7 +227,6 @@ class ApisHRMasterController extends Controller
                 }
             }
         }
-        /* transfer data into AD */
         return $log;
     }
 
@@ -259,13 +244,16 @@ class ApisHRMasterController extends Controller
             return response(['Error' => $e], 406);
         }
     }
-    public function list(Request $request){
+
+    public function list(Request $request)
+    {
         $res = array();
         foreach (HRMasterUpdate::all() as $record){
             $res[] = json_decode($record->data);
         }
         return $res;
     }
+
     public function show(Request $request)
     {
         return (["Tole", "Je", "Rezultat"]);

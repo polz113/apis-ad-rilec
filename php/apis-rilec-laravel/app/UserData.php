@@ -11,5 +11,6 @@ class UserData extends Model
         'valid_from',
         'valid_to',
         'changed_at',
+	'generated_at',
     ];
 }
