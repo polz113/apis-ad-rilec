@@ -27,184 +27,19 @@ class ApisHRMasterController extends Controller
         $object->generated_at = $generated_at;
     }
 
-    private function parseHRMasterUpdate($hrmaster_id, $data){
-        $grouptypes = [
-            "Ukrep" => [['statusKadrovskeStevilke']],
-            "OrgDodelitev" => [
-                ['skupinaZaposlenih', 'podskupinaZaposlenih'],
-                ['glavnoStroskovnoMesto_Id'],
-                ['glavnoStroskovnoMesto'],
-                ['glavnaOrganizacijskaEnota_Id'],
-                ['glavnaOrganizacijskaEnota'],
-                ['glavnaOrganizacijskaEnota_kn'],
-                ['glavnoDelovnoMesto_Id'],
-                ['glavnoDelovnoMesto'],
-                ['glavnoDelovnoMesto_kn'],
-            ],
-            "Razporeditev" => [
-                ['organizacijskaEnota_Id'],
-                ['sistemiziranoMesto'],
-                ['sistemiziranoMesto_kn'],
-                ['delovnoMesto_Id'],
-                ['delovnoMesto_kn'],
-                ['delovnoMesto'],
-                ['mirovanje'],
-                ['suspenz'],
-            ],
-            "Kandidat" => [],
-            "Habilitacija" => [
-                ['habilitacijskiNaziv'],
-                ['habilitacijskoPodrocje'],
-                ['habilitacijskoPodpodrocje'],
-                ['staroHabilitacijskoPodrocje'],
-                ['staroHabilitacijskoPodpodrocje'],
-            ],
-            "Naziv" => [['naziv']],
-            "Izobrazba" => [
-                ['klasiusP'],
-                ['klasiusSRV'],
-                ['poklicSKP8'],
-                ['izobrazbaGlavna_Id'],
-            ],
-            "Registracija" => [],
-            "OsnovnaPogodba" => [
-                ['tipPogodbe'],
-                ['vrstaPogodbe'],
-                ['poskusnoDelo'],
-                ['sistemiziranoMesto1'],
-                ['sistemiziranoMesto2'],
-                ['sistemiziranoMesto3'],
-            ],
-            "DodatnaPogodba" => [
-                ['vrstaPogodbe'],
-                ['sistemiziranoMesto1'],
-                ['sistemiziranoMesto2'],
-                ['sistemiziranoMesto3'],
- 
-            ],
-            "Funkcija" => [
-                ['funkcija'],
-            ],
-        ];
-        $user_data = [
-            "OsebniPodatki" => [
-                "nagovor",
-                "ime",
-                "priimek",
-                "EMSO",
-                "datumRojstva",
-                "jezik",
-                "drzavljanstvo",
-            ],
-            "Naslov" => [
-                "ulica",
-                "hisnaStevilka",
-                "dodatnaOznaka",
-                "postnaStevilka",
-                "nazivPoste",
-                "drzava",
-            ],
-            "Komunikacija" => [
-                "vrednostNaziv",
-            ],
-            "StaraKadStevilka" => [
-                "staraKadrovskaStevilka",
-            ],
-            "Naziv" => [
-                "naziv",
-            ],
-            "Izobrazba" => [
-                "klasiusP",
-                "klasiusSRV",
-                "poklicSKP8",
-                "izobrazbaGlavna_Id",
-            ],
-            "ARRS" => [
-                "sifraARRS",
-            ],
-        ];
+    private static function sanitize_name($name){
+        return preg_replace("/[^a-zA-Z0-9]+/", "", $name);
+    }
+
+    private function parseHRMasterUpdate($hrmaster_id, $hrdata){
 	    /* Get timestamp */
-        if (isset($data['TimeStamp'])){
-            $timestamp = new Datetime($data['TimeStamp']);
+        if (isset($hrdata['TimeStamp'])){
+            $timestamp = new Datetime($hrdata['TimeStamp']);
         } else {
             $timestamp = now();
         }
-        /* Set user data */
-	$userdata_array = array();
-        $log = array();
-        foreach ($user_data as $fieldname => $subfields){
-            if (isset($data[$fieldname])){
-                foreach($data[$fieldname] as $item){
-                    $uid = $item['UL_Id'];
-                    $infotip = $item['infotip'];
-                    $podtip = '';
-                    if (isset($item['podtip'])){
-                        $podtip = $item['podtip'];
-                    }
-                    foreach ($item['data'] as $d) {
-                        foreach ($subfields as $subfield){
-                            $fieldname = join(GROUPNAME_DELIMITER,
-                                [$infotip, $podtip, $subfield]);
-                            if (isset($d[$subfield])){
-                                $userdata = new UserData();
-                                $userdata->uid = $uid;
-                                $this->set_hrmaster_dates($userdata, $hrmaster_id, $d, $timestamp);
-                                $userdata->property = $fieldname;
-                                $userdata->value = $d[$subfield];
-				// TODO disable once we get bulk inserts below to work
-				$userdata->save();
-                                // $userdata_array[] = $userdata->AttributesToArray();
-                            }
-                        }
-                    }
-                }
-            }
-	}
-    /* bulk insert - disabled because of date formatting issues */
-/*
-	Log::debug(print_r($userdata_array, True));*/
-	// UserData::insert($userdata_array);
- 
-	/* set group/OU membership */
-	$ga_array = array();
-        foreach ($grouptypes as $grouptype => $groupfields){
-            if (isset($data[$grouptype])) {
-                foreach ($data[$grouptype] as $item){
-                    if (!isset($item["data"])){
-                        continue;
-                    }
-                    $uid = $item['UL_Id'];
-                    foreach ($item["data"] as $d){
-                        foreach ($groupfields as $fieldarray){
-                            /* fill group assignments */
-                            $valarray = array();
-                            foreach ($fieldarray as $field){
-                                if (isset($d[$field])){
-                                    $valarray[] = $d[$field];
-                                } 
-                            };
-                            if (count($valarray) != count($fieldarray)){
-                                continue;
-                            }
-                            $fieldname = join(FIELDNAME_DELIMITER, $fieldarray);
-                            $ga = new GroupAssignment();
-                            $ga->uid = $uid;
-                            $this->set_hrmaster_dates($ga, $hrmaster_id, $d, $timestamp);
-                            $ga->grouptype = $grouptype 
-                                . FIELDNAME_DELIMITER 
-                                . $fieldname;
-			    $ga->group = join(GROUPNAME_DELIMITER, $valarray);
-			    // $ga_array[] = $ga->attributesToArray();
-                            $ga->save();
-                        }
-                    }
-                }
-            }
-	}/*
-		GroupAssignment::insert($ga_array);*/
-        /* create OUs */
-        if (isset($data['OE'])){
-            foreach($data['OE'] as $item){
+        if (isset($hrdata['OE'])){
+            foreach($hrdata['OE'] as $item){
                 $uid = $item['OE_Id'];
                 foreach($item['data'] as $d){
                     $ou = new OUData();
@@ -215,8 +50,8 @@ class ApisHRMasterController extends Controller
                 }
             }
         }
-        if (isset($data['NadrejenaOE'])){
-            foreach($data['NadrejenaOE'] as $item){
+        if (isset($hrdata['NadrejenaOE'])){
+            foreach($hrdata['NadrejenaOE'] as $item){
                 $child_uid = $item['OE_Id']; 
                 foreach($item['data'] as $d){
                     $ou_rel = new OURelation();
@@ -227,18 +62,55 @@ class ApisHRMasterController extends Controller
                 }
             }
         }
+        /* Set user data */
+	    $userdata_array = array();
+        $log = array();
+        foreach ($hrdata as $objname => $objlist){
+            if (is_array($objlist)) {
+                foreach ($objlist as $hritem){
+                    if (isset($hritem['UL_Id'])){
+                        $uid = $hritem['UL_Id'];
+                        $infotip = $hritem['infotip'];
+                        $podtip = '';
+                        if (!isset($hritem['data'])) continue;
+	                    // Log::debug(print_r([$objname, $hritem], True));
+                        foreach($hritem['data'] as $d) {
+                            foreach ($d as $fieldname => $value){
+                                $property = join(GROUPNAME_DELIMITER,
+                                    [   $this->sanitize_name($objname),
+                                        // $this->sanitize_name($infotip),
+                                        $this->sanitize_name($fieldname)]);
+                                $userdata = new UserData();
+                                $userdata->uid = $uid;
+                                $this->set_hrmaster_dates($userdata, $hrmaster_id, $d, $timestamp);
+                                $userdata->property = $property;
+                                $userdata->value = $value;
+                                // TODO disable once we get bulk inserts below to work
+                                $userdata->save();
+                                $userdata_array[] = $userdata->AttributesToArray();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    /* bulk insert - disabled because of date formatting issues */
+/*
+	Log::debug(print_r($userdata_array, True));*/
+	// UserData::insert($userdata_array);
+ 
         return $log;
     }
 
     public function update(Request $request)
     {
         $hrmaster = new HRMasterUpdate();
-        $data = $request->post();
-        $hrmaster->data = json_encode($data);
+        $hrdata = $request->post();
+        $hrmaster->data = json_encode($hrdata);
         $hrmaster->save();
         
         try {
-            return $this->parseHRMasterUpdate($hrmaster->id, $data);
+            return $this->parseHRMasterUpdate($hrmaster->id, $hrdata);
         // Validate the value...
         } catch (Throwable $e) {
             return response(['Error' => $e], 406);

@@ -52,25 +52,24 @@ class ADDatasetController extends Controller
         $dataset = new ADDataset();
         $dataset->save();
         /* fill groups */
+        $log = array();
         $trans_dicts = array();
         $trans_dicts[] = $this->get_oe_dict($timestamp);
         /* convert original groups to actual ones */
-        $assignments = GroupAssignment::whereDate('valid_from', '<=', $date)
+        $userdata = UserData::whereDate('valid_from', '<=', $date)
                 ->whereDate('valid_to', '>=', $date)
                 ->orderBy('changed_at')
                 ->orderBy('generated_at')
                 ->get();
-            foreach($assignments as $userassignment){
-                if ($userassignment->uid != $last_uid){
-                    if (isset($ous_by_uid[$userassignment->group])){
-                        $ous_by_uid[$userassignment->group]->users[] = $userassignment->uid;
-                        $last_uid = $userassignment->uid;
-                    }
-                }
-            }
-        }
+        $groups = array();
+        foreach($userdata as $data){
+            /* map user properties to group membership */
 
-        remap_group($group, $trans_dicts);
+            /* map original user properties to AD data */
+        }
+        foreach($groups as $group => $members){
+            /* create group memberships */
+        }
         /* write group to database */
 
         /* add users to group */
@@ -79,7 +78,7 @@ class ADDatasetController extends Controller
         foreach($ous_by_uid as $ou){
             $ou->users=array();
         }
-	$last_uid = Null;
+        $last_uid = Null;
 
        	$is_child = array();
         $last_child_uid = Null;
@@ -96,6 +95,6 @@ class ADDatasetController extends Controller
             }
         }
  
-        return([]);
+        return($log);
     }
 }
