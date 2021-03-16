@@ -22,7 +22,11 @@ class ApisHRMasterController extends Controller
         // Log::debug(print_r($dateobj, True));
         $object->valid_from = $dateobj['veljaOd'];
         $object->valid_to = $dateobj['veljaDo'];
-        $object->changed_at = $dateobj['datumSpremembe'];
+        if (isset($dateobj['datumSpremembe'])){
+            $object->changed_at = $dateobj['datumSpremembe'];
+        } else {
+            $object->changed_at = $generated_at;
+        }
         $object->generated_at = $generated_at;
     }
 
@@ -67,11 +71,22 @@ class ApisHRMasterController extends Controller
 	    $userdata_array = array();
         $log = array();
         $dataitem = 0;
+        $clanice = [];
         foreach ($hrdata as $objname => $objlist){
             if (is_array($objlist)) {
                 foreach ($objlist as $hritem){
                     if (isset($hritem['UL_Id'])){
                         $uid = $hritem['UL_Id'];
+                        if (!isset($clanice[$uid])) {
+                            $clanice[$uid] = array();
+                        }
+                        $hritem_valid_from = $hritem['veljaOd'];
+                        $hritem_valid_to = $hritem['veljaDo'];
+                        $clanice[$uid][] = [
+                            "clanica_Id" => $hritem['clanica_Id'],
+                            "kadrovskaSt" => $hritem['kadrovskaSt'],
+                        ];
+                        Log::debug(print_r($clanice, True));
                         $infotip = $hritem['infotip'];
                         if (isset($hritem['podtip'])) {
                             $podtip = $hritem['podtip'];
@@ -79,7 +94,6 @@ class ApisHRMasterController extends Controller
                             $podtip = '0';
                         }
                         if (!isset($hritem['data'])) continue;
-                        // Log::debug(print_r([$objname, $hritem], True));
                         foreach($hritem['data'] as $d) {
                             foreach ($d as $fieldname => $value){
                                 if (in_array($fieldname, IGNORED_FIELDS)) continue;
@@ -103,6 +117,29 @@ class ApisHRMasterController extends Controller
                         }
                     }
                 }
+            }
+        }
+
+        $fake_date = [
+            "veljaOd" => "0000-01-01",
+            "veljaDo" => "9999-12-31",
+        ];
+        foreach ($clanice as $uid => $data_table){
+            $uniq_data = array_intersect_key($data_table, array_unique(array_map('serialize', $data_table)));
+            foreach ($uniq_data as $d){
+                foreach (["clanica_Id", "kadrovskaSt"] as $property) {
+                    $userdata = new UserData();
+                    $userdata->uid = $uid;
+                    $userdata->h_r_master_update_id = $hrmaster_id;
+                    $this->set_dates($userdata, $fake_date, $timestamp);
+                    $userdata->property = "KadrovskiPodatki.0.0." .$property;
+                    $userdata->dataitem = $dataitem;
+                    $userdata->value = $d[$property];
+                    // Log::debug(print_r($userdata, True));
+                    $userdata->save();
+                    $userdata_array[] = $userdata->AttributesToArray();
+                }
+                $dataitem += 1;
             }
         }
     /* bulk insert - disabled because of date formatting issues */

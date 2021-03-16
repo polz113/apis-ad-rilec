@@ -21,10 +21,10 @@ Route::group(['middleware'=>'auth:api'], function(){
     Route::put('/hr/HRMaster/replicate', 'ApisHRMasterController@update');
     Route::get('/hr/HRMaster/replicate', 'ApisHRMasterController@list');
     /* Seznam uporabnikov v nekem trenutku */
-    Route::get('/api/userprofile/', 'ApisUserProfileController@index');
-    Route::get('/api/userprofile/{date}', 'ApisUserProfileController@index');
+    Route::get('/api/userprofile/', 'ApisUserDataController@index');
+    Route::get('/api/userprofile/{date}', 'ApisUserDataController@index');
     /* Podatki o posamezniku v nekem trenutku */
-    Route::get('/api/userprofile/{date}/{id}', 'ApisUserProfileController@show');
+    Route::get('/api/userprofile/{date}/{id}', 'ApisUserDataController@show');
     /* Seznam org. enot v nekem trenutku */
     Route::get('/api/ou/{date}', [ApisOUController::class, 'index']);
     Route::get('/api/ou/', [ApisOUController::class, 'index']);
@@ -36,15 +36,7 @@ Route::group(['middleware'=>'auth:api'], function(){
     /* Drevo org. enot z uporabniki v nekem trenutku */
     Route::get('/api/usertree/{date}', 'ApisOUController@user_tree_index');
     Route::get('/api/usertree/', 'ApisOUController@user_tree_index');
-    /* Skupine, v katerih je v nekem trenutku posameznik - morda spada v ApisOUController */
-    Route::get('/api/usermemberof/{date}/{id}', 'ApisUserProfileController@memberof');
-    /* Pripadniki skupine v nekem trenutku - morda spada v podrobnosti enote */
-    Route::get('/api/oumembers/{date}/{uid}', 'ApisOUController@members');
-    /* Seznam razporeditev po OE */
-    Route::get('/api/groupassignment/{date}', 'GroupAssignmentController@index');
-    Route::get('/api/groupassignment/', 'GroupAssignmentController@index');
     /* Podrobnosti prenosa podatkov v AD */
-    /* Seznam podatkov za kopiranje v AD. Vključuje UserData in GroupAssignments. */
     Route::get('/api/dataset/', 'ADDatasetController@index');
     Route::get('/api/dataset/{id}', 'ADDatasetController@show');
     /* Ustvarjanje dataset-ov */

@@ -15,10 +15,16 @@ function translate_or_sanizite($data, $translation_table){
 }
 
 define("USER_TRANSLATION_TABLE", [
-    "gn" => [["OsebniPodatki.ime"], Null],
-    "sn" => [["OsebniPodatki.priimek"], Null],
-    "username" => [["Komunikacija.vrednostNaziv"], Null],
-    "ul_id" => [["uid"], Null],
+    "gn" => [["OsebniPodatki.0002.0.ime"], Null],
+    "givenName" => [["OsebniPodatki.0002.0.ime"], Null],
+    "sn" => [["OsebniPodatki.0002.0.priimek"], Null],
+    "userPrincipalName" => [["Komunikacija.0105.9007.vrednostNaziv"], Null],
+    "employeeID" => [["uid"], Null],
+    "telephoneNumber" => [["Komunikacija.0105.0020.vrednostNaziv"], Null],
+    "sAMAccountName" => [[["Komunikacija.0105.9007.vrednostNaziv"], stripdomain]],
+    "company" => [[["KadrovskiPodatki.0.0.clanica_Id"], remap]],
+    "mail" => [[["Komunikacija.0105.0010.vrednostNaziv"], Null]],
+    "physicalDeliveryOffice" => [[["Komunikacija.0105.9005.vrednostNaziv"], Null]],
 ]);
 
 define("GROUP_TRANSLATION_TABLE", [
@@ -84,11 +90,13 @@ class ADDatasetController extends Controller
         /* convert original groups to actual ones */
         $userdata = UserData::properties_at_timestamp($timestamp);
         $groups = array();
-        foreach($userdata as $data){
-            /* map user properties to group membership */
-             
-	        // Log::debug(print_r([$objname, $hritem], True));
-            /* map original user properties to AD data */
+        foreach($userdata as $user){
+            foreach($user as $dataitem => $data)
+                /* map user properties to group membership */
+                
+	            // Log::debug(print_r([$objname, $hritem], True));
+                /* map original user properties to AD data */
+            }
         }
         foreach($groups as $group => $members){
             /* create group memberships */
