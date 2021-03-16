@@ -11,16 +11,15 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Datetime;
 
-define("FIELDNAME_DELIMITER", "/");
-define("GROUPNAME_DELIMITER", "/");
-define("FIELDVALUE_DELIMITER", "_");
+define("FIELDNAME_DELIMITER", ".");
+
+define("IGNORED_FIELDS", ["veljaOd", "veljaDo", "datumSpremembe", "stevilkaSekvence"]);
 
 class ApisHRMasterController extends Controller
 {
     //
-    private function set_hrmaster_dates($object, $hrmaster_id, $dateobj, $generated_at){
+    private function set_dates($object, $dateobj, $generated_at){
         // Log::debug(print_r($dateobj, True));
-        $object->h_r_master_update_id = $hrmaster_id;
         $object->valid_from = $dateobj['veljaOd'];
         $object->valid_to = $dateobj['veljaDo'];
         $object->changed_at = $dateobj['datumSpremembe'];
@@ -44,7 +43,8 @@ class ApisHRMasterController extends Controller
                 foreach($item['data'] as $d){
                     $ou = new OUData();
                     $ou->uid = $uid;
-                    $this->set_hrmaster_dates($ou, $hrmaster_id, $d, $timestamp);
+                    $ou->h_r_master_update_id = $hrmaster_id;
+                    $this->set_dates($ou, $hrmaster_id, $d, $timestamp);
                     $ou->OU = $d['organizacijskaEnota'];
                     $ou->save();
                 }
@@ -55,7 +55,8 @@ class ApisHRMasterController extends Controller
                 $child_uid = $item['OE_Id']; 
                 foreach($item['data'] as $d){
                     $ou_rel = new OURelation();
-                    $this->set_hrmaster_dates($ou_rel, $hrmaster_id, $d, $timestamp);
+                    $ou_rel->h_r_master_update_id = $hrmaster_id;
+                    $this->set_dates($ou_rel, $hrmaster_id, $d, $timestamp);
                     $ou_rel->child_uid = $child_uid;
                     $ou_rel->parent_uid = $d['id'];
                     $ou_rel->save();
@@ -65,30 +66,40 @@ class ApisHRMasterController extends Controller
         /* Set user data */
 	    $userdata_array = array();
         $log = array();
+        $dataitem = 0;
         foreach ($hrdata as $objname => $objlist){
             if (is_array($objlist)) {
                 foreach ($objlist as $hritem){
                     if (isset($hritem['UL_Id'])){
                         $uid = $hritem['UL_Id'];
                         $infotip = $hritem['infotip'];
-                        $podtip = '';
+                        if (isset($hritem['podtip'])) {
+                            $podtip = $hritem['podtip'];
+                        } else {
+                            $podtip = '0';
+                        }
                         if (!isset($hritem['data'])) continue;
-	                    // Log::debug(print_r([$objname, $hritem], True));
+                        // Log::debug(print_r([$objname, $hritem], True));
                         foreach($hritem['data'] as $d) {
                             foreach ($d as $fieldname => $value){
-                                $property = join(GROUPNAME_DELIMITER,
+                                if (in_array($fieldname, IGNORED_FIELDS)) continue;
+                                $property = join(FIELDNAME_DELIMITER,
                                     [   $this->sanitize_name($objname),
-                                        // $this->sanitize_name($infotip),
+                                        $this->sanitize_name($infotip),
+                                        $this->sanitize_name($podtip),
                                         $this->sanitize_name($fieldname)]);
                                 $userdata = new UserData();
                                 $userdata->uid = $uid;
-                                $this->set_hrmaster_dates($userdata, $hrmaster_id, $d, $timestamp);
+                                $userdata->h_r_master_update_id = $hrmaster_id;
+                                $this->set_dates($userdata, $d, $timestamp);
                                 $userdata->property = $property;
+                                $userdata->dataitem = $dataitem;
                                 $userdata->value = $value;
                                 // TODO disable once we get bulk inserts below to work
                                 $userdata->save();
                                 $userdata_array[] = $userdata->AttributesToArray();
                             }
+                            $dataitem += 1;
                         }
                     }
                 }

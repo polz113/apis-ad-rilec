@@ -6,6 +6,32 @@ use Illuminate\Http\Request;
 use App\ADDataset;
 use Carbon\Carbon;
 
+function name_join(...$args){
+
+}
+
+function translate_or_sanizite($data, $translation_table){
+    
+}
+
+define("USER_TRANSLATION_TABLE", [
+    "gn" => [["OsebniPodatki.ime"], Null],
+    "sn" => [["OsebniPodatki.priimek"], Null],
+    "username" => [["Komunikacija.vrednostNaziv"], Null],
+    "ul_id" => [["uid"], Null],
+]);
+
+define("GROUP_TRANSLATION_TABLE", [
+    "laboratoriji/IME/STATUS_ZAPOSLENEGA/",
+    "organigram/SKUPINA/PODSKUPINA/PODPODPODSKUPINA",
+    "habilitacije/HABILITACIJA",
+])
+
+"Habilitacija.habilitacijskiNaziv: 11";
+"Habilitacija.habilitacijskiNaziv: 13";
+'Habilitacija.habilitacijskoPodrocje: "001"';
+'Habilitacija.habilitacijskoPodpodrocje: "00"';
+
 class ADDatasetController extends Controller
 {
 
@@ -21,7 +47,7 @@ class ADDatasetController extends Controller
     
     public function remap_group($orig_group, $trans_dicts){
     	foreach($trans_dicts as $trans_dict){
-	i   }
+	    }
     }
 
     public function remap_userdata($orig_data){
@@ -56,23 +82,20 @@ class ADDatasetController extends Controller
         $trans_dicts = array();
         $trans_dicts[] = $this->get_oe_dict($timestamp);
         /* convert original groups to actual ones */
-        $userdata = UserData::whereDate('valid_from', '<=', $date)
-                ->whereDate('valid_to', '>=', $date)
-                ->orderBy('changed_at')
-                ->orderBy('generated_at')
-                ->get();
+        $userdata = UserData::properties_at_timestamp($timestamp);
         $groups = array();
         foreach($userdata as $data){
             /* map user properties to group membership */
-
+             
+	        // Log::debug(print_r([$objname, $hritem], True));
             /* map original user properties to AD data */
         }
         foreach($groups as $group => $members){
             /* create group memberships */
         }
-        /* write group to database */
+        /* write groups to database */
 
-        /* add users to group */
+        /* add users to groups */
 
         /* fill user data */
         foreach($ous_by_uid as $ou){

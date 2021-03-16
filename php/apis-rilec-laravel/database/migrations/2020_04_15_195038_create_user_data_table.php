@@ -19,6 +19,7 @@ class CreateUserDataTable extends Migration
             $table->foreignId('h_r_master_update_id')->constrained()->onDelete('cascade');
             $table->string('uid');
             $table->string('property');
+            $table->integer('dataitem');
             $table->string('value');
             $table->datetime('changed_at')->nullable();
             $table->datetime('generated_at')->nullable();
