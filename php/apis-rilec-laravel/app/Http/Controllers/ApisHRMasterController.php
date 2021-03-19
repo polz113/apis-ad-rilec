@@ -9,6 +9,7 @@ use App\OUData;
 use App\OURelation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Datetime;
 
 define("FIELDNAME_DELIMITER", ".");
@@ -167,10 +168,49 @@ class ApisHRMasterController extends Controller
 
     public function list(Request $request)
     {
+    /*{
         $res = array();
         foreach (HRMasterUpdate::all() as $record){
             $res[] = json_decode($record->data);
         }
+     */
+        $res = new StreamedResponse(function(){
+            // Open output stream
+            $handle = fopen('php://output', 'w');
+
+            // Add CSV headers
+            /* fputcsv($handle, [
+                'id',
+                'name', 
+                'email'
+            ]);*/
+
+            // Get all users
+            /*
+            foreach (User::all() as $user) {
+                // Add a new row with data
+                fputcsv($handle, [
+                    $user->id,
+                    $user->name,
+                    $user->email
+                ]);
+            }
+             */
+            fwrite($handle, '[');
+            $first = True;
+            foreach (HRMasterUpdate::cursor() as $record){
+                if (!$first) fwrite($handle, ',');
+                fwrite($handle, $record->data);
+                $first = False;
+            }
+            fwrite($handle, ']');
+            // Close the output stream
+            fclose($handle);
+        });
+        /*, 200, [
+                'Content-Type' => 'text/csv',
+                'Content-Disposition' => 'attachment; filename="export.csv"',
+        ]);*/
         return $res;
     }
 

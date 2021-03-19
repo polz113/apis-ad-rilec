@@ -6,37 +6,71 @@ use Illuminate\Http\Request;
 use App\ADDataset;
 use Carbon\Carbon;
 
-function name_join(...$args){
-
+function translate($data, $translation_table){
+    return $translation_table[$data];
 }
 
-function translate_or_sanizite($data, $translation_table){
-    
+function translate_or_pass($data, $translation_table){
+    if (!array_key_exists($data, $translation_table)){
+        return preg_replace("/[^a-zA-Z0-9]+/", "", $name);
+    }
+    return $translation_table[$data];
 }
 
-define("USER_TRANSLATION_TABLE", [
+function unsafe_translate_or_pass($data, $translation_table){
+    if (!array_key_exists($data, $translation_table)){
+        return $data;
+    }
+    return $translation_table[$data];
+}
+
+define("USER_TRANSLATION_RULES", [
     "gn" => [["OsebniPodatki.0002.0.ime"], Null],
     "givenName" => [["OsebniPodatki.0002.0.ime"], Null],
     "sn" => [["OsebniPodatki.0002.0.priimek"], Null],
     "userPrincipalName" => [["Komunikacija.0105.9007.vrednostNaziv"], Null],
     "employeeID" => [["uid"], Null],
     "telephoneNumber" => [["Komunikacija.0105.0020.vrednostNaziv"], Null],
-    "sAMAccountName" => [[["Komunikacija.0105.9007.vrednostNaziv"], stripdomain]],
-    "company" => [[["KadrovskiPodatki.0.0.clanica_Id"], remap]],
+    // "sAMAccountName" => [[["Komunikacija.0105.9007.vrednostNaziv"], stripdomain]],
+    "company" => [[["KadrovskiPodatki.0.0.clanica_Id"], translate_or_pass]],
     "mail" => [[["Komunikacija.0105.0010.vrednostNaziv"], Null]],
     "physicalDeliveryOffice" => [[["Komunikacija.0105.9005.vrednostNaziv"], Null]],
 ]);
 
-define("GROUP_TRANSLATION_TABLE", [
+define("TRANSLATION_TABLE", [
+    "clanica_domena" => [
+        "2300" => "fri1.uni-lj.si",
+    ],
+    "clanica_prefix" => [
+        "2300" => "FRI",
+    ],
+    "habilitacijsko_podrocje" => [
+        "001" => "Test1",
+        "002" => "Test2",
+        "019" => "Test3",
+    ],
+    "habilitacijski_naziv" => [
+        "11" => "TEST1sistent",
+        "12" => "TEST2sistent",
+        "13" => "TEST3sistent",
+        "31" => "TEST5sistent",
+        "41" => "TEST4sistent",
+    ]
+]);
+
+define("GROUP_TRANSLATION_RULES", [
     "laboratoriji/IME/STATUS_ZAPOSLENEGA/",
     "organigram/SKUPINA/PODSKUPINA/PODPODPODSKUPINA",
     "habilitacije/HABILITACIJA",
-])
+    "delovnamesta/MESTO",
+    "{clanica_domena:KadrovskiPodatki.0.0.clanica_Id}/{clanica_prefix:KadrovskiPodatki.0.0.clanica_Id}/{}"
+]);
 
 "Habilitacija.habilitacijskiNaziv: 11";
 "Habilitacija.habilitacijskiNaziv: 13";
 'Habilitacija.habilitacijskoPodrocje: "001"';
 'Habilitacija.habilitacijskoPodpodrocje: "00"';
+'sistemiziranoMesto: "Asistent';
 
 class ADDatasetController extends Controller
 {
