@@ -33,9 +33,6 @@ Route::group(['middleware'=>'auth:api'], function(){
     /* Drevo org. enot v nekem trenutku */
     Route::get('/api/outree/{date}', 'ApisOUController@tree_index');
     Route::get('/api/outree/', 'ApisOUController@tree_index');
-    /* Drevo org. enot z uporabniki v nekem trenutku */
-    Route::get('/api/usertree/{date}', 'ApisOUController@user_tree_index');
-    Route::get('/api/usertree/', 'ApisOUController@user_tree_index');
     /* Podrobnosti prenosa podatkov v AD */
     Route::get('/api/dataset/', 'ADDatasetController@index');
     Route::get('/api/dataset/{id}', 'ADDatasetController@show');
@@ -43,7 +40,10 @@ Route::group(['middleware'=>'auth:api'], function(){
     Route::put('/api/dataset/{timestamp}', 'ADDatasetController@create');
     Route::put('/api/dataset/', 'ADDatasetController@create');
     /* Podrobnosti kopiranja v AD */
-    Route::get('/api/ldapaction/{id}', 'LDAPActionController@id');
+    Route::get('/api/ldapaction', 'LDAPActionController@index');
+    Route::get('/api/ldapaction/{id}', 'LDAPActionController@show');
+    /* Izvedi kopiranje v AD */
+    Route::put('/api/ldapaction', 'LDAPActionController@create');
     /*
     Route::get('/user', function (Request $request) {
     return $request->user();

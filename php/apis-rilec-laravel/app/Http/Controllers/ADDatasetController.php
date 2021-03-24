@@ -52,10 +52,16 @@ define("TRANSLATION_TABLE", [
     "vrste_zaposlenih" => [
         "1" => [ 
             "11" => ["Redni"],
-            "" => ["Izedni"],
+            "" => ["Izredni"],
         ],
         Null => ["Zunanji"],
-    ]
+    ],
+    /* this is magically replaced by the OU hierarchy */
+    "OE_MAP" => [
+        "UL FRI" => "",
+        "TAJ" => "Tajnistvo",
+        Null => Null,
+    ],
 ]);
 
 define("USER_TRANSLATION_RULES", [
@@ -135,11 +141,15 @@ define("GROUP_TRANSLATION_RULES", [
 
 function clean($data){
     // TODO improve this
+    if (is_string($data)){
+        return $data;
+    }
     return $data;
 }
 
 function translate($data, $translation_table, $fallback = Null){
     // Log::debug(print_r(["trans data", $data], True));
+    // Log::debug(print_r(["trans table", $translation_table], True));
     if (is_array($data)) {
         $key = $data[0];
     } else {
@@ -147,11 +157,13 @@ function translate($data, $translation_table, $fallback = Null){
     }
     // Log::debug(print_r(["trans key", $key], True));
     if (!array_key_exists($key, $translation_table)){
-        if (isset($translation_table[""])){
+        if (array_key_exists("", $translation_table)){
             $default = $translation_table[""];
+            // Log::debug(print_r(["  has default", $default], True));
             if (!is_null($default)){
                 return $default;
             } else {
+                // Log::debug(print_r(["  cleaning", $data], True));
                 return clean($data);
             }
         }
@@ -212,33 +224,32 @@ class ADDatasetController extends Controller
 
     public function index(Request $request){
         return ADDataset::get();
-    }
+    } 
     
-    public function remap_userdata($orig_data){
-    
-    }
-    
-    private function get_ou_dict($timestamp){
+    private function get_ou_dict($timestamp, $trans_table){
         $ou_names = array();
         $last_ou = Null;
         $parents = array();
         foreach(OUData::whereDate('valid_from', '<=', $timestamp)
             ->orderBy('uid')
-            ->orderBy('changed_at')
-            ->orderBy('updated_at')
+            ->orderBy('generated_at', 'desc')
+            ->orderBy('updated_at', 'desc')
+            ->orderBy('changed_at', 'desc')
             ->cursor() as $oudata) 
         {
             if ($oudata->uid != $last_ou){
                 $last_ou = $oudata->uid;
                 if ($oudata->valid_to >= $timestamp){
-                    $ou_names[$last_ou] = $oudata->short_OU;
+                    $ou_name = translate($oudata->short_OU, $trans_table);
+                    $ou_names[$last_ou] = $ou_name;
                 }
             }
         }
         foreach(OURelation::whereDate('valid_from', '<=', $timestamp)
             ->orderBy('child_uid')
-            ->orderBy('changed_at')
-            ->orderBy('updated_at')
+            ->orderBy('generated_at', 'desc')
+            ->orderBy('changed_at', 'desc')
+            ->orderBy('updated_at', 'desc')
             ->cursor() as $ourelation)
         {
             if ($ourelation->child_uid != $last_ou){
@@ -254,7 +265,9 @@ class ADDatasetController extends Controller
             $line = [];
             $i = $uid;
             do {
-                array_unshift($line, $ou_names[$i]);
+                if ($ou_names[$i]){
+                    array_unshift($line, $ou_names[$i]);
+                }
                 $prev_uids[$uid] = True;
                 $i = $parents[$i];
             } while (isset($ou_names[$i]) && !array_key_exists($i, $prev_uids));
@@ -308,7 +321,7 @@ class ADDatasetController extends Controller
         /* fill groups */
         $log = array();
         $trans_dicts = TRANSLATION_TABLE;
-        $trans_dicts["OE_MAP"] = $this->get_ou_dict($timestamp);
+        $trans_dicts["OE_MAP"] = $this->get_ou_dict($timestamp, $trans_dicts["OE_MAP"]);
         /* convert original groups to actual ones */
         // Log::debug(print_r(["RULES", $trans_dicts], True));
         $userdata = UserData::properties_at_timestamp($timestamp);
