@@ -20,7 +20,7 @@ class ApisHRMasterController extends Controller
 {
     //
     private function set_dates($object, $dateobj, $generated_at){
-        Log::debug(print_r($dateobj, True));
+        // Log::debug(print_r($dateobj, True));
         $object->valid_from = $dateobj['veljaOd'];
         $object->valid_to = $dateobj['veljaDo'];
         if (isset($dateobj['datumSpremembe'])){
@@ -51,6 +51,7 @@ class ApisHRMasterController extends Controller
                     $ou->h_r_master_update_id = $hrmaster_id;
                     $this->set_dates($ou, $d, $timestamp);
                     $ou->OU = $d['organizacijskaEnota'];
+                    $ou->short_OU = $d['organizacijskaEnota_kn'];
                     $ou->save();
                 }
             }

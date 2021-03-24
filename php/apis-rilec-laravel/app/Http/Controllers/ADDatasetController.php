@@ -81,7 +81,7 @@ define("GROUP_TRANSLATION_RULES", [
             "|OrgDodelitev.0001.0.skupinaZaposlenih,OrgDodelitev.0001.0.podskupinaZaposlenih vrste_zaposlenih",
         ],
     ],
-    /* [
+    [
         ["|KadrovskiPodatki.0.0.clanica_Id clanica_domena"], 
         [
             "|KadrovskiPodatki.0.0.clanica_Id clanica_prefix", "'avtomatika",
@@ -130,7 +130,7 @@ define("GROUP_TRANSLATION_RULES", [
             "'delovnamesta",
             "|Razporeditev.1001.B008.delovnoMesto"
         ]
-    ] */
+    ]
 ]);
 
 function clean($data){
@@ -231,7 +231,7 @@ class ADDatasetController extends Controller
             if ($oudata->uid != $last_ou){
                 $last_ou = $oudata->uid;
                 if ($oudata->valid_to >= $timestamp){
-                    $ou_names[$last_ou] = $oudata->OU;
+                    $ou_names[$last_ou] = $oudata->short_OU;
                 }
             }
         }
@@ -278,11 +278,11 @@ class ADDatasetController extends Controller
         $res = [];
         $to_join = array();
         foreach ($rules as $rule){
-            Log::debug(print_r(["Rule:", $rule], True));
+            // Log::debug(print_r(["Rule:", $rule], True));
             try {
 
                 $new_components = translate_by_rule($data, $rule, $trans_dicts);
-                Log::debug(print_r(["  adding", $new_components], True));
+                // Log::debug(print_r(["  adding", $new_components], True));
                 if (!is_null($new_components)) {
                     $to_join = array_merge($to_join, $new_components);
                 } else {
@@ -295,7 +295,7 @@ class ADDatasetController extends Controller
         }
             // if (sizeof($to_join) > 0) $res[] = $to_join;
        
-         Log::debug(print_r(["  returning", $to_join], True));
+        // Log::debug(print_r(["  returning", $to_join], True));
         return $to_join;
     }
 
@@ -310,14 +310,14 @@ class ADDatasetController extends Controller
         $trans_dicts = TRANSLATION_TABLE;
         $trans_dicts["OE_MAP"] = $this->get_ou_dict($timestamp);
         /* convert original groups to actual ones */
-        Log::debug(print_r(["RULES", $trans_dicts], True));
+        // Log::debug(print_r(["RULES", $trans_dicts], True));
         $userdata = UserData::properties_at_timestamp($timestamp);
         $groups = array();
         $users = array();
         foreach ($userdata as $user) {
             /* make uid look like a normal dataitem */
             $user["uid"] = ["uid" => $user["uid"]];
-            Log::debug(print_r(["user", $user], True));
+            // Log::debug(print_r(["user", $user], True));
             $ad_user = array();
             $group_ous_and_cns = [];
             foreach (GROUP_TRANSLATION_RULES as $rules) {
@@ -330,9 +330,9 @@ class ADDatasetController extends Controller
                     }
                 }
                 foreach($user as $dataitem => $data) {
-                    Log::debug(print_r(["ddata:", $data], True));
+                    // Log::debug(print_r(["ddata:", $data], True));
                     $ous_and_cn = self::assemble_from_rules($data, $rules[1], $trans_dicts);
-                    Log::debug(print_r(["ouc:", $ous_and_cn], True));
+                    // Log::debug(print_r(["ouc:", $ous_and_cn], True));
                     if ($ous_and_cn != Null){
                         $group_ous_and_cns[] = $ous_and_cn;
                     }
@@ -361,7 +361,7 @@ class ADDatasetController extends Controller
                 // Log::debug(print_r(["DN", $group_dn], True));
             }
             $ad_user['MemberOf'] = $memberof;
-            Log::debug(print_r(["AD user", $ad_user], True));
+            // Log::debug(print_r(["AD user", $ad_user], True));
             /* add create-or-update for users */
             $users[] = $ad_user;
             /* add create for security groups */

@@ -51,14 +51,14 @@ class UserData extends Model
         $old_dataitem = Null;
         $data = array();
         foreach ($properties->cursor() as $entry){
-            Log::debug(print_r(["entry", $entry->h_r_master_update_id, $entry->dataitem, $entry->property, $entry->value], True));
+            // Log::debug(print_r(["entry", $entry->h_r_master_update_id, $entry->dataitem, $entry->property, $entry->value], True));
             /* the entries for the last users are done */
             if ($entry['uid'] != $old_uid){
                 if (!is_null($old_uid)){
                     /* $user = UserData::extract_valid_dataitems(
                         $maybe_data, $invalid_data);*/
                     $user['uid'] = $old_uid;              
-                    Log::debug(print_r(["Ussr", $user], True));
+                    // Log::debug(print_r(["Ussr", $user], True));
                     $users[] = $user;
                 }
                 /*
