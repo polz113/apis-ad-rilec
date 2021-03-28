@@ -40,9 +40,10 @@ Route::group(['middleware'=>'auth:api'], function(){
     Route::put('/api/dataset/{timestamp}', 'ADDatasetController@create');
     Route::put('/api/dataset/', 'ADDatasetController@create');
     /* Kopiranje podatkov v AD */
-    Route::put('/api/ldapapply/{id}', 'ADDatasetController@create');
-    Route::get('/api/ldapapply/', 'ADDatasetController@index');
-    Route::get('/api/ldapapply/{id}', 'ADDatasetController@show');
+    /* Izvedi kopiranje dataset->AD; id je ID dataseta */
+    Route::put('/api/ldapapply/{id}', 'LDAPApplyController@create');
+    Route::get('/api/ldapapply/', 'LDAPApplyController@index');
+    Route::get('/api/ldapapply/{id}', 'LDAPApplyController@show');
     /*
     Route::get('/user', function (Request $request) {
     return $request->user();
