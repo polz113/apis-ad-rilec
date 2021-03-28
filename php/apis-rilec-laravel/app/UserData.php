@@ -24,7 +24,7 @@ class UserData extends Model
             ->orderBy('uid')
             ->orderBy('generated_at', 'desc')
             ->orderBy('updated_at', 'desc')
-            ->orderBy('h_r_master_update_id')
+            ->orderBy('h_r_master_update_id', 'desc')
             ->orderBy('dataitem')
             ->orderBy('changed_at', 'desc')
             ->orderBy('property')
@@ -40,7 +40,7 @@ class UserData extends Model
                 if (!is_null($old_uid)){
                     /* $user = UserData::extract_valid_dataitems(
                         $maybe_data, $invalid_data);*/
-                    $user['uid'] = $old_uid;              
+                    $user['uid'] = $old_uid; 
                     // Log::debug(print_r(["Ussr", $user], True));
                     $users[] = $user;
                     unset($user);
@@ -52,8 +52,6 @@ class UserData extends Model
                 $user = array();
                 $old_uid = $entry['uid'];
             }
-            $prop = $entry['property'];
-            $value = $entry['value'];
             $hrupdate = $entry['h_r_master_update_id'];  
             $dataitem = '' . $hrupdate . '.' . $entry['dataitem'];
             if ($hrupdate != $first_hrupdate){
@@ -62,11 +60,14 @@ class UserData extends Model
             if (($old_dataitem != $dataitem)){
                 if (!is_null($old_dataitem) && (sizeof($data) > 0)){
                     $user[$old_dataitem] = $data;
+                    unset($data);
                     $data = array();
                 }
                 $old_dataitem = $dataitem;
             };
             if ($entry['valid_to'] >= $timestamp){
+                $prop = $entry['property'];
+                $value = $entry['value'];
                 $data[$prop] = $value;
             }
         }

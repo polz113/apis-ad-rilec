@@ -7,6 +7,8 @@ use App\ADDataset;
 use App\OUData;
 use App\OURelation;
 use App\UserData;
+use App\LDAPApply;
+use App\LDAPAction;
 use Carbon\Carbon;
 use Exception;
 
@@ -79,63 +81,79 @@ define("USER_TRANSLATION_RULES", [
 
 define("GROUP_TRANSLATION_RULES", [
     [
-        ["|KadrovskiPodatki.0.0.clanica_Id clanica_domena"], 
+        ["|KadrovskiPodatki.0.0.clanica_Id clanica_domena"],
         [
-            "|KadrovskiPodatki.0.0.clanica_Id clanica_prefix", "'avtomatika",
-            "'dodelitev",
-            "|OrgDodelitev.0001.0.glavnaOrganizacijskaEnota_Id OE_MAP",
-            "|OrgDodelitev.0001.0.skupinaZaposlenih,OrgDodelitev.0001.0.podskupinaZaposlenih vrste_zaposlenih",
+            "|KadrovskiPodatki.0.0.clanica_Id clanica_prefix", "'Users",
+            // "|OrgDodelitev.0001.0.glavnaOrganizacijskaEnota_Id OE_MAP",
+            // "|OrgDodelitev.0001.0.skupinaZaposlenih,OrgDodelitev.0001.0.podskupinaZaposlenih vrste_zaposlenih",
         ],
+        "default OU"
     ],
     [
         ["|KadrovskiPodatki.0.0.clanica_Id clanica_domena"], 
         [
-            "|KadrovskiPodatki.0.0.clanica_Id clanica_prefix", "'avtomatika",
+            "|KadrovskiPodatki.0.0.clanica_Id clanica_prefix", "'avtopravice",
+            "'dodelitev",
+            "|OrgDodelitev.0001.0.glavnaOrganizacijskaEnota_Id OE_MAP",
+            "|OrgDodelitev.0001.0.skupinaZaposlenih,OrgDodelitev.0001.0.podskupinaZaposlenih vrste_zaposlenih",
+        ],
+        "global security",
+    ],
+    [
+        ["|KadrovskiPodatki.0.0.clanica_Id clanica_domena"], 
+        [
+            "|KadrovskiPodatki.0.0.clanica_Id clanica_prefix", "'avtopravice",
             "'neznane_skupine",
             "|OrgDodelitev.0001.0.glavnaOrganizacijskaEnota",
         ],
+        "global security",
     ],
 
     [
         ["|KadrovskiPodatki.0.0.clanica_Id clanica_domena"], 
         [
-            "|KadrovskiPodatki.0.0.clanica_Id clanica_prefix", "'avtomatika",
+            "|KadrovskiPodatki.0.0.clanica_Id clanica_prefix", "'avtopravice",
             "'oddelki",
             "|OrgDodelitev.0001.0.glavnaOrganizacijskaEnota_Id OE_MAP",
         ],
+        "global security",
     ],
     [
         ["|KadrovskiPodatki.0.0.clanica_Id clanica_domena"], 
         [
-            "|KadrovskiPodatki.0.0.clanica_Id clanica_prefix", "'avtomatika",
+            "|KadrovskiPodatki.0.0.clanica_Id clanica_prefix", "'avtopravice",
             "'zaposlitev",
             "|OrgDodelitev.0001.0.skupinaZaposlenih,OrgDodelitev.0001.0.podskupinaZaposlenih vrste_zaposlenih",
         ],
+        "global security",
     ],
     [
         ["|KadrovskiPodatki.0.0.clanica_Id clanica_domena"], 
         [
-            "|KadrovskiPodatki.0.0.clanica_Id clanica_prefix", "'avtomatika",
+            "|KadrovskiPodatki.0.0.clanica_Id clanica_prefix", "'avtopravice",
             "'razporeditev",
             "|OrgDodelitev.0001.0.glavnaOrganizacijskaEnota_Id OE_MAP",
         ],
+        "global security",
     ],
     [
         ["|KadrovskiPodatki.0.0.clanica_Id clanica_domena"], 
         [
-            "|KadrovskiPodatki.0.0.clanica_Id clanica_prefix",
-            "'avtomatika", "'habilitacije",
+            "|KadrovskiPodatki.0.0.clanica_Id clanica_prefix", "'avtopravice", 
+            "'habilitacije",
             "|Habilitacija.2003.9004.habilitacijskoPodrocje,Habilitacija.2003.9004.habilitacijskoPodpodrocje habilitacijska_podrocja",
             "|Habilitacija.2003.9004.habilitacijskiNaziv habilitacijski_naziv"
-        ]
+        ],
+        "global security",
     ],
     [
         ["|KadrovskiPodatki.0.0.clanica_Id clanica_domena"], 
         [
-            "|KadrovskiPodatki.0.0.clanica_Id clanica_prefix", "'avtomatika",
+            "|KadrovskiPodatki.0.0.clanica_Id clanica_prefix", "'avtomaili",
             "'delovnamesta",
             "|Razporeditev.1001.B008.delovnoMesto"
-        ]
+        ],
+        "global distribution", # distribution group
     ]
 ]);
 
@@ -218,8 +236,9 @@ function translate_by_rule($data, $rule, $tables, $fallback = Null){
 class ADDatasetController extends Controller
 {
     public function show(Request $request, $id){
-	    $dataset = ADDataset::where('id', $id)->first();
-	    return $dataset->toArray();
+        $dataset = ADDataset::where('id', $id)->first();
+
+	    return $dataset;
     }
 
     public function index(Request $request){
@@ -280,11 +299,18 @@ class ADDatasetController extends Controller
         return ldap_escape($x, "", LDAP_ESCAPE_DN);
     }
 
-    public static function to_dn($domain, $ous, $cn){
+    public static function to_dn($domain, $ous, $cn = Null){
         // Log::debug(print_r(["d, o, c", $domain, $ous, $cn], True));
         $dc_s = "DC=". implode(", DC=", array_map('self::ldesc', $domain));
-        $ou_s = "OU=". implode(", OU=", array_map('self::ldesc', $ous));
-        return $dc_s . ", " . $ou_s . ", " . "CN=" . self::ldesc($cn);
+        $ou_s = "";
+        $cn_s = "";
+        if (sizeof($ous)){
+            $ou_s = "OU=". implode(", OU=", array_map('self::ldesc', $ous));
+        }
+        if (!is_null($cn)){
+            $cn_s = ", CN=" . self::ldesc($cn);
+        }
+        return $dc_s . ", " . $ou_s . $cn_s;
     }
 
     private function assemble_from_rules($data, $rules, $trans_dicts){
@@ -326,64 +352,177 @@ class ADDatasetController extends Controller
         // Log::debug(print_r(["RULES", $trans_dicts], True));
         $userdata = UserData::properties_at_timestamp($timestamp);
         $groups = array();
+        $needed_ous = array();
         $users = array();
+        $users_hrmu = array();
         foreach ($userdata as $user) {
             /* make uid look like a normal dataitem */
-            $user["uid"] = ["uid" => $user["uid"]];
+            $uid = $user["uid"];
+            $user["uid"] = ["uid" => $uid];
             // Log::debug(print_r(["user", $user], True));
+            /* user properties */
             $ad_user = array();
-            $group_ous_and_cns = [];
+            /* hrm updates the properties were based on */
+            $ad_user_hrmu = array();
+            $default_user_ou = array();
+            $memberof = array();
+            $memberof_hrmu = array();
             foreach (GROUP_TRANSLATION_RULES as $rules) {
-                $domains = [];
+                [$domainrules, $ourules, $grouptype] = $rules;
                 foreach($user as $dataitem => $data) {
-                    $domain = self::assemble_from_rules($data, $rules[0], $trans_dicts);
+                    $domain = self::assemble_from_rules($data, $domainrules, $trans_dicts);
                     if ($domain != Null) {
-                        $domains[] = $domain;
                         break;
                     }
                 }
+                if (!isset($domain)) continue;
                 foreach($user as $dataitem => $data) {
                     // Log::debug(print_r(["ddata:", $data], True));
-                    $ous_and_cn = self::assemble_from_rules($data, $rules[1], $trans_dicts);
+                    $ous_and_cn = self::assemble_from_rules($data, $ourules, $trans_dicts);
                     // Log::debug(print_r(["ouc:", $ous_and_cn], True));
                     if ($ous_and_cn != Null){
-                        $group_ous_and_cns[] = $ous_and_cn;
+                        $ous = [];
+                        $ou_tmp = [];
+                        $cn = array_slice($ous_and_cn, -1)[0];
+                        foreach (array_slice($ous_and_cn, 1) as $ou) {
+                            $ous = $ou_tmp;
+                            $cn = $ou;
+                            $needed_ous[self::to_dn($domain, $ou_tmp)] = True;
+                            $ou_tmp[] = $cn;
+                        }
+                        /* turn array into DN */
+                        if ($grouptype == "default OU"){
+                            $default_ou = self::to_dn($domain, $ous_and_cn);
+                            $needed_ous[$default_ou] = True;
+                            $default_user_ou = $ous_and_cn;
+                        } else {
+                            $group_dn = self::to_dn($domain, $ous, $cn);
+                            $groups[$group_dn] = [$grouptype, $dataitem];
+                            $memberof[] = $group_dn;
+                            $memberof_hrmu[] = $dataitem;
+                        }
                     }
                 }
             }
-	            // Log::debug(print_r([$objname, $hritem], True));
-                /* Map original user properties to AD data */
+	        // Log::debug(print_r([$objname, $hritem], True));
+            /* Map original user properties to AD data */
             foreach ($user as $dataitem => $data) {
                 foreach (USER_TRANSLATION_RULES as $property => $rule){
                     try {
                         $ad_user[$property] = translate_by_rule($data, $rule, $trans_dicts)[0];
+                        $ad_user_hrmu[$property] = $dataitem;
                     } catch (Exception $e) {
                         // Log::debug(print_r(["e", $e->getMessage()], True));
                     };
                 }
             }
-            $memberof = array();
-            foreach ($group_ous_and_cns as $ous_and_cn) {
-                // Log::debug(print_r(["OUs and CN", $ous_and_cn], True));
-                $ous = array_slice($ous_and_cn, 0, -1);
-                $cn = array_slice($ous_and_cn, -1)[0];
-                /* turn array into DN */
-                $group_dn = self::to_dn($domains[0], $ous, $cn);
-                /* add DN to $groups */
-                $memberof[] = $group_dn;
-                // Log::debug(print_r(["DN", $group_dn], True));
-            }
             $ad_user['MemberOf'] = $memberof;
+            $users_hrmu[$uid] = array_merge($ad_user_hrmu, $memberof_hrmu);
             // Log::debug(print_r(["AD user", $ad_user], True));
             /* add create-or-update for users */
-            $users[] = $ad_user;
-            /* add create for security groups */
-            /* add create for distribution groups */
-            /* add clear members for groups */
+            $users[$uid] = [$ad_user, $default_user_ou];
             /* add every memberof for each user */
         }
-        /* write groups to database */
+        /* prune needed_ous */
+        $needed_ous = array_keys($needed_ous);
+        sort($needed_ous);
+        /* create actions in the database */
+        /* Create OUs for the groups */
+        foreach($needed_ous as $gou){
+            $action = new LDAPAction();
+            $action->dataset = $dataset->id;
+            $action->command = "add";
+            $data = array();
+            $data["objectClass"] = ["top", "organizationalUnit"];
+            $action->target = $gou;
+            $action->data = serialize($data);
+            $action->save();
+        }
+        /* Create groups */
+        foreach ($groups as $group_dn => $gti){
+            $grouptype = $gti[0];
+            if ($grouptype == "default OU") continue;
+            [$hrmu_id, $dataitem] = explode(".", $gti[1]);
+            $action = new LDAPAction();
+            $action->dataset = $dataset->id;
+            $action->command = "add";
+            $action->target = $group_dn;
+            $data = array();
+            $data['objectClass'] = ["top", "group"];
+            // $data['cn'] = $cn; TODO: check if this is neccessarry
+            /* set correct type for AD groups */
+            switch ($grouptype){
+                case "local distribution":
+                    $gt = 0x4;
+                    break;
+                case "universal distribution":
+                    $gt = 0x8;
+                    break;
+                case "global distribution":
+                case "distribution":
+                    $gt = 0x2;
+                    break;
+                case "local security":
+                    $gt=0x80000004;
+                    break;
+                case "universal security":
+                    $gt=0x80000008;
+                    break;
+                case "global security":
+                case "security":
+                default:
+                    $gt=0x80000002;
+                    break;
+            }
+            $data['groupType'] = $gt;
+            $action->data = serialize($data);
+            $action->save();
+        }
+        /* $group = 'CN=mygroup,OU=myOU,DC=mydomain,DC=com';
 
-        return($users);
+$group_info['member'] = 'CN=User\, Test,CN=Users,DC=mydomain,DC=com';
+
+ldap_mod_del($ldap, $group, $group_info);*/
+        /* Clear members for groups */
+        foreach ($groups as $group_dn => $gti){
+            $grouptype = $gti[0];
+            // [$hrmu_id, $dataitem] = explode(".", $gti[1]);
+            $action = new LDAPAction();
+            $action->dataset = $dataset->id;
+            $action->command = "mod_del";
+            $action->target = $group_dn;
+            $data['member'] = [];
+            /* 
+            $add['objectclass'] = 'organizationalRole'; #this is a required attribute for a group
+            $add['cn'] = 'NewGroup'; #give any name
+            if(ldap_add($ds, $dn, $add)) echo "group ".$add['cn']." successfully added to ".$dn;
+             * */
+            $action->data = serialize($data);
+            $action->save();
+        }
+        /* Set user properties */
+        foreach ($users as $uid => $data){
+            /* foreach ($users_hrmu[$uid] as $property => $hdi){
+                [$hrmu_id, $dataitem] = explode(".", $hdi);
+            }*/
+            $action = new LDAPAction();
+            $action->dataset = $dataset->id;
+            $action->target = $uid;
+            $action->command = "add_or_modify_apisuser";
+            $action->data = serialize($data);
+            $action->save();
+        }
+        /* >>> ldap_mod_del($ds, $groupdn[0], ["member"=>[]])
+=> true
+>>> ldap_mod_add($ds, $groupdn[0], ["member" => [$polzdn]])
+=> true
+>>> ldap_mod_del($ds, $groupdn[0], ["member"=>[]])
+         
+         */
+        return([$groups, $needed_ous, $users]);
+    }
+
+    public function apply(Request $request, $id) {
+        $dataset = ADDataset()->first();
     }
 }

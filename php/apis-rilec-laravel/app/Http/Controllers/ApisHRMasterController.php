@@ -177,7 +177,7 @@ class ApisHRMasterController extends Controller
         }
     }
 
-    public function list(Request $request)
+    public function index(Request $request)
     {
         $res = new StreamedResponse(function(){
             $handle = fopen('php://output', 'w');

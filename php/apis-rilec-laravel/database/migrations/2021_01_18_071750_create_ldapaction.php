@@ -16,10 +16,12 @@ class CreateLdapaction extends Migration
         Schema::create('ldapactions', function (Blueprint $table) {
             $table->id();
             $table->timestamps();
+            // $table->foreignId('hrm_update')->nullable(True)->constrained('h_r_master_updates'); /* */
+            $table->foreignId('dataset')->constrained('a_d_datasets'); /* */
+            // $table->integer('dataitem')->nullable(); /* */
             $table->string('command'); /* add, create, modify, e.t.c. */
-            $table->string('target_dn'); /* user or group */
-            $table->string('data')->nullable();
-            $table->datetime('applied_on')->nullable();
+            $table->string('target'); /* user uid or target DN */
+            $table->text('data')->nullable();
         });
     }
 

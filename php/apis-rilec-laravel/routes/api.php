@@ -19,7 +19,7 @@ Route::group(['middleware'=>'auth:api'], function(){
     /* Route::put('/replicate', 'ApisADController@update'); 
     Route::get('/replicate', 'ApisADController@list'); */
     Route::put('/hr/HRMaster/replicate', 'ApisHRMasterController@update');
-    Route::get('/hr/HRMaster/replicate', 'ApisHRMasterController@list');
+    Route::get('/hr/HRMaster/replicate', 'ApisHRMasterController@index');
     /* Seznam uporabnikov v nekem trenutku */
     Route::get('/api/userprofile/', 'ApisUserDataController@index');
     Route::get('/api/userprofile/{date}', 'ApisUserDataController@index');
@@ -39,11 +39,10 @@ Route::group(['middleware'=>'auth:api'], function(){
     /* Ustvarjanje dataset-ov */
     Route::put('/api/dataset/{timestamp}', 'ADDatasetController@create');
     Route::put('/api/dataset/', 'ADDatasetController@create');
-    /* Podrobnosti kopiranja v AD */
-    Route::get('/api/ldapaction', 'LDAPActionController@index');
-    Route::get('/api/ldapaction/{id}', 'LDAPActionController@show');
-    /* Izvedi kopiranje v AD */
-    Route::put('/api/ldapaction', 'LDAPActionController@create');
+    /* Kopiranje podatkov v AD */
+    Route::put('/api/ldapapply/{id}', 'ADDatasetController@create');
+    Route::get('/api/ldapapply/', 'ADDatasetController@index');
+    Route::get('/api/ldapapply/{id}', 'ADDatasetController@show');
     /*
     Route::get('/user', function (Request $request) {
     return $request->user();
