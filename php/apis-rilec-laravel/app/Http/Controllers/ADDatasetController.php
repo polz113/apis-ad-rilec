@@ -25,7 +25,8 @@ function pass($data){
 define("TRANSLATION_TABLE", [
     # "OE_MAP" => magicno ustvarjen v get_ou_dict
     "clanica_domena" => [
-        "2300" => ["fri1", "uni-lj", "si"],
+        # "2300" => ["fri1", "uni-lj", "si"],
+        "2300" => ["test", "fri", "uni", "lj", "si"],
     ],
     "clanica_prefix" => [
         "2300" => ["FRI"],
@@ -67,7 +68,7 @@ define("TRANSLATION_TABLE", [
 ]);
 
 define("USER_TRANSLATION_RULES", [
-    "gn" => "|OsebniPodatki.0002.0.ime",
+    # "gn" => "|OsebniPodatki.0002.0.ime",
     "givenName" => "|OsebniPodatki.0002.0.ime",
     "sn" => "|OsebniPodatki.0002.0.priimek",
     "userPrincipalName" => "|Komunikacija.0105.9007.vrednostNaziv",
@@ -301,16 +302,16 @@ class ADDatasetController extends Controller
 
     public static function to_dn($domain, $ous, $cn = Null){
         // Log::debug(print_r(["d, o, c", $domain, $ous, $cn], True));
-        $dc_s = "DC=". implode(", DC=", array_map('self::ldesc', $domain));
+        $dc_s = "DC=". implode(",DC=", array_map('self::ldesc', $domain));
         $ou_s = "";
-        $cn_s = "";
+        $cn_s = ""; 
         if (sizeof($ous)){
-            $ou_s = "OU=". implode(", OU=", array_map('self::ldesc', $ous));
+            $ou_s = "OU=". implode(",OU=", array_reverse(array_map('self::ldesc', $ous))) . ",";
         }
         if (!is_null($cn)){
-            $cn_s = ", CN=" . self::ldesc($cn);
+            $cn_s = "CN=" . self::ldesc($cn) . ",";
         }
-        return $dc_s . ", " . $ou_s . $cn_s;
+        return $cn_s . $ou_s . $dc_s;
     }
 
     private function assemble_from_rules($data, $rules, $trans_dicts){
@@ -381,20 +382,20 @@ class ADDatasetController extends Controller
                     $ous_and_cn = self::assemble_from_rules($data, $ourules, $trans_dicts);
                     // Log::debug(print_r(["ouc:", $ous_and_cn], True));
                     if ($ous_and_cn != Null){
-                        $ous = [];
                         $ou_tmp = [];
                         $cn = array_slice($ous_and_cn, -1)[0];
-                        foreach (array_slice($ous_and_cn, 1) as $ou) {
-                            $ous = $ou_tmp;
-                            $cn = $ou;
+                        $ous = array_slice($ous_and_cn, 0, -1);
+                        foreach ($ous as $ou) {
+                            $ou_tmp[] = $ou;
                             $needed_ous[self::to_dn($domain, $ou_tmp)] = True;
-                            $ou_tmp[] = $cn;
                         }
                         /* turn array into DN */
                         if ($grouptype == "default OU"){
                             $default_ou = self::to_dn($domain, $ous_and_cn);
-                            $needed_ous[$default_ou] = True;
-                            $default_user_ou = $ous_and_cn;
+                            if (sizeof($ous_and_cn) > 0){
+                                $needed_ous[$default_ou] = True;
+                            }
+                            $default_user_ou = $default_ou;
                         } else {
                             $group_dn = self::to_dn($domain, $ous, $cn);
                             $groups[$group_dn] = [$grouptype, $dataitem];
@@ -409,7 +410,7 @@ class ADDatasetController extends Controller
             foreach ($user as $dataitem => $data) {
                 foreach (USER_TRANSLATION_RULES as $property => $rule){
                     try {
-                        $ad_user[$property] = translate_by_rule($data, $rule, $trans_dicts)[0];
+                        $ad_user[$property] = [translate_by_rule($data, $rule, $trans_dicts)[0]];
                         $ad_user_hrmu[$property] = $dataitem;
                     } catch (Exception $e) {
                         // Log::debug(print_r(["e", $e->getMessage()], True));
@@ -430,7 +431,7 @@ class ADDatasetController extends Controller
         /* Create OUs for the groups */
         foreach($needed_ous as $gou){
             $action = new LDAPAction();
-            $action->dataset = $dataset->id;
+            $action->dataset_id = $dataset->id;
             $action->command = "add";
             $data = array();
             $data["objectClass"] = ["top", "organizationalUnit"];
@@ -444,7 +445,7 @@ class ADDatasetController extends Controller
             if ($grouptype == "default OU") continue;
             [$hrmu_id, $dataitem] = explode(".", $gti[1]);
             $action = new LDAPAction();
-            $action->dataset = $dataset->id;
+            $action->dataset_id = $dataset->id;
             $action->command = "add";
             $action->target = $group_dn;
             $data = array();
@@ -488,7 +489,7 @@ ldap_mod_del($ldap, $group, $group_info);*/
             $grouptype = $gti[0];
             // [$hrmu_id, $dataitem] = explode(".", $gti[1]);
             $action = new LDAPAction();
-            $action->dataset = $dataset->id;
+            $action->dataset_id = $dataset->id;
             $action->command = "mod_del";
             $action->target = $group_dn;
             $data['member'] = [];
@@ -506,7 +507,7 @@ ldap_mod_del($ldap, $group, $group_info);*/
                 [$hrmu_id, $dataitem] = explode(".", $hdi);
             }*/
             $action = new LDAPAction();
-            $action->dataset = $dataset->id;
+            $action->dataset_id = $dataset->id;
             $action->target = $uid;
             $action->command = "add_or_modify_apisuser";
             $action->data = serialize($data);
@@ -519,10 +520,6 @@ ldap_mod_del($ldap, $group, $group_info);*/
 >>> ldap_mod_del($ds, $groupdn[0], ["member"=>[]])
          
          */
-        return([$groups, $needed_ous, $users]);
-    }
-
-    public function apply(Request $request, $id) {
-        $dataset = ADDataset()->first();
+        return($dataset);
     }
 }
