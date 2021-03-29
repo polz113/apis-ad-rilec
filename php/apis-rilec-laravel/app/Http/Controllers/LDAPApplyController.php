@@ -66,7 +66,7 @@ class LDAPApplyController extends Controller
         foreach ($entries as $entry) {
             if (!is_array($entry)) continue;
             if (isset($entry["employeeid"])){
-                $users_by_id["employeeid"] = $entry["dn"];
+                $users_by_id[$entry["employeeid"][0]] = $entry["dn"];
             }
             Log::debug(print_r(["u:", $entry], True));
             $users_by_username[$entry["samaccountname"][0]] = $entry;
@@ -78,7 +78,7 @@ class LDAPApplyController extends Controller
     private function create_or_update_user($ds, $uid, $userdata, $users_by_id, $users_by_username){
         [$user, $default_ou] = $userdata;
         if (array_key_exists($uid, $users_by_id)){
-            $user_dn = $users[$uid];
+            $user_dn = $users_by_id[$uid];
         } else {
             switch(env('APIS_LDAP_DEFAULT_USERNAME_FORMAT')){
             case "short":
@@ -88,28 +88,54 @@ class LDAPApplyController extends Controller
             default:
                 $username = self::create_long_name($user);
             }
-            $i = 1;
+            $i = Null;
             $s = $username;
             while(array_key_exists($s, $users_by_username)){
-                $s = $username . $i;
+                if (is_null($i)) $i = 0;
                 $i += 1;
+                $s = $username . $i;
             }
             $username = $s;
             Log::debug(print_r(["  username:", $s], True));
             $cn = implode(" ", $user['givenName']) . " " . implode(" ", $user["sn"]);
+            if (!is_null($i)) $cn = $cn . " " . $i;
             $user_dn = "cn=" . ldap_escape($cn,"",LDAP_ESCAPE_DN) . ',' .$default_ou;
             Log::debug(print_r(["  dn:", $user_dn], True));
             $createdata = [
                 // TODO pick correct class
                 "objectClass" => ["top", "person", "organizationalPerson", "user"],
                 "samaccountname" => [$username],
-                "distinguishedname" => $user_dn,
+                "distinguishedname" => [$user_dn],
+                "employeeID" => [$uid],
                 // TODO set correct cn
                 "cn" => [$cn],
             ];
             ldap_add($ds, $user_dn, $createdata);
         }
-        ldap_mod_add($ds, $user_dn, $userdata);
+        foreach ($user["MemberOf"] as $group_dn){
+            try {
+                ldap_mod_add($ds, $group_dn, ["member" => $user_dn]);
+            } catch (\Exception $e){
+                Log::debug(print_r(["error joining", $user_dn, $group_dn, $e->getMessage()], True));
+            }
+        }
+        unset($user["MemberOf"]);
+        unset($user["employeeID"]);
+        unset($user["userPrincipalName"]);
+        unset($user["distinguishedname"]);
+        #$xdata = ["company" => $user["company"]];
+        #$xdata["givenName"] = $user["givenName"];
+        #$xdata["sn"] = $user["sn"];
+        # $xdata["mail"] = $user["mail"];
+        # $xdata["physicalDeliveryOffice"] = $user["physicalDeliveryOffice"];
+        foreach($user as $property => $values){
+            try {
+                $data = [$property => $values];
+                ldap_mod_replace($ds, $user_dn, $data);
+            } catch (\Exception $e){
+                Log::debug(print_r(["error setting", $property, $e->getMessage()], True));
+            }
+        }
     }
 
     /**

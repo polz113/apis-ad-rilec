@@ -77,7 +77,7 @@ define("USER_TRANSLATION_RULES", [
     // "sAMAccountName" => ":get_sam_account_name" # Komunikacija.0105.9007.vrednostNaziv"], stripdomain]],
     "company" => "|KadrovskiPodatki.0.0.clanica_Id clanica_ime",
     "mail" => "|Komunikacija.0105.0010.vrednostNaziv",
-    "physicalDeliveryOffice" => "|Komunikacija.0105.9005.vrednostNaziv",
+    "physicalDeliveryOfficeName" => "|Komunikacija.0105.9005.vrednostNaziv",
 ]);
 
 define("GROUP_TRANSLATION_RULES", [
