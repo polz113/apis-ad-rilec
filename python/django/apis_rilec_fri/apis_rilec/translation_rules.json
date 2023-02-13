@@ -1,0 +1,128 @@
+{
+    "TRANSLATION_TABLE": {
+        "clanica_domena": {
+            "2300": ["test", "fri", "uni-lj", "si"]
+        },
+        "clanica_prefix": {
+            "2300": ["FRI"]
+        },
+        "clanica_ime": {
+            "2300": ["Fakulteta za računalništvo in informatiko"]
+        },
+        "habilitacijska_podrocja": {
+            "001": {
+                "00": ["Test1"]
+            },
+            "002": {
+                "00": ["Test2"]
+            },
+            "019": { 
+                "00": ["Test3"]
+            }
+        },
+        "habilitacijski_naziv": {
+            "11": ["TEST1sistent"],
+            "12": ["TEST2sistent"],
+            "13": ["TEST3sistent"],
+            "31": ["TEST5sistent"],
+            "41": ["TEST4sistent"]
+        },
+        "vrste_zaposlenih": {
+            "1": { 
+                "11": ["Redni"],
+                "": ["Izredni"]
+            },
+            "Null": {"Zunanji"}
+        },
+        "OE_MAP": {
+            "UL FRI": "",
+            "TAJ": "Tajnistvo",
+            "Null": "Null"
+        }
+
+    },
+    "USER_TRANSLATION_RULES": {
+        "givenName": "|OsebniPodatki.0002.0.ime",
+        "sn": "|OsebniPodatki.0002.0.priimek",
+        "userPrincipalName": "|Komunikacija.0105.9007.vrednostNaziv",
+        "employeeID": "|uid",
+        "telephoneNumber": "|Komunikacija.0105.0020.vrednostNaziv",
+        "company": "|KadrovskiPodatki.0.0.clanica_Id clanica_ime",
+        "mail": "|Komunikacija.0105.0010.vrednostNaziv",
+        "physicalDeliveryOfficeName": "|Komunikacija.0105.9005.vrednostNaziv"
+    },
+    "GROUP_TRANSLATION_RULES": [
+        [
+            ["|KadrovskiPodatki.0.0.clanica_Id clanica_domena"],
+            [
+                "|KadrovskiPodatki.0.0.clanica_Id clanica_prefix", "'Users"
+            ],
+            "default OU"
+        ],
+        [
+            ["|KadrovskiPodatki.0.0.clanica_Id clanica_domena"], 
+            [
+                "|KadrovskiPodatki.0.0.clanica_Id clanica_prefix", "'avtopravice",
+                "'dodelitev",
+                "|OrgDodelitev.0001.0.glavnaOrganizacijskaEnota_Id OE_MAP",
+                "|OrgDodelitev.0001.0.skupinaZaposlenih,OrgDodelitev.0001.0.podskupinaZaposlenih vrste_zaposlenih"
+            ],
+            "global security"
+        ],
+        [
+            ["|KadrovskiPodatki.0.0.clanica_Id clanica_domena"], 
+            [
+                "|KadrovskiPodatki.0.0.clanica_Id clanica_prefix", "'avtopravice",
+                "'neznane_skupine",
+                "|OrgDodelitev.0001.0.glavnaOrganizacijskaEnota"
+            ],
+            "global security"
+        ],
+        [
+            ["|KadrovskiPodatki.0.0.clanica_Id clanica_domena"], 
+            [
+                "|KadrovskiPodatki.0.0.clanica_Id clanica_prefix", "'avtopravice",
+                "'oddelki",
+                "|OrgDodelitev.0001.0.glavnaOrganizacijskaEnota_Id OE_MAP"
+            ],
+            "global security"
+        ],
+        [
+            ["|KadrovskiPodatki.0.0.clanica_Id clanica_domena"], 
+            [
+                "|KadrovskiPodatki.0.0.clanica_Id clanica_prefix", "'avtopravice",
+                "'zaposlitev",
+                "|OrgDodelitev.0001.0.skupinaZaposlenih,OrgDodelitev.0001.0.podskupinaZaposlenih vrste_zaposlenih"
+            ],
+            "global security"
+        ],
+        [
+            ["|KadrovskiPodatki.0.0.clanica_Id clanica_domena"], 
+            [
+                "|KadrovskiPodatki.0.0.clanica_Id clanica_prefix", "'avtopravice",
+                "'razporeditev",
+                "|OrgDodelitev.0001.0.glavnaOrganizacijskaEnota_Id OE_MAP"
+            ],
+            "global security"
+        ],
+        [
+            ["|KadrovskiPodatki.0.0.clanica_Id clanica_domena"], 
+            [
+                "|KadrovskiPodatki.0.0.clanica_Id clanica_prefix", "'avtopravice", 
+                "'habilitacije",
+                "|Habilitacija.2003.9004.habilitacijskoPodrocje,Habilitacija.2003.9004.habilitacijskoPodpodrocje habilitacijska_podrocja",
+                "|Habilitacija.2003.9004.habilitacijskiNaziv habilitacijski_naziv"
+            ],
+            "global security"
+        ],
+        [
+            ["|KadrovskiPodatki.0.0.clanica_Id clanica_domena"], 
+            [
+                "|KadrovskiPodatki.0.0.clanica_Id clanica_prefix", "'avtomaili",
+                "'delovnamesta",
+                "|Razporeditev.1001.B008.delovnoMesto"
+            ],
+            "global distribution"
+        ]
+    }
+}
