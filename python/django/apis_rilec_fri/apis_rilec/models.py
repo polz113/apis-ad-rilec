@@ -151,13 +151,16 @@ class DataSet(models.Model):
     valid_to = models.DateTimeField()
 
 class OUData(models.Model):
+    def __str__(self):
+        return("{}: {} ({})".format(self.shortname, self.dataset))
     dataset = models.ForeignKey('DataSet', on_delete=models.CASCADE)
     uid = models.CharField(max_length=64)
     name = models.CharField(max_length=256)
     shortname = models.CharField(max_length=32)
-    parent_uid = models.CharField(max_length=64, null=True)
 
 class OURelation(models.Model):
+    def __str__(self):
+        return("{}: {}-{} ({})".format(self.relation, self.ou1_id, self.ou2_id, self.dataset))
     dataset = models.ForeignKey('DataSet', on_delete=models.CASCADE)
     relation = models.CharField(max_length=64)
     ou1_id = models.CharField(max_length=32)
