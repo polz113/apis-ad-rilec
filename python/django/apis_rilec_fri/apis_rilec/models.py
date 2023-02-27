@@ -45,7 +45,7 @@ class DataSource(models.Model):
                                 if prop in {'veljaOd', 'veljaDo', 'datumSpremembe', "stevilkaSekvence"}:
                                     continue
                                 # Generate property name
-                                d[prefix + "." + prop] = val
+                                d[prefix + prop] = val
                             valid_from = subitem.get('veljaOd', valid_from_d)
                             valid_to = subitem.get('veljaDo', valid_to_d)
                             changed_t = subitem.get('datumSpremembe', timestamp)
@@ -101,12 +101,13 @@ class DataSource(models.Model):
                          source=self)
             ds.save()
             oudata_list = []
+            print(v)
             for oe_id, vals in v.items():
                 oudata_list.append(
                     OUData(dataset=ds,
                            uid = oe_id,
                            name=vals['name'],
-                           shortname=v['shortname']))
+                           shortname=vals['shortname']))
             OUData.objects.bulk_create(oudata_list)
         # create ou relations
         for k, v in ou_parents.items():
@@ -137,11 +138,11 @@ class DataSource(models.Model):
 
     def to_datasets(self):
         handlers = {
-            'apis': _to_datasets_apis(self),
-            'studis': _to_datasets_studis(self),
-            'projekti': _to_datasets_projekti(self),
+            'apis': self._to_datasets_apis,
+            'studis': self._to_datasets_studis,
+            'projekti': self._to_datasets_projekti,
         }
-        return handlers[self.source](self)
+        return handlers[self.source]()
 
 class DataSet(models.Model):
     timestamp = models.DateTimeField()
@@ -163,12 +164,14 @@ class OURelation(models.Model):
     ou2_id = models.CharField(max_length=32)
 
 class UserData(models.Model):
+    def __str__(self):
+        return("{}: {} ({})".format(self.field, self.data, self.dataset))
     dataset = models.ForeignKey('DataSet', on_delete=models.CASCADE)
     field = models.CharField(max_length=256)
     data = models.CharField(max_length=512)
 
 class LDAPActionBatch(models.Model):
-    description = models.CharField(max_length=512)
+    description = models.CharField(max_length=512, blank=True, default='')
     datasets = models.ManyToManyField('DataSet')
     actions = models.ManyToManyField('LDAPAction')
     
