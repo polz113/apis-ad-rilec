@@ -24,7 +24,7 @@ class DataSource(models.Model):
             timestamp = self.timestamp
         user_data_sets = defaultdict(dict)
         ou_data_sets = defaultdict(lambda: defaultdict(dict))
-        ou_parents = defaultdict(dict)
+        ou_parents = defaultdict(lambda: defaultdict(list))
         for k, v in in_data.items():
             if type(v) == list:
                 for dataitem in v:
@@ -75,7 +75,7 @@ class DataSource(models.Model):
                                 valid_to = subitem.get('veljaDo', valid_to_d)
                                 changed_t = subitem.get('datumSpremembe', timestamp)
                                 ou_tup = (valid_from, valid_to, changed_t, clanica)
-                                ou_parents[ou_tup][oe_id] = (relation, subitem['id'])
+                                ou_parents[ou_tup][oe_id].append((relation, subitem['id']))
                     except KeyError:
                         pass
         # create user datasets
@@ -83,8 +83,8 @@ class DataSource(models.Model):
             valid_from, valid_to, changed_t, clanica, kadrovska, ul_id = k
             v.update({"UL_Id": ul_id, "kadrovskaSt": kadrovska, "clanica_Id": clanica})
             ds = DataSet(timestamp=changed_t, 
-                         valid_from=valid_from,
-                         valid_to=valid_to,
+                         valid_from=timezone.datetime.fromisoformat(valid_from),
+                         valid_to=timezone.datetime.fromisoformat(valid_to),
                          source=self)
             ds.save()
             props = []
@@ -96,12 +96,11 @@ class DataSource(models.Model):
         for k, v in ou_data_sets.items():
             valid_from, valid_to, changed_t, clanica = k
             ds = DataSet(timestamp=changed_t,
-                         valid_from=valid_from,
-                         valid_to=valid_to,
+                         valid_from=timezone.datetime.fromisoformat(valid_from),
+                         valid_to=timezone.datetime.fromisoformat(valid_to),
                          source=self)
             ds.save()
             oudata_list = []
-            print(v)
             for oe_id, vals in v.items():
                 oudata_list.append(
                     OUData(dataset=ds,
@@ -113,18 +112,19 @@ class DataSource(models.Model):
         for k, v in ou_parents.items():
             valid_from, valid_to, changed_t, clanica = k
             ds = DataSet(timestamp=changed_t,
-                         valid_from=valid_from,
-                         valid_to=valid_to,
+                         valid_from=timezone.datetime.fromisoformat(valid_from),
+                         valid_to=timezone.datetime.fromisoformat(valid_to),
                          source=self)
             ds.save()
             relation_list = []
-            for oe_id, (relation, ou2_id) in v.items():
-                relation_list.append(
-                    OURelation(dataset=ds,
+            for oe_id, l in v.items():
+                for (relation, ou2_id) in l:
+                    relation_list.append(
+                        OURelation(dataset=ds,
                                relation=relation,
                                ou1_id=oe_id,
                                ou2_id=ou2_id,
-                    ))
+                        ))
             OURelation.objects.bulk_create(relation_list)
 
 
@@ -145,6 +145,8 @@ class DataSource(models.Model):
         return handlers[self.source]()
 
 class DataSet(models.Model):
+    def __str__(self):
+        return("{}, {}-{}".format(self.timestamp, self.valid_from, self.valid_to))
     timestamp = models.DateTimeField()
     source = models.ForeignKey('DataSource', on_delete=models.CASCADE)
     valid_from = models.DateTimeField()
@@ -152,7 +154,7 @@ class DataSet(models.Model):
 
 class OUData(models.Model):
     def __str__(self):
-        return("{}: {} ({})".format(self.shortname, self.dataset))
+        return("{}: {} ({})".format(self.shortname, self.name, self.dataset))
     dataset = models.ForeignKey('DataSet', on_delete=models.CASCADE)
     uid = models.CharField(max_length=64)
     name = models.CharField(max_length=256)
@@ -177,32 +179,63 @@ class LDAPActionBatch(models.Model):
     description = models.CharField(max_length=512, blank=True, default='')
     datasets = models.ManyToManyField('DataSet')
     actions = models.ManyToManyField('LDAPAction')
-    
-def batch_from_apis(timestamp):
+
+def _datasets_at(timestamp=None, source=None):
+    if timestamp is None:
+        timestamp = timezone.now()
+    dsets = DataSet.objects.filter(
+                valid_from__lte=timestamp,
+                valid_to__gte=timestamp)
+    if source is not None:
+        dsets = dsets.filter(source__source=source)
+    return dsets.order_by('timestamp')
+
+
+def userdata_from_datasets(timestamp=None, source=None):
+    users = defaultdict(dict)
+    for ds in _datasets_at(timestamp, source):
+        d = {}
+        for ud in ds.userdata_set.all():
+            d[ud.field] = ud.data
+        ulid = d.pop('UL_Id', None)
+        if ulid is None:
+            continue
+        users[ulid].update(d)
+    return users
+
+def outrees_from_datasets(timestamp=None, source=None):
+    ous = dict()
+    id_relations = defaultdict(dict)
+    for ds in _datasets_at(timestamp, source):
+        for oud in ds.oudata_set.all():
+            ous[oud.uid] = (oud.shortname, oud.name)
+        for our in ds.ourelation_set.all():
+            id_relations[our.relation][our.ou1_id] = our.ou2_id
+    outree = dict()
+    for k, v in id_relations.items():
+        toplevel = set()
+        rel_ous = dict()
+        for uid, (shortname, name) in ous.items():
+            rel_ous[uid] = (uid, shortname, name, [])
+            toplevel.add(uid)
+        for child_id, parent_id in v.items():
+            if parent_id not in toplevel:
+                toplevel.add(parent_id)
+                rel_ous[parent_id] = (parent_id, None, None, [])
+        for child_id, parent_id in v.items():
+            toplevel.discard(child_id)
+            rel_ous[parent_id][3].append(rel_ous[child_id])
+        rel_outree = []
+        for i in toplevel:
+            rel_outree.append(rel_ous[i])
+        outree[k] = rel_outree
+    return outree
+ 
+
+def batch_from_datasets(timestamp=None):
     actionbatch = LDAPActionBatch(description=timestamp.isoformat())
     # TODO create actual data for a single user
-    oud_dict = dict()
-    toplevel_ous = []
-    oe_tree = dict()
-    user_dict = dict()
-    for ds in DataSet.objects.filter(
-                valid_from__lte=timestamp,
-                valid_to__gte=timestamp
-            ).order_by(
-                'timestamp'
-            ):
-        for ud in ds.userdata_set.all():
-            pass
-        for oud in ds.oudata_set.all():
-            pass
-        for our in ds.ourelation_set.all():
-            pass
-        print(ds)
-    for k, v in oud_dict.items():
-        pass
-    for relation, toplevels in toplevel_ous.items():
-        for ou in toplevels:
-            pass
+    userdata = userdata_from_datasets(timestamp)
     return actionbatch
 
 class LDAPAction(models.Model):
