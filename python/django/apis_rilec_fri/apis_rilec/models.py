@@ -111,20 +111,6 @@ class DataSource(models.Model):
         if len(user_fields):
             UserDataField.objects.bulk_create(user_fields)
         # TODO: remove the rest of this function
-        # create user datasets
-        for k, v in user_data_sets.items():
-            valid_from, valid_to, changed_t, clanica, kadrovska, ul_id = k
-            v.update({"UL_Id": ul_id, "kadrovskaSt": kadrovska, "clanica_Id": clanica})
-            ds = DataSet(timestamp=changed_t, 
-                         valid_from=timezone.datetime.fromisoformat(valid_from),
-                         valid_to=timezone.datetime.fromisoformat(valid_to),
-                         source=self)
-            ds.save()
-            props = []
-            for prop, val in v.items():
-                props.append(UserData(dataset=ds, field=prop, data=val))
-            if len(props):
-                UserData.objects.bulk_create(props)
         # create ou datasets
         for k, v in ou_data_sets.items():
             valid_from, valid_to, changed_t, clanica = k
@@ -182,17 +168,13 @@ class DataSet(models.Model):
         return("{}, {}-{}".format(self.timestamp, self.valid_from, self.valid_to))
     timestamp = models.DateTimeField()
     source = models.ForeignKey('DataSource', on_delete=models.CASCADE)
-    valid_from = models.DateTimeField()
-    valid_to = models.DateTimeField()
 
 class OUData(models.Model):
     def __str__(self):
         return("{}: {} ({})".format(self.shortname, self.name, self.dataset))
-    # dataset = models.ForeignKey('DataSet', on_delete=models.CASCADE)
-    timestamp = models.DateTimeField()
+    dataset = models.ForeignKey('DataSet', on_delete=models.CASCADE)
     valid_from = models.DateTimeField()
     valid_to = models.DateTimeField()
-    source = models.ForeignKey('DataSource', on_delete=models.CASCADE)
     uid = models.CharField(max_length=64)
     name = models.CharField(max_length=256)
     shortname = models.CharField(max_length=32)
@@ -200,11 +182,9 @@ class OUData(models.Model):
 class OURelation(models.Model):
     def __str__(self):
         return("{}: {}-{} ({})".format(self.relation, self.ou1_id, self.ou2_id, self.dataset))
-    timestamp = models.DateTimeField()
-    source = models.ForeignKey('DataSource', on_delete=models.CASCADE)
+    dataset = models.ForeignKey('DataSet', on_delete=models.CASCADE)
     valid_from = models.DateTimeField()
     valid_to = models.DateTimeField()
-    # dataset = models.ForeignKey('DataSet', on_delete=models.CASCADE)
     relation = models.CharField(max_length=64)
     ou1_id = models.CharField(max_length=32)
     ou2_id = models.CharField(max_length=32)
@@ -212,12 +192,8 @@ class OURelation(models.Model):
 class UserData(models.Model):
     def __str__(self):
         return("{} ({})".format(self.uid, self.source.id))
-    timestamp = models.DateTimeField()
-    source = models.ForeignKey('DataSource', on_delete=models.CASCADE)
+    dataset = models.ForeignKey('DataSet', on_delete=models.CASCADE)
     uid = models.CharField(max_length=64)
-    # dataset = models.ForeignKey
-    # field = models.CharField(max_length=256)
-    # data = models.CharField(max_length=512)
 
 class UserDataField(models.Model):
     def __str__(self):
