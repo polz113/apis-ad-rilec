@@ -1,4 +1,5 @@
 from django.shortcuts import render
+from django.conf import settings
 from django.http import HttpResponse, JsonResponse, StreamingHttpResponse
 from django.utils import timezone
 from itertools import chain
@@ -9,6 +10,11 @@ def index(request):
     return render(request, 'apis_rilec/index.html')
 
 def hrmaster_replicate(request):
+    if request.headers['X-Api-Key'] != settings.X_API_KEY:
+        print(request.headers)
+        response = JsonResponse({'result': 'Unauthorized'})
+        response.status_code=401
+        return response
     if request.method == 'PUT' or request.method == 'POST':
         hrmaster = DataSource(source='apis', timestamp=timezone.now(), data=request.body)
         hrmaster.save()
@@ -22,7 +28,8 @@ def hrmaster_replicate(request):
         return StreamingHttpResponse(
             chain([b"[\n", s0.data], (b", " + source.data for source in sources), [b"]\n"]),
             content_type="application/json",
-        ) 
+        )
+    return JsonResponse({'result': 'UNSUPPORTED METHOD'})
         
 
 def userprofile_list(request, date_str):
