@@ -51,31 +51,40 @@ class DataSource(models.Model):
                 datadicts.append(d)
         return datadicts
 
-    def _to_oudata(self, dataitem):
+    def _to_oudata(self, dataset, dataitem):
+        ou_data_sets = list()
         valid_from_d = dataitem.get('veljaOd')
         valid_to_d = dataitem.get('veljaDo')
         for subitem in dataitem['data']:
-            ou_name = subitem['organizacijskaEnota']
-            ou_shortname = subitem['organizacijskaEnota_kn']
-            valid_from = subitem.get('veljaOd', valid_from_d)
-            valid_to = subitem.get('veljaDo', valid_to_d)
-            changed_t = subitem.get('datumSpremembe', timestamp)
-            d = {'name': ou_name, 'shortname': ou_shortname}
-            ou_data_sets[(valid_from, valid_to, changed_t, clanica)][oe_id].update(d)
+            oud = OUData(
+                dataset=dataset,
+                name=subitem['organizacijskaEnota'],
+                shortname=subitem['organizacijskaEnota_kn'],
+                valid_from=subitem.get('veljaOd', valid_from_d),
+                valid_to=subitem.get('veljaDo', valid_to_d),
+                changed_t=subitem.get('datumSpremembe', dataset.timestamp),
+            )
+            ou_data_sets.append(oud)
         return ou_data_sets
 
-    def _to_ourelations(self, dataitem):
+    def _to_ourelations(self, dataset, dataitem):
+        ou_relations = list()
         valid_from_d = dataitem.get('veljaOd')
         valid_to_d = dataitem.get('veljaDo')
         relation = dataitem.get('infotip', '0000') + '.' + \
                    dataitem.get('podtip', '0000')
+        uid = dataitem['OE_Id']
         for subitem in dataitem['data']:
-            valid_from = subitem.get('veljaOd', valid_from_d)
-            valid_to = subitem.get('veljaDo', valid_to_d)
-            changed_t = subitem.get('datumSpremembe', timestamp)
-            ou_tup = (valid_from, valid_to, changed_t, clanica)
-            ou_parents[ou_tup][oe_id].append((relation, subitem['id']))
-        return ou_parents
+            our = OURelation(
+                dataset=dataset,
+                valid_from=subitem.get('veljaOd', valid_from_d),
+                valid_to=subitem.get('veljaDo', valid_to_d),
+                relation=relation,
+                ou1_id=uid,
+                ou2_id=dataitem['id'],
+            )
+            ou_relations.append(our)
+        return ou_relations
     
     def _to_datasets_apis(self):
         in_data = self.parsed_json()
@@ -83,18 +92,20 @@ class DataSource(models.Model):
             timestamp = timezone.datetime.fromisoformat(in_data['TimeStamp'])
         except KeyError:
             timestamp = self.timestamp
-        ou_data_sets = defaultdict(lambda: defaultdict(dict))
-        ou_parents = defaultdict(lambda: defaultdict(list))
         user_dicts = defaultdict(list)
+        ds = DataSet(timestamp=timestamp, source=self)
+        ds.save()
+        ou_data = list()
+        ou_relations = list()
         for k, v in in_data.items():
             if type(v) == list:
                 for dataitem in v:
                     if k == 'OE':
                         # TODO: fix this
-                        ou_data = self._to_oudata(dataitem)
+                        ou_data += self._to_oudata(ds, dataitem)
                     elif k == 'NadrejenaOE':
                         # TODO: fix this
-                        ou_parents = self._to_ourelations(dataitem)
+                        ou_relations += self._to_ourelations(ds, dataitem)
                     else:
                         uid = dataitem.get('UL_Id', None)
                         if uid is None:
@@ -102,50 +113,20 @@ class DataSource(models.Model):
                         else:
                             user_dicts[uid] += self._to_userfields(timestamp, k, dataitem)
         user_fields = list()
+        # Create UserData and fields from user_dicts
         for uid, fieldlist in user_dicts.items():
-            ud = UserData(timestamp=timestamp, source=self, uid=uid)
+            ud = UserData(dataset=ds, uid=uid)
             ud.save()
             for fields in fieldlist:
                 uf = UserDataField(userdata=ud, **fields)
                 user_fields.append(uf)
         if len(user_fields):
             UserDataField.objects.bulk_create(user_fields)
+        # Done filling users.
+        OUData.objects.bulk_create(ou_data)
         # TODO: remove the rest of this function
-        # create ou datasets
-        for k, v in ou_data_sets.items():
-            valid_from, valid_to, changed_t, clanica = k
-            ds = DataSet(timestamp=changed_t,
-                         valid_from=timezone.datetime.fromisoformat(valid_from),
-                         valid_to=timezone.datetime.fromisoformat(valid_to),
-                         source=self)
-            ds.save()
-            oudata_list = []
-            for oe_id, vals in v.items():
-                oudata_list.append(
-                    OUData(dataset=ds,
-                           uid = oe_id,
-                           name=vals['name'],
-                           shortname=vals['shortname']))
-            OUData.objects.bulk_create(oudata_list)
         # create ou relations
-        for k, v in ou_parents.items():
-            valid_from, valid_to, changed_t, clanica = k
-            ds = DataSet(timestamp=changed_t,
-                         valid_from=timezone.datetime.fromisoformat(valid_from),
-                         valid_to=timezone.datetime.fromisoformat(valid_to),
-                         source=self)
-            ds.save()
-            relation_list = []
-            for oe_id, l in v.items():
-                for (relation, ou2_id) in l:
-                    relation_list.append(
-                        OURelation(dataset=ds,
-                               relation=relation,
-                               ou1_id=oe_id,
-                               ou2_id=ou2_id,
-                        ))
-            OURelation.objects.bulk_create(relation_list)
-
+        OURelation.objects.bluk_create(ou_relations)
 
     def _to_datasets_studis(self):
         # TODO implement this
@@ -165,7 +146,7 @@ class DataSource(models.Model):
 
 class DataSet(models.Model):
     def __str__(self):
-        return("{}, {}-{}".format(self.timestamp, self.valid_from, self.valid_to))
+        return("{}: {}".format(self.timestamp, self.source))
     timestamp = models.DateTimeField()
     source = models.ForeignKey('DataSource', on_delete=models.CASCADE)
 
