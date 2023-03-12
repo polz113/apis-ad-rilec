@@ -32,9 +32,9 @@ class DataSource(models.Model):
                   'changed_t': timestamp,
                   'valid_from': valid_from_d,
                   'valid_to': valid_to_d }
-            datafields.append(UserDataField)
-        for subitem in dataitem.get('data', []):
-            subprefix = ".".join(prefix, infotip, podtip)
+            datadicts.append(d)
+        for fieldgroup, subitem in enumerate(dataitem.get('data', [])):
+            subprefix = ".".join([prefix, infotip, podtip])
             valid_from = subitem.get('veljaOd', valid_from_d)
             valid_to = subitem.get('veljaDo', valid_to_d)
             changed_t = subitem.get('datumSpremembe', timestamp)
@@ -43,11 +43,12 @@ class DataSource(models.Model):
                 if prop in {'veljaOd', 'veljaDo', 'datumSpremembe', "stevilkaSekvence"}:
                     continue
                 # Generate property name
-                d = { 'field': prefix + '.' + prop,
+                d = { 'field': subprefix + '.' + prop,
                       'value': val,
                       'changed_t': changed_t,
-                      'valid_from': valid_from_d,
-                      'valid_to': valid_to_d }
+                      'fieldgroup': fieldgroup,
+                      'valid_from': valid_from,
+                      'valid_to': valid_to }
                 datadicts.append(d)
         return datadicts
 
@@ -81,7 +82,7 @@ class DataSource(models.Model):
                 valid_to=subitem.get('veljaDo', valid_to_d),
                 relation=relation,
                 ou1_id=uid,
-                ou2_id=dataitem['id'],
+                ou2_id=subitem['id'],
             )
             ou_relations.append(our)
         return ou_relations
@@ -101,17 +102,15 @@ class DataSource(models.Model):
             if type(v) == list:
                 for dataitem in v:
                     if k == 'OE':
-                        # TODO: fix this
                         ou_data += self._to_oudata(ds, dataitem)
                     elif k == 'NadrejenaOE':
-                        # TODO: fix this
                         ou_relations += self._to_ourelations(ds, dataitem)
                     else:
                         uid = dataitem.get('UL_Id', None)
                         if uid is None:
                             continue
                         else:
-                            user_dicts[uid] += self._to_userfields(timestamp, k, dataitem)
+                            user_dicts[uid] += self._to_userdatadicts(timestamp, k, dataitem)
         user_fields = list()
         # Create UserData and fields from user_dicts
         for uid, fieldlist in user_dicts.items():
@@ -122,11 +121,9 @@ class DataSource(models.Model):
                 user_fields.append(uf)
         if len(user_fields):
             UserDataField.objects.bulk_create(user_fields)
-        # Done filling users.
+        # Done filling users. Handle OUs
         OUData.objects.bulk_create(ou_data)
-        # TODO: remove the rest of this function
-        # create ou relations
-        OURelation.objects.bluk_create(ou_relations)
+        OURelation.objects.bulk_create(ou_relations)
 
     def _to_datasets_studis(self):
         # TODO implement this
@@ -144,11 +141,13 @@ class DataSource(models.Model):
         }
         return handlers[self.source]()
 
+
 class DataSet(models.Model):
     def __str__(self):
         return("{}: {}".format(self.timestamp, self.source))
     timestamp = models.DateTimeField()
     source = models.ForeignKey('DataSource', on_delete=models.CASCADE)
+
 
 class OUData(models.Model):
     def __str__(self):
@@ -156,9 +155,11 @@ class OUData(models.Model):
     dataset = models.ForeignKey('DataSet', on_delete=models.CASCADE)
     valid_from = models.DateTimeField()
     valid_to = models.DateTimeField()
+    changed_t = models.DateTimeField(null=True)
     uid = models.CharField(max_length=64)
     name = models.CharField(max_length=256)
     shortname = models.CharField(max_length=32)
+
 
 class OURelation(models.Model):
     def __str__(self):
@@ -166,23 +167,33 @@ class OURelation(models.Model):
     dataset = models.ForeignKey('DataSet', on_delete=models.CASCADE)
     valid_from = models.DateTimeField()
     valid_to = models.DateTimeField()
+    changed_t = models.DateTimeField(null=True)
     relation = models.CharField(max_length=64)
     ou1_id = models.CharField(max_length=32)
     ou2_id = models.CharField(max_length=32)
 
+
 class UserData(models.Model):
     def __str__(self):
-        return("{} ({})".format(self.uid, self.source.id))
+        return("{} ({})".format(self.uid, self.dataset))
     dataset = models.ForeignKey('DataSet', on_delete=models.CASCADE)
     uid = models.CharField(max_length=64)
+    def as_dict_at(self, timestamp):
+        d = MultiValueDict()
+        for i in self.fields.filter(valid_from__lte=timestamp,
+                                    valid_to__gte=timestamp):
+            d.appendlist(i.field, i.value)
+        return d
+
 
 class UserDataField(models.Model):
     def __str__(self):
-        return("{}: {} ({})".format(self.userdata, self.field, self.data))
+        return("{}: {} ({})".format(self.userdata, self.field, self.value))
     userdata = models.ForeignKey('UserData', on_delete=models.CASCADE, related_name='fields')
     valid_from = models.DateTimeField(null=True)
     valid_to = models.DateTimeField(null=True)
     changed_t = models.DateTimeField(null=True)
+    fieldgroup = models.IntegerField(null=True)
     field = models.CharField(max_length=256)
     value = models.CharField(max_length=512)
     
@@ -213,9 +224,11 @@ def userdata_from_datasets(datasets):
         users[ulid].update(d)
     return users, set(sources.values())
 
+
 def userdata_at(timestamp=None, source=None):
     datasets = _datasets_at(timestamp, source)
     return userdata_from_datasets(datasets)
+
 
 def outrees_from_datasets(datasets):
     ous = dict()
@@ -253,7 +266,7 @@ def outrees_from_datasets(datasets):
             rel_outree.append(rel_ous[i])
         outree[k] = rel_outree # tree for relation type k created
     return outree, source_ids
- 
+
 def outrees_at(timestamp=None, source=None):
     datasets = _datasets_at(timestamp, source)
     return outrees_from_datasets(datasets)
