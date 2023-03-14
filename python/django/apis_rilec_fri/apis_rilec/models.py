@@ -9,14 +9,23 @@ import json
 
 # Create your models here.
 
+FIELD_DELIMITER='__'
+
 class DataSource(models.Model):
     DATA_SOURCES = [('apis', 'Apis'), ('studis', 'Studis')]
     source = models.CharField(max_length=32, choices=DATA_SOURCES)
     timestamp = models.DateTimeField()
     data = models.BinaryField()
+    
     def parsed_json(self):
         return json.loads(self.data)
     
+    def userdata(self, timestamp=None):
+        pass
+
+    def grouptrees(self, timestamp=None):
+        pass
+
     def _to_userdatadicts(self, timestamp, prefix, dataitem):
         valid_from_d = dataitem['veljaOd']
         valid_to_d = dataitem['veljaDo']
@@ -27,14 +36,14 @@ class DataSource(models.Model):
             val = dataitem.get(extraf, None)
             if val is None:
                 continue
-            d = { 'field': prefix + '.' + extraf,
+            d = { 'field': FIELD_DELIMITER.join([prefix, extraf]),
                   'value': val,
                   'changed_t': timestamp,
                   'valid_from': valid_from_d,
                   'valid_to': valid_to_d }
             datadicts.append(d)
         for fieldgroup, subitem in enumerate(dataitem.get('data', [])):
-            subprefix = ".".join([prefix, infotip, podtip])
+            subprefix = FIELD_DELIMITER.join([prefix, infotip, podtip])
             valid_from = subitem.get('veljaOd', valid_from_d)
             valid_to = subitem.get('veljaDo', valid_to_d)
             changed_t = subitem.get('datumSpremembe', timestamp)
@@ -43,7 +52,7 @@ class DataSource(models.Model):
                 if prop in {'veljaOd', 'veljaDo', 'datumSpremembe', "stevilkaSekvence"}:
                     continue
                 # Generate property name
-                d = { 'field': subprefix + '.' + prop,
+                d = { 'field': FIELD_DELIMITER.join([subprefix, prop]),
                       'value': val,
                       'changed_t': changed_t,
                       'fieldgroup': fieldgroup,
@@ -72,8 +81,8 @@ class DataSource(models.Model):
         ou_relations = list()
         valid_from_d = dataitem.get('veljaOd')
         valid_to_d = dataitem.get('veljaDo')
-        relation = dataitem.get('infotip', '0000') + '.' + \
-                   dataitem.get('podtip', '0000')
+        relation = FIELD_DELIMITER.join(dataitem.get('infotip', '0000'),
+                                        dataitem.get('podtip', '0000'))
         uid = dataitem['OE_Id']
         for subitem in dataitem['data']:
             our = OURelation(
@@ -178,12 +187,24 @@ class UserData(models.Model):
         return("{} ({})".format(self.uid, self.dataset))
     dataset = models.ForeignKey('DataSet', on_delete=models.CASCADE)
     uid = models.CharField(max_length=64)
-    def as_dict_at(self, timestamp):
-        d = MultiValueDict()
-        for i in self.fields.filter(valid_from__lte=timestamp,
-                                    valid_to__gte=timestamp):
-            d.appendlist(i.field, i.value)
-        return d
+    def as_dicts_at(self, timestamp):
+        dicts = list()
+        d = None
+        prev_fieldgroup = None
+        for i in self.fields.filter(
+                    valid_from__lte=timestamp,
+                    valid_to__gte=timestamp
+                ).order_by(
+                    'fieldgroup'
+                ):
+            if i.fieldgroup is None or i.fieldgroup != prev_fieldgroup:
+                if d is not None:
+                    dicts.append(d)
+                d = dict()
+            d[i.field] = i.value
+        if d is not None:
+            dicts.append(d)
+        return dicts
 
 
 class UserDataField(models.Model):
@@ -197,38 +218,6 @@ class UserDataField(models.Model):
     field = models.CharField(max_length=256)
     value = models.CharField(max_length=512)
     
-
-def _datasets_at(timestamp=None, source=None):
-    if timestamp is None:
-        timestamp = timezone.now()
-    dsets = DataSet.objects.filter(
-                valid_from__lte=timestamp,
-                valid_to__gte=timestamp)
-    if source is not None:
-        dsets = dsets.filter(source__source=source)
-    return dsets.order_by('timestamp')
-
-
-def userdata_from_datasets(datasets):
-    users = defaultdict(dict)
-    sources = dict()
-    for ds in datasets.prefetch_related('userdata_set'):
-        d = {}
-        for ud in ds.userdata_set.all():
-            d[ud.field] = ud.data
-        ulid = d.pop('UL_Id', None)
-        if ulid is None:
-            continue
-        for k in d.keys():
-            sources[(ulid, k)] = ds.id
-        users[ulid].update(d)
-    return users, set(sources.values())
-
-
-def userdata_at(timestamp=None, source=None):
-    datasets = _datasets_at(timestamp, source)
-    return userdata_from_datasets(datasets)
-
 
 def outrees_from_datasets(datasets):
     ous = dict()
@@ -275,21 +264,6 @@ def ldapactionbatch_at(timestamp=None):
     datasets = _datasets_at(timestamp)
     return ldapactionbatch_from_datasets(datasets)
 
-PRIMARY_OU = [
-    "",
-]
-
-GROUP_MAPS = [
-    "CN=Users,CN={clanica_Id}",
-]
-
-GROUP_REGEX_REPLACE = [
-    ("CN=Users,CN=2300", "CN=Users,CN=FRI"),
-]
-
-PROPERTY_REGEX_REPLACE = [
-            
-]
 
 def ldapactionbatch_from_datasets(datasets):
     actionbatch = LDAPActionBatch(description=timestamp.isoformat())
