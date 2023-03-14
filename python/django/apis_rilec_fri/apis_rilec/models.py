@@ -65,9 +65,11 @@ class DataSource(models.Model):
         ou_data_sets = list()
         valid_from_d = dataitem.get('veljaOd')
         valid_to_d = dataitem.get('veljaDo')
+        uid=dataitem['OE_Id']
         for subitem in dataitem['data']:
             oud = OUData(
                 dataset=dataset,
+                uid=uid,
                 name=subitem['organizacijskaEnota'],
                 shortname=subitem['organizacijskaEnota_kn'],
                 valid_from=subitem.get('veljaOd', valid_from_d),
@@ -81,8 +83,8 @@ class DataSource(models.Model):
         ou_relations = list()
         valid_from_d = dataitem.get('veljaOd')
         valid_to_d = dataitem.get('veljaDo')
-        relation = FIELD_DELIMITER.join(dataitem.get('infotip', '0000'),
-                                        dataitem.get('podtip', '0000'))
+        relation = FIELD_DELIMITER.join([dataitem.get('infotip', '0000'),
+                                         dataitem.get('podtip', '0000')])
         uid = dataitem['OE_Id']
         for subitem in dataitem['data']:
             our = OURelation(
@@ -187,7 +189,9 @@ class UserData(models.Model):
         return("{} ({})".format(self.uid, self.dataset))
     dataset = models.ForeignKey('DataSet', on_delete=models.CASCADE)
     uid = models.CharField(max_length=64)
-    def as_dicts_at(self, timestamp):
+    def as_dicts(self, timestamp=None):
+        if timestamp is None:
+            timestamp = timezone.now()
         dicts = list()
         d = None
         prev_fieldgroup = None
@@ -200,6 +204,7 @@ class UserData(models.Model):
             if i.fieldgroup is None or i.fieldgroup != prev_fieldgroup:
                 if d is not None:
                     dicts.append(d)
+                prev_fieldgroup = i.fieldgroup
                 d = dict()
             d[i.field] = i.value
         if d is not None:
@@ -217,28 +222,38 @@ class UserDataField(models.Model):
     fieldgroup = models.IntegerField(null=True)
     field = models.CharField(max_length=256)
     value = models.CharField(max_length=512)
-    
 
-def outrees_from_datasets(datasets):
+
+def outrees_at(timestamp=None, source=None):
+    if timestamp is None:
+        timestamp = timezone.now()
+    ouds = OUData.objects.filter(valid_to__gte=timestamp,
+                                 valid_from__lte=timestamp)
+    ours = OURelation.objects.filter(valid_to__gte=timestamp,
+                                 valid_from__lte=timestamp)
+    if source is not None:
+        ouds = ouds.filter(dataset__source=source)
+        ours = ouds.filter(dataset__source=source)
     ous = dict()
     id_relations = defaultdict(dict)
     oud_sources = dict()
     our_sources = dict()
-    for ds in datasets.prefetch_related('oudata_set'):
-        for oud in ds.oudata_set.all():
-            sources[oud.uid] = ds.id
-            ous[oud.uid] = (oud.shortname, oud.name)
-        for our in ds.ourelation_set.all():
-            our_sources[(our.relation, our.ou_id)] = ds.id
-            id_relations[our.relation][our.ou1_id] = our.ou2_id
+    for oud in ouds:
+        source_id = oud.dataset.source_id
+        oud_sources[oud.uid] = source_id
+        ous[oud.uid] = (oud.shortname, oud.name, source_id)
+    for our in ours: 
+        source_id = our.dataset.source_id
+        our_sources[(our.relation, our.ou1_id)] = source_id
+        id_relations[our.relation][our.ou1_id] = our.ou2_id
     outree = dict()
     source_ids = set(oud_sources.values()).union(our_sources.values())
     for k, v in id_relations.items():
         toplevel = set() # toplevel OUs
         rel_ous = dict()
         # build a list of OUs with lists for children, add all OUs to toplevel
-        for uid, (shortname, name) in ous.items():
-            rel_ous[uid] = (uid, shortname, name, [])
+        for uid, (shortname, name, source_id) in ous.items():
+            rel_ous[uid] = (uid, shortname, name, [], source_id)
             toplevel.add(uid)
         # add missing parents
         for child_id, parent_id in v.items():
@@ -256,23 +271,41 @@ def outrees_from_datasets(datasets):
         outree[k] = rel_outree # tree for relation type k created
     return outree, source_ids
 
-def outrees_at(timestamp=None, source=None):
-    datasets = _datasets_at(timestamp, source)
-    return outrees_from_datasets(datasets)
+
+def get_rules():
+    with open('translation_rules.json') as f:
+        d = json.load(f)
+    return d['TRANSLATIONS', 'USER_RULES', 'GROUP_RULES']
+
+
+def translated_userdata_at(timestamp=None):
+    sources = set()
+    latest_userdata = dict()
+    translated_userdata = defaultdict(list)
+    translation_rules, user_rules, group_rules = get_rules()
+    for ud in UserData.objects.order_by('dataset__timestamp'):
+        latest_userdata[ud.uid] = ud
+    for uid, userdata in latest_userdata.items():
+        for datadict in uid.as_dicts(timestamp=timestamp):
+            for fieldname, (template, ruledict) in translation_rules.items():
+                t = string.Template(template)
+                default = ruledict.get("", "")
+                try:
+                    key = t.substitute(datadict)
+                    data_template = ruledict.get(key, default)
+                    t2 = string.Template(data_template)
+                    d = t2.substitute(datadict)
+                    datadict[fieldname] = d
+                except KeyError:
+                    pass
+            translated_userdata[uid] = datadict
+
+ 
 
 def ldapactionbatch_at(timestamp=None):
-    datasets = _datasets_at(timestamp)
-    return ldapactionbatch_from_datasets(datasets)
-
-
-def ldapactionbatch_from_datasets(datasets):
     actionbatch = LDAPActionBatch(description=timestamp.isoformat())
-    userdata, user_sources = userdata_from_datasets(datasets)
-    outrees, ou_sources = outrees_from_datasets(datasets)
+    userdata = translated_userdata_at(timestamp)   
 
-    for user, user_props in userdata.items():
-        pass
-    return actionbatch
 
 class LDAPActionBatch(models.Model):
     description = models.CharField(max_length=512, blank=True, default='')

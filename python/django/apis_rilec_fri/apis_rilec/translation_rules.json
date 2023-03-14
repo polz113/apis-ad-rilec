@@ -40,10 +40,11 @@
         "telephoneNumber": "${Komunikacija__0105__0020__vrednostNaziv}",
         "company": "${KadrovskiPodatki__0__0__clanica_Id clanica_ime}",
         "mail": "${Komunikacija__0105__0010__vrednostNaziv}",
-        "physicalDeliveryOfficeName": "${Komunikacija__0105__9005__vrednostNaziv}"
+        "physicalDeliveryOfficeName": "${Komunikacija__0105__9005__vrednostNaziv}",
+	"title": "${OsebniPodatki__0002__0__nazivPredImenom}"
     },
     "GROUP_RULES": [
-        ["${clanica_domena},OU=${clanica_prefix},OU=Users", "default OU"]
+        ["${clanica_domena},OU=${clanica_prefix},OU=Users", "default OU"],
         ["${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=oddelki,${OE_MAP_1},${vrsta_zaposlitve}", "global security"],
         ["${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=zaposlitev,OU=${vrsta_zaposlitve}", "global security"],
         ["${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=razporeditev,OU=${OE_MAP_1}", "global security"],
