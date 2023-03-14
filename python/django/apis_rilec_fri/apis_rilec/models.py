@@ -3,13 +3,22 @@ from django.utils import timezone
 from django.utils.datastructures import MultiValueDict
 
 from collections import defaultdict
-
-
 import json
+import string
+import os
+
 
 # Create your models here.
 
 FIELD_DELIMITER='__'
+
+
+def get_rules():
+    dirname = os.path.dirname(__file__)
+    with open(os.path.join(dirname, 'translation_rules.json')) as f:
+        d = json.load(f)
+    return d['TRANSLATIONS'], d['USER_RULES'], d['GROUP_RULES']
+
 
 class DataSource(models.Model):
     DATA_SOURCES = [('apis', 'Apis'), ('studis', 'Studis')]
@@ -41,6 +50,7 @@ class DataSource(models.Model):
                   'changed_t': timestamp,
                   'valid_from': valid_from_d,
                   'valid_to': valid_to_d }
+            # print(d)
             datadicts.append(d)
         for fieldgroup, subitem in enumerate(dataitem.get('data', [])):
             subprefix = FIELD_DELIMITER.join([prefix, infotip, podtip])
@@ -189,28 +199,49 @@ class UserData(models.Model):
         return("{} ({})".format(self.uid, self.dataset))
     dataset = models.ForeignKey('DataSet', on_delete=models.CASCADE)
     uid = models.CharField(max_length=64)
+
     def as_dicts(self, timestamp=None):
         if timestamp is None:
             timestamp = timezone.now()
         dicts = list()
         d = None
         prev_fieldgroup = None
-        for i in self.fields.filter(
+        ffields = self.fields.filter(
                     valid_from__lte=timestamp,
                     valid_to__gte=timestamp
                 ).order_by(
                     'fieldgroup'
-                ):
+                )
+        common_d = {"uid": self.uid}
+        for i in ffields.filter(fieldgroup=None):
+            common_d[i.field] = i.value
+        for i in ffields.exclude(fieldgroup=None):
             if i.fieldgroup is None or i.fieldgroup != prev_fieldgroup:
                 if d is not None:
                     dicts.append(d)
                 prev_fieldgroup = i.fieldgroup
-                d = dict()
+                d = common_d.copy()
             d[i.field] = i.value
         if d is not None:
             dicts.append(d)
         return dicts
 
+    def as_translated(self, translation_rules, timestamp=None):
+        translated_dicts = list()
+        for datadict in self.as_dicts(timestamp=timestamp):
+            for fieldname, (template, ruledict) in translation_rules.items():
+                t = string.Template(template)
+                default = ruledict.get("", "")
+                try:
+                    key = t.substitute(datadict)
+                    data_template = ruledict.get(key, default)
+                    t2 = string.Template(data_template)
+                    d = t2.substitute(datadict)
+                    datadict[fieldname] = d
+                except KeyError as e:
+                    pass
+            translated_dicts.append(datadict)
+        return translated_dicts
 
 class UserDataField(models.Model):
     def __str__(self):
@@ -272,40 +303,33 @@ def outrees_at(timestamp=None, source=None):
     return outree, source_ids
 
 
-def get_rules():
-    with open('translation_rules.json') as f:
-        d = json.load(f)
-    return d['TRANSLATIONS', 'USER_RULES', 'GROUP_RULES']
-
-
-def translated_userdata_at(timestamp=None):
-    sources = set()
+def latest_userdata():
     latest_userdata = dict()
-    translated_userdata = defaultdict(list)
-    translation_rules, user_rules, group_rules = get_rules()
     for ud in UserData.objects.order_by('dataset__timestamp'):
         latest_userdata[ud.uid] = ud
-    for uid, userdata in latest_userdata.items():
-        for datadict in uid.as_dicts(timestamp=timestamp):
-            for fieldname, (template, ruledict) in translation_rules.items():
-                t = string.Template(template)
-                default = ruledict.get("", "")
-                try:
-                    key = t.substitute(datadict)
-                    data_template = ruledict.get(key, default)
-                    t2 = string.Template(data_template)
-                    d = t2.substitute(datadict)
-                    datadict[fieldname] = d
-                except KeyError:
-                    pass
-            translated_userdata[uid] = datadict
-    return translated_userdata
- 
+    return latest_userdata
+
 
 def ldapactionbatch_at(timestamp=None):
+    if timestamp is None:
+        timestamp = timezone.now()
     actionbatch = LDAPActionBatch(description=timestamp.isoformat())
-    userdata = translated_userdata_at(timestamp)   
-
+    translation_rules, user_rules, group_rules = get_rules()
+    users = dict()
+    for uid, userdata in latest_userdata().items():
+        translated_userdata = userdata.as_translated(translation_rules, timestamp)
+        fielddict = defaultdict(list)
+        for fieldname, templatestr in user_rules.items():
+            print(templatestr)
+            t = string.Template(templatestr)
+            for datadict in translated_userdata:
+                try:
+                    fielddict[fieldname].append(t.substitute(datadict))
+                except KeyError as e:
+                    pass
+        users[uid] = fielddict
+    return users
+    # prepare group data
 
 class LDAPActionBatch(models.Model):
     description = models.CharField(max_length=512, blank=True, default='')

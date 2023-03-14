@@ -3,20 +3,25 @@
 {
     "TRANSLATIONS": {
         "clanica_domena": [
-            "${KadrovskiPodatki__0__0__clanica_Id}",
+            "${Ukrep__clanica_Id}",
             {
                 "2300": "DC=test,DC=fri,DC=uni-lj,DC=si"
             }
         ],
         "clanica_prefix": [
-            "${KadrovskiPodatki__0__0__clanica_Id}",
+            "${Ukrep__clanica_Id}",
             {
                 "2300": "FRI"
             }
         ],
-
+        "clanica_ime": [
+            "${Ukrep__clanica_Id}",
+            {
+                "2300": "Fakulteta za računalništvo in informatiko"
+            }
+        ],
         "habilitacija": [
-            "${Habilitacija__2003__9004__habilitacijskoPodrocje}.{Habilitacija__2003__9004__habilitacijskoPodpodrocje}",
+            "${Habilitacija__2003__9004__habilitacijskoPodrocje}.${Habilitacija__2003__9004__habilitacijskoPodpodrocje}",
             {
                 "001.00": "Test1",
                 "002.00": "Test1",
@@ -24,7 +29,7 @@
             }
         ],
         "vrsta_zaposlitve": [
-            "${OrgDodelitev__0001__0__skupinaZaposlenih}.{OrgDodelitev__0001__0__podskupinaZaposlenih}",
+            "${OrgDodelitev__0001__0__skupinaZaposlenih}.${OrgDodelitev__0001__0__podskupinaZaposlenih}",
             {
                 "1.11": "Redni",
                 "1.": "Izredni",
@@ -38,7 +43,7 @@
         "userPrincipalName": "${Komunikacija__0105__9007__vrednostNaziv}",
         "employeeID": "${uid}",
         "telephoneNumber": "${Komunikacija__0105__0020__vrednostNaziv}",
-        "company": "${KadrovskiPodatki__0__0__clanica_Id clanica_ime}",
+        "company": "${clanica_ime}",
         "mail": "${Komunikacija__0105__0010__vrednostNaziv}",
         "physicalDeliveryOfficeName": "${Komunikacija__0105__9005__vrednostNaziv}",
 	"title": "${OsebniPodatki__0002__0__nazivPredImenom}"
