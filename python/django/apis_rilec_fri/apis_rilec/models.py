@@ -299,7 +299,7 @@ def translated_userdata_at(timestamp=None):
                 except KeyError:
                     pass
             translated_userdata[uid] = datadict
-
+    return translated_userdata
  
 
 def ldapactionbatch_at(timestamp=None):
