@@ -13,13 +13,13 @@ import os
 FIELD_DELIMITER='__'
 
 """rules are typically handled one-by-one. However, if rules"""
-def __make_translator(rules):
+def _make_translator(rules):
     default_flags = {
         "default": False,
         "substring": False,
         "finish": True
     }
-    def __translate_linear(s):
+    def _translate_linear(s):
         for needle, repl, in_flags in rules:
             flags = default_flags.copy()
             flags.update(in_flags)
@@ -40,7 +40,7 @@ def __make_translator(rules):
         flags = default_flags.copy()
         flags.update(in_flags)
         if flags['substring'] or not flags['finish']:
-            return __translate_linear
+            return _translate_linear
         trans_dict[needle] = repl
     if len(rules) > 0:
         needle, repl, in_flags = rules[-1]
@@ -55,11 +55,32 @@ def __make_translator(rules):
             return lambda s: trans_dict.get(s, s)
 
 
-def __get_rules(name):
+def _get_rules(name):
     dirname = os.path.dirname(__file__)
     with open(os.path.join(dirname, 'translation_rules.json')) as f:
         d = json.load(f)
     return d[name]
+
+
+def _field_adder(datadict, extra_fields, translations):
+    translators = dict()
+    for fieldname, (template, trans_names) in extra_fields.items():
+        cur_translators = list()
+        for tname in trans_names:
+            rules = translations.get(tname, [])
+            cur_translators.append(_make_translator(rules))
+        translators[fieldname] = cur_translators
+    for fieldname, (template, trans_names) in extra_fields.items():
+        t = string.Template(template)
+        try:
+            data = t.substitute(datadict)
+            for translator in translators[fieldname]:
+                data = translator(data)
+            datadict[fieldname] = data
+        except KeyError as e:
+                # print("Booo, ", template, datadict)
+            pass
+    return datadict
 
 
 def field_adder_factory():
@@ -93,7 +114,7 @@ def field_adder_factory():
     return __field_adder
 
 
-DEFAULT_USER_FIELD_ADDER = field_adder_factory()
+DEFAULT_USER_FIELD_ADDER = _field_adder
 
 
 class DataSource(models.Model):
@@ -296,14 +317,19 @@ class UserData(models.Model):
             dicts.append(d)
         return dicts
 
-    def with_extra(self, timestamp=None, field_adder=None):
+
+    def with_extra(self, timestamp=None, extra_fields=None, translations=None):
         translated_dicts = list()
+        if extra_fields is None:
+            extra_fields = _get_rules('EXTRA_FIELDS')
+        if translations is None:
+            translations = _get_rules('TRANSLATIONS')
         # this would reload the rules every time the function is run.
-        if field_adder is None:
-            field_adder = DEFAULT_USER_FIELD_ADDER
         # extra_user_field_gen = extra_user_field_gen_factory()
         for datadict in self.as_dicts(timestamp=timestamp):
-            translated_dicts.append(field_adder(datadict))
+            translated_dicts.append(_field_adder(datadict, 
+                                                 extra_fields=extra_fields, 
+                                                 translations=translations))
             # translated_dicts.append(datadict)
         return translated_dicts
 
