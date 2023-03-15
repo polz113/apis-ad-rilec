@@ -320,7 +320,6 @@ def ldapactionbatch_at(timestamp=None):
         translated_userdata = userdata.as_translated(translation_rules, timestamp)
         fielddict = defaultdict(list)
         for fieldname, templatestr in user_rules.items():
-            print(templatestr)
             t = string.Template(templatestr)
             for datadict in translated_userdata:
                 try:

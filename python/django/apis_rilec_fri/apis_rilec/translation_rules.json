@@ -48,12 +48,33 @@
         "physicalDeliveryOfficeName": "${Komunikacija__0105__9005__vrednostNaziv}",
 	"title": "${OsebniPodatki__0002__0__nazivPredImenom}"
     },
+    "TREE_RULES": {
+    },
     "GROUP_RULES": [
-        ["${clanica_domena},OU=${clanica_prefix},OU=Users", "default OU"],
-        ["${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=oddelki,${OE_MAP_1},${vrsta_zaposlitve}", "global security"],
-        ["${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=zaposlitev,OU=${vrsta_zaposlitve}", "global security"],
-        ["${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=razporeditev,OU=${OE_MAP_1}", "global security"],
-        ["${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=habilitacija,OU=${habilitacija}", "global security"],
-        ["${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=delovnomesto,OU=${Razporeditev__1001__B008__delovnoMesto}", "global distribution"]
+        ["${clanica_domena},OU=${clanica_prefix},OU=Users", 
+            { "type": "global security", "default": true }
+        ],
+        ["${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=oddelki,${OE_MAP_1},${vrsta_zaposlitve}", 
+            { "type": "global security" }
+        ],
+        ["${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=zaposlitev,OU=${vrsta_zaposlitve}", 
+            { "type": "global security" }
+        ],
+        ["${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=razporeditev,OU=${OE_MAP_1}",
+            { "type": "global security", 
+                "outree": { 
+                    "key": "${OrgDodelitev__0001__0__glavnaOrganizacijskaEnota_Id}", 
+                    "var": "OE_MAP_1", 
+                    "relation": "1001__A002", 
+                    "join": "OU="
+                }
+            }
+        ],
+        ["${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=habilitacija,OU=${habilitacija}", 
+            { "type": "global security"}
+        ],
+        ["${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=delovnomesto,OU=${Razporeditev__1001__B008__delovnoMesto}", 
+            { "type": "global distribution"}
+        ]
     ]
 }
