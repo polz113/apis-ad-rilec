@@ -12,8 +12,24 @@ import os
 
 FIELD_DELIMITER='__'
 
-"""rules are typically handled one-by-one. However, if rules"""
+
+def _get_rules(name=None):
+    dirname = os.path.dirname(__file__)
+    with open(os.path.join(dirname, 'translation_rules.json')) as f:
+        d = json.load(f)
+    if name is None:
+        return d
+    return d[name]
+
+
+"""rules are typically handled one-by-one.
+However, if all rules but the last are final and apply
+to whole strings, the translation can be reduced to a
+simple dict lookup.
+"""
 def _make_translator(rules):
+    if len(rules) == 0:
+        return lambda x: x
     default_flags = {
         "default": False,
         "substring": False,
@@ -42,47 +58,45 @@ def _make_translator(rules):
         if flags['substring'] or not flags['finish']:
             return _translate_linear
         trans_dict[needle] = repl
-    if len(rules) > 0:
-        needle, repl, in_flags = rules[-1]
-        flags = default_flags.copy()
-        flags.update(in_flags)
-        if flags['substring']:
-            return lambda s: trans_dict.get(s, s).replace(needle, repl)
-        elif flags['default']:
-            return lambda s: trans_dict.get(s, repl)
-        else:
-            trans_dict[needle] = repl
-            return lambda s: trans_dict.get(s, s)
+    needle, repl, in_flags = rules[-1]
+    flags = default_flags.copy()
+    flags.update(in_flags)
+    if flags['substring']:
+        return lambda s: trans_dict.get(s, s).replace(needle, repl)
+    elif flags['default']:
+        return lambda s: trans_dict.get(s, repl)
+    else:
+        trans_dict[needle] = repl
+        return lambda s: trans_dict.get(s, s)
 
 
-def _get_rules(name):
-    dirname = os.path.dirname(__file__)
-    with open(os.path.join(dirname, 'translation_rules.json')) as f:
-        d = json.load(f)
-    return d[name]
+def _fill_template(datadict, template, trans_names, translations):
+    translators = list()
+    for tname in trans_names:
+        rules = translations.get(tname, [])
+        translators.append(_make_translator(rules))
+    t = string.Template(template)
+    try:
+        data = t.substitute(datadict)
+        for translator in translators:
+            data = translator(data)
+    except KeyError as e:
+        # print("Booo, ", template, datadict)
+        return None
+    return data
 
-
-def _field_adder(datadict, extra_fields, translations):
-    translators = dict()
+def _field_adder(datadict, extra_fields, translations, update_datadict=True):
+    new_fields = dict()
     for fieldname, (template, trans_names) in extra_fields.items():
-        cur_translators = list()
-        for tname in trans_names:
-            rules = translations.get(tname, [])
-            cur_translators.append(_make_translator(rules))
-        translators[fieldname] = cur_translators
-    for fieldname, (template, trans_names) in extra_fields.items():
-        t = string.Template(template)
-        try:
-            data = t.substitute(datadict)
-            for translator in translators[fieldname]:
-                data = translator(data)
-            datadict[fieldname] = data
-        except KeyError as e:
-                # print("Booo, ", template, datadict)
-            pass
-    return datadict
+        new_data = _fill_template(datadict, template, trans_names, translations)
+        if new_data is not None:
+            new_fields[fieldname] = new_data
+    if update_datadict:
+        datadict.update(new_fields)
+        return datadict
+    return new_fields
 
-
+"""
 def field_adder_factory():
     translations = __get_rules('TRANSLATIONS')
     extra_fields = __get_rules('EXTRA_FIELDS')
@@ -112,7 +126,7 @@ def field_adder_factory():
                 datadict[fieldname] = new_data
         return datadict
     return __field_adder
-
+"""
 
 DEFAULT_USER_FIELD_ADDER = _field_adder
 
@@ -317,7 +331,6 @@ class UserData(models.Model):
             dicts.append(d)
         return dicts
 
-
     def with_extra(self, timestamp=None, extra_fields=None, translations=None):
         translated_dicts = list()
         if extra_fields is None:
@@ -329,9 +342,35 @@ class UserData(models.Model):
         for datadict in self.as_dicts(timestamp=timestamp):
             translated_dicts.append(_field_adder(datadict, 
                                                  extra_fields=extra_fields, 
-                                                 translations=translations))
+                                                 translations=translations,
+                                                 update_datadict=True))
             # translated_dicts.append(datadict)
         return translated_dicts
+
+    def groups_at(self, timestamp=None, ou_trees=None, group_rules=None, translations=None):
+        if group_rules is None:
+            group_rules = _get_rules('GROUP_RULES')
+        if translations is None:
+            translations = _get_rules('TRANSLATIONS')
+        if outrees is None:
+            ou_trees, outree_source_ids = outrees_at(timestamp)
+        groups = dict()
+        datadicts = self.with_extra(timestamp)
+        for datadict in datadicts:
+            for dn_template, dn_trans_names, props in group_rules:
+                dn = _fill_template(datadict, dn_template, dn_trans_names, translations)
+                tree_maps = props.get("outrees", dict())
+                for varname, tree_props in tree_maps.items():
+                    t = string.Template(tree_props['key'])
+                    tree = ou_trees[tree_props['relation']]
+                    # join tree path for this user
+                field_templates = props['fields']
+                field_vals = _field_adder(datadict,
+                                          extra_fields=field_templates,
+                                          translations=translations,
+                                          update_datadict=False)
+                groups[dn] = field_vals
+        return groups
 
 
 class UserDataField(models.Model):
@@ -346,16 +385,13 @@ class UserDataField(models.Model):
     value = models.CharField(max_length=512)
 
 
-def outrees_at(timestamp=None, source=None):
+def outrees_at(timestamp=None):
     if timestamp is None:
         timestamp = timezone.now()
     ouds = OUData.objects.filter(valid_to__gte=timestamp,
                                  valid_from__lte=timestamp)
     ours = OURelation.objects.filter(valid_to__gte=timestamp,
                                  valid_from__lte=timestamp)
-    if source is not None:
-        ouds = ouds.filter(dataset__source=source)
-        ours = ouds.filter(dataset__source=source)
     ous = dict()
     id_relations = defaultdict(dict)
     oud_sources = dict()
@@ -406,17 +442,17 @@ def ldapactionbatch_at(timestamp=None):
         timestamp = timezone.now()
     actionbatch = LDAPActionBatch(description=timestamp.isoformat())
     users = dict()
+    groups = dict()
+    ou_trees, outree_source_ids = outrees_at(timestamp)
     for uid, userdata in latest_userdata().items():
-        translated_userdata = userdata.with_extra(timestamp)
-        fielddict = defaultdict(list)
-        for fieldname, templatestr in user_rules.items():
-            t = string.Template(templatestr)
-            for datadict in translated_userdata:
-                try:
-                    fielddict[fieldname].append(t.substitute(datadict))
-                except KeyError as e:
-                    pass
-        users[uid] = fielddict
+        users[uid] = userdata.with_extra(timestamp)
+        groups_to_join = userdata.groups_at(timestamp, ou_trees=ou_trees)
+        for group in groups_to_join:
+            dn = group['distinguishedName']
+            old_group = groups.get(dn, dict())
+            # merge the group data, old data has priority
+            group.update(old_group)
+            groups[dn] = group
     return users
     # prepare group data
 
