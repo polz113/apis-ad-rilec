@@ -12,12 +12,88 @@ import os
 
 FIELD_DELIMITER='__'
 
+"""rules are typically handled one-by-one. However, if rules"""
+def __make_translator(rules):
+    default_flags = {
+        "default": False,
+        "substring": False,
+        "finish": True
+    }
+    def __translate_linear(s):
+        for needle, repl, in_flags in rules:
+            flags = default_flags.copy()
+            flags.update(in_flags)
+            if flags['default']:
+                return repl
+            matched = False
+            if flags['substring']:
+                matched = s.find(needle) > -1
+                s.replace(needle, repl)
+            elif s == needle:
+                matched = True
+                s = repl
+            if matched and flags['finish']:
+                return s
+        return s
+    trans_dict = dict()
+    for needle, repl, in_flags in rules[:-1]:
+        flags = default_flags.copy()
+        flags.update(in_flags)
+        if flags['substring'] or not flags['finish']:
+            return __translate_linear
+        trans_dict[needle] = repl
+    if len(rules) > 0:
+        needle, repl, in_flags = rules[-1]
+        flags = default_flags.copy()
+        flags.update(in_flags)
+        if flags['substring']:
+            return lambda s: trans_dict.get(s, s).replace(needle, repl)
+        elif flags['default']:
+            return lambda s: trans_dict.get(s, repl)
+        else:
+            trans_dict[needle] = repl
+            return lambda s: trans_dict.get(s, s)
 
-def get_rules():
+
+def __get_rules(name):
     dirname = os.path.dirname(__file__)
     with open(os.path.join(dirname, 'translation_rules.json')) as f:
         d = json.load(f)
-    return d['TRANSLATIONS'], d['USER_RULES'], d['GROUP_RULES']
+    return d[name]
+
+
+def field_adder_factory():
+    translations = __get_rules('TRANSLATIONS')
+    extra_fields = __get_rules('EXTRA_FIELDS')
+    field_add_functions = dict()
+    for fieldname, (template, trans_names) in extra_fields.items():
+        t = string.Template(template)
+        translators = list()
+        for tname in trans_names:
+            rules = translations.get(tname, [])
+            translators.append(__make_translator(rules))
+        def __field_add(datadict):
+            try:
+                print(t.template)
+                data = t.substitute(datadict)
+                # print("Yaaay, ", data)
+                # for translator in translators:
+                #     data = translator(data)
+            except KeyError as e:
+                # print("Booo, ", template, datadict)
+                return None
+            return data
+        field_add_functions[fieldname] = __field_add
+    def __field_adder(datadict):
+        for fieldname, field_add_fn in field_add_functions.items():
+            new_data = field_add_fn(datadict)
+            if new_data is not None:
+                datadict[fieldname] = new_data
+        return datadict
+    return __field_adder
+
+
+DEFAULT_USER_FIELD_ADDER = field_adder_factory()
 
 
 class DataSource(models.Model):
@@ -29,12 +105,6 @@ class DataSource(models.Model):
     def parsed_json(self):
         return json.loads(self.data)
     
-    def userdata(self, timestamp=None):
-        pass
-
-    def grouptrees(self, timestamp=None):
-        pass
-
     def _to_userdatadicts(self, timestamp, prefix, dataitem):
         valid_from_d = dataitem['veljaOd']
         valid_to_d = dataitem['veljaDo']
@@ -226,22 +296,17 @@ class UserData(models.Model):
             dicts.append(d)
         return dicts
 
-    def as_translated(self, translation_rules, timestamp=None):
+    def with_extra(self, timestamp=None, field_adder=None):
         translated_dicts = list()
+        # this would reload the rules every time the function is run.
+        if field_adder is None:
+            field_adder = DEFAULT_USER_FIELD_ADDER
+        # extra_user_field_gen = extra_user_field_gen_factory()
         for datadict in self.as_dicts(timestamp=timestamp):
-            for fieldname, (template, ruledict) in translation_rules.items():
-                t = string.Template(template)
-                default = ruledict.get("", "")
-                try:
-                    key = t.substitute(datadict)
-                    data_template = ruledict.get(key, default)
-                    t2 = string.Template(data_template)
-                    d = t2.substitute(datadict)
-                    datadict[fieldname] = d
-                except KeyError as e:
-                    pass
-            translated_dicts.append(datadict)
+            translated_dicts.append(field_adder(datadict))
+            # translated_dicts.append(datadict)
         return translated_dicts
+
 
 class UserDataField(models.Model):
     def __str__(self):
@@ -314,10 +379,9 @@ def ldapactionbatch_at(timestamp=None):
     if timestamp is None:
         timestamp = timezone.now()
     actionbatch = LDAPActionBatch(description=timestamp.isoformat())
-    translation_rules, user_rules, group_rules = get_rules()
     users = dict()
     for uid, userdata in latest_userdata().items():
-        translated_userdata = userdata.as_translated(translation_rules, timestamp)
+        translated_userdata = userdata.with_extra(timestamp)
         fielddict = defaultdict(list)
         for fieldname, templatestr in user_rules.items():
             t = string.Template(templatestr)
