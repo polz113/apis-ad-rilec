@@ -357,9 +357,13 @@ class UserData(models.Model):
         groups = dict()
         datadicts = self.with_extra(timestamp)
         for datadict in datadicts:
-            for dn_template, dn_trans_names, props in group_rules:
-                dn = _fill_template(datadict, dn_template, dn_trans_names, translations)
-                tree_maps = props.get("outrees", dict())
+            for field_dict, flags in group_rules:
+                tree_rules = flags.get("outrees", [])
+                for tree_dict in tree_rules:
+                    key = _fill_template(tree_dict['key'])
+                    tree = tree_dict['relation']
+
+
                 for varname, tree_props in tree_maps.items():
                     t = string.Template(tree_props['key'])
                     tree = ou_trees[tree_props['relation']]
