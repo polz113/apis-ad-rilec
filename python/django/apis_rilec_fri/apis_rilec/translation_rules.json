@@ -3,76 +3,86 @@
 {
     "EXTRA_FIELDS": {
         "clanica_domena": [
-            "${Ukrep__clanica_Id}", ["clanica_domena"]
+            "${Ukrep__clanica_Id}", ["clanica_domena_repl"]
         ],
         "clanica_prefix": [
             "${Ukrep__clanica_Id}", ["clanica_prefix_repl"]
         ],
         "clanica_ime": [
-            "${Ukrep__clanica_Id}", ["clanica_ime"]
+            "${Ukrep__clanica_Id}", ["clanica_ime_repl"]
         ],
         "habilitacija": [
             "${Habilitacija__2003__9004__habilitacijskoPodrocje}.${Habilitacija__2003__9004__habilitacijskoPodpodrocje}", ["habilitacija_repl"]
-	],
+    ],
         "vrsta_zaposlitve": [
             "${OrgDodelitev__0001__0__skupinaZaposlenih}.${OrgDodelitev__0001__0__podskupinaZaposlenih}",
-            ["vrsta_zaposlitve"]
+            ["vrsta_zaposlitve_r"]
         ]
     },
     "TRANSLATIONS": {
-	"clanica_domena": [
-	    [ "2300", "DC=test,DC=fri,DC=uni-lj,DC=si", {}]
-	],
-	"clanica_prefix_repl": [
-	    [ "2300", "FRI", {}]
-	],
-	"clanica_ime": [
-	    [ "2300", "Fakulteta za računalništvo in informatiko", {}]
-	],
-	"vrsta_zaposlitve":[
-	    [ "1.11", "Redni", {}],
-	    [ "1.00", "Izredni", {}],
-	    [ "", "Zunanji", {"default": true} ]
-	],
-	"habilitacija_repl":[
-	    [ "001.00", "Test1", {}],
-	    [ "002.00", "Test1", {}],
-	    [ "019.00", "Test3", {}],
-	    [ "", "Neznana", {"default": true}]
-	],
-        "sap_ou_shortnames": [
-	    ["OU=BIOLAB-2.7", "OU=BIOLAB", {"substring": true}],
-	    ["OU=LEM-2.9", "OU=LEM", {"substring": true}],
-	    ["OU=LA-2.16", "OU=LA", {"substring": true}],
-	    ["OU=LASP-2.12", "OU=LASP", {"substring": true}],
-	    ["OU=LGM-2.1", "OU=LGM", {"substring": true}],
-	    ["OU=LKM-2.5", "OU=LKM", {"substring": true}],
-	    ["OU=LPT-2.10", "OU=LPT", {"substring": true}],
-	    ["OU=LIIS-2.11", "OU=LIIS", {"substring": true}],
-	    ["OU=LKRV-2.18", "OU=LKRV", {"substring": true}],
-	    ["OU=LMMRI-2.17", "OU=LMMRI", {"substring": true}],
-	    ["OU=LRV-2.6", "OU=LRV", {"substring": true}],
-	    ["OU=LUI-2.4", "OU=LUI", {"substring": true}],
-	    ["OU=LVS-2.15", "OU=LVS", {"substring": true}],
-	    ["OU=LUVSS-2.3", "OU=LUVSS", {"substring": true}],
-	    ["OU=LRSS-2.13", "OU=LUI", {"substring": true}],
-	    ["OU=LRK-2.19", "OU=LRK", {"substring": true}],
-	    ["OU=LTPO-2.14", "OU=LTPO", {"substring": true}],
-	    ["OU=LBRSO-2.2", "OU=LBRSO", {"substring": true}]
-	],
-	"sap_ou_names": [
-	    ["UL Fakulteta za računalništvo in informa", "UL Fakulteta za računalništvo in informatiko", {}],
-	    ["Laboratorij za adaptivne sisteme in proc", "Laboratorij za adaptivne sisteme in procesiranje", {}],
-	    ["Laboratorij za računalniško grafiko in m", "Laboratorij za računalniško grafiko in multimedije", {}],
-	    ["Laboratorij za biomedicinske računalnišk", "Laboratorij za biomedicinske računalniške sisteme in oslikave", {}],
-	    ["Laboratorij za integracijo informacijski", "Laboratorij za integracijo informacijskih sistemov", {}],
-	    ["Laboratorij za kriptografijo in računaln", "Laboratorij za kriptografijo in računalniško varnost", {}],
-	    ["Laboratorij za matematične metode v raču", "Laboratorij za matematične metode v računalništvu", {}],
-	    ["Laboratorij za umetne vizualne spoznavne", "Laboratorij za umetne vizualne spoznavne sisteme", {}],
-	    ["Laboratorij za računalniške strukture in", "Laboratorij za računalniške strukture in sisteme", {}],
-	    ["Laboratorij za tehnologijo programske op", "Laboratorij za tehnologijo programske opreme", {}],
-	    ["Katedra za informacijske sisteme in tehn", "Katedra za informacijske sisteme in tehnologije", {}]
-	]
+    "clanica_domena_repl": [
+        [ "2300", "DC=test,DC=fri,DC=uni-lj,DC=si", {}]
+    ],
+    "clanica_prefix_repl": [
+        [ "2300", "FRI", {}]
+    ],
+    "clanica_ime_repl": [
+        [ "2300", "Fakulteta za računalništvo in informatiko", {}]
+    ],
+    "vrsta_zaposlitve_r":[
+        [ "1.11", "Redni", {}],
+        [ "1.00", "Izredni", {}],
+        [ "", "Zunanji", {"default": true} ]
+    ],
+    "habilitacija_repl":[
+        [ "001.00", "Test1", {}],
+        [ "002.00", "Test1", {}],
+        [ "019.00", "Test3", {}],
+        [ "", "Neznana", {"default": true}]
+    ],
+    "sap_ou_shortnames": [
+        ["OU=BIOLAB-2.7", "OU=BIOLAB", {"substring": true}],
+        ["OU=LEM-2.9", "OU=LEM", {"substring": true}],
+        ["OU=LA-2.16", "OU=LA", {"substring": true}],
+        ["OU=LASP-2.12", "OU=LASP", {"substring": true}],
+        ["OU=LGM-2.1", "OU=LGM", {"substring": true}],
+        ["OU=LKM-2.5", "OU=LKM", {"substring": true}],
+        ["OU=LPT-2.10", "OU=LPT", {"substring": true}],
+        ["OU=LIIS-2.11", "OU=LIIS", {"substring": true}],
+        ["OU=LKRV-2.18", "OU=LKRV", {"substring": true}],
+        ["OU=LMMRI-2.17", "OU=LMMRI", {"substring": true}],
+        ["OU=LRV-2.6", "OU=LRV", {"substring": true}],
+        ["OU=LUI-2.4", "OU=LUI", {"substring": true}],
+        ["OU=LVS-2.15", "OU=LVS", {"substring": true}],
+        ["OU=LUVSS-2.3", "OU=LUVSS", {"substring": true}],
+        ["OU=LRSS-2.13", "OU=LUI", {"substring": true}],
+        ["OU=LRK-2.19", "OU=LRK", {"substring": true}],
+        ["OU=LTPO-2.14", "OU=LTPO", {"substring": true}],
+        ["OU=LBRSO-2.2", "OU=LBRSO", {"substring": true}]
+    ],
+    "sap_ou_names": [
+        ["UL Fakulteta za računalništvo in informa", "UL Fakulteta za računalništvo in informatiko", {}],
+        ["Laboratorij za adaptivne sisteme in proc", "Laboratorij za adaptivne sisteme in procesiranje", {}],
+        ["Laboratorij za računalniško grafiko in m", "Laboratorij za računalniško grafiko in multimedije", {}],
+        ["Laboratorij za biomedicinske računalnišk", "Laboratorij za biomedicinske računalniške sisteme in oslikave", {}],
+        ["Laboratorij za integracijo informacijski", "Laboratorij za integracijo informacijskih sistemov", {}],
+        ["Laboratorij za kriptografijo in računaln", "Laboratorij za kriptografijo in računalniško varnost", {}],
+        ["Laboratorij za matematične metode v raču", "Laboratorij za matematične metode v računalništvu", {}],
+        ["Laboratorij za umetne vizualne spoznavne", "Laboratorij za umetne vizualne spoznavne sisteme", {}],
+        ["Laboratorij za računalniške strukture in", "Laboratorij za računalniške strukture in sisteme", {}],
+        ["Laboratorij za tehnologijo programske op", "Laboratorij za tehnologijo programske opreme", {}],
+        ["Katedra za informacijske sisteme in tehn", "Katedra za informacijske sisteme in tehnologije", {}]
+    ],
+    "group_types": [
+        ["global distribution", "2", {}],
+        ["distribution", "2", {}],
+        ["local distribution", "4", {}]
+        ["universal distribution", "8", {}]
+        ["global security", "2147483650", {}],
+        ["security", "2147483650", {}],
+        ["local security", "2147483652", {}]
+        ["universal security", "2147483656", {}]
+    ]
     },
     "USER_RULES": {
         "givenName": "${OsebniPodatki__0002__0__ime}",
@@ -83,52 +93,60 @@
         "company": "${clanica_ime}",
         "mail": "${Komunikacija__0105__0010__vrednostNaziv}",
         "physicalDeliveryOfficeName": "${Komunikacija__0105__9005__vrednostNaziv}",
-	"title": "${OsebniPodatki__0002__0__nazivPredImenom}"
-    },
-    "TREE_RULES": {
-	"org_structure": {
-	}
+        "title": "${OsebniPodatki__0002__0__nazivPredImenom}"
     },
     "GROUP_RULES": [
-        ["${clanica_domena},OU=${clanica_prefix},OU=Users", 
-            { "type": "global security", "default": true }
+        ["${clanica_domena},OU=${clanica_prefix},OU=Users", [], { "main_ou": true }
         ],
-        ["${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=oddelki,${OE_MAP_1},${vrsta_zaposlitve}", 
-            { "type": "global security" }
-
-        ],
-        ["${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=zaposlitev,OU=${vrsta_zaposlitve}", 
-            { "type": "global security" }
-        ],
-        ["${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=razporeditev,${OE_MAP_1}",
+        ["${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=oddelki,${OE_MAP_1},${vrsta_zaposlitve}", [],
             {
-	        "type": "global security", 
+                "fields": {
+		    "groupType": ["global security", ["group_types"]],
+		    "name": ["$vrsta_zaposlitve", []]
+		}
+	    }
+        ],
+        ["${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=zaposlitev,OU=${vrsta_zaposlitve}", [],
+            {
+                "fields": {
+		    "groupType": ["global security", ["group_types"]],
+		    "name": ["${vrsta_zaposlitve}", []]
+		}
+	    }
+        ],
+        ["${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=razporeditev,${OE_MAP_1}", [ "sap_ou_shortnames" ],
+            {
                 "outrees": {
-		    "OE_MAP_1": {
+                    "OE_MAP_1": {
                         "key": "${OrgDodelitev__0001__0__glavnaOrganizacijskaEnota_Id}", 
-	    		"relation": "1001__A002",
-	    		"part_template": "OU=${ou_shortname}"
-		    }
+                        "relation": "1001__A002",
+                        "part_template": "OU=${ou_shortname}"
+                    }
                 },
-                "properties": {
-		    "cn": "FRI-{shortname}",
-			"description": "{ou_name}",
-			"mail": "FRI-{ou_shortname}@fri.uni-lj.si",
-			"name": "{ou_shortname}"
-		    },
-		    "replace": {
-	
-			"distinguishedName": [ "sap_ou_shortnames" ],
-			"name": [ "sap_ou_names" ]
-		    }
-
+                "fields": {
+                    "cn": ["FRI-{shortname}", []],
+                    "description": ["{ou_name}", []],
+                    "mail": ["FRI-{ou_shortname}@fri.uni-lj.si", []],
+                    "name": ["{ou_shortname}", ["sap_ou_names"]],
+		    "groupType": ["global security", ["group_types"]]
+                }
             }
         ],
         ["${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=habilitacija,OU=${habilitacija}", 
-            { "type": "global security"}
+            {
+                "fields": {
+		    "groupType": ["global security", ["group_types"]],
+		    "name": ["$habilitacija", []]
+		}
+            }
         ],
         ["${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=delovnomesto,OU=${Razporeditev__1001__B008__delovnoMesto}", 
-            { "type": "global distribution"}
+            {
+                "fields": {
+		    "groupType": ["global security", ["group_types"]],
+		    "name": ["${Razporeditev__1001__B008__delovnoMesto}", []]
+		}
+	    }
         ]
     ]
 }
