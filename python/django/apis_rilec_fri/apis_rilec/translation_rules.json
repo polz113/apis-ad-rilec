@@ -80,11 +80,11 @@
         "group_types": [
             ["global distribution", "2", {}],
             ["distribution", "2", {}],
-            ["local distribution", "4", {}]
-            ["universal distribution", "8", {}]
+            ["local distribution", "4", {}],
+            ["universal distribution", "8", {}],
             ["global security", "2147483650", {}],
             ["security", "2147483650", {}],
-            ["local security", "2147483652", {}]
+            ["local security", "2147483652", {}],
             ["universal security", "2147483656", {}]
         ]
     },
@@ -136,10 +136,10 @@
                     {
                         "key": "${OrgDodelitev__0001__0__glavnaOrganizacijskaEnota_Id}", 
                         "relation": "1001__A002",
-                        "part_template": "OU=${ou_shortname}",
+                        "part_template": "OU=${shortname}",
 			"fields": {
 			    "OE_MAP_DN": "ou_dn_part",
-			    "OE_MAP_shortname": "short_name",
+			    "OE_MAP_shortname": "shortname",
 			    "OE_MAP_name": "name",
 			    "OE_MAP_uid": "uid"
 			}
@@ -159,7 +159,7 @@
                 "distinguishedName": ["${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=delovnomesto,OU=${Razporeditev__1001__B008__delovnoMesto}", []], 
                 "groupType": ["global security", ["group_types"]],
                 "name": ["${Razporeditev__1001__B008__delovnoMesto}", []]
-            }
+            }, {}
         ]
     ]
 }

@@ -347,33 +347,49 @@ class UserData(models.Model):
             # translated_dicts.append(datadict)
         return translated_dicts
 
-    def groups_at(self, timestamp=None, ou_trees=None, group_rules=None, translations=None):
+    def groups_at(self, timestamp=None, group_rules=None, translations=None):
         if group_rules is None:
             group_rules = _get_rules('GROUP_RULES')
         if translations is None:
             translations = _get_rules('TRANSLATIONS')
-        if outrees is None:
-            ou_trees, outree_source_ids = outrees_at(timestamp)
+        oud, relationsd, outree_source_ids = oudicts_at(timestamp)
         groups = dict()
         datadicts = self.with_extra(timestamp)
-        for datadict in datadicts:
-            for field_dict, flags in group_rules:
-                tree_rules = flags.get("outrees", [])
-                for tree_dict in tree_rules:
-                    key = _fill_template(tree_dict['key'])
-                    tree = tree_dict['relation']
+        for field_dict, flags in group_rules:
+            outree_rules = flags.get("outrees", [])
+            tree_fields = dict()
+            # Fill ou tree based groups
+            for tree_rule in outree_rules:
+                for datadict in datadicts:
+                    key = _fill_template(datadict, tree_rule['key'], [], translations)
+                    if key is None:
+                        continue
+                    relations = relationsd[tree_rule['relation']]
+                    field_templates = tree_rule['fields']
+                    parent = key
+                    parent_ids = []
+                    while parent is not None:
+                        parent_ids.append(parent)
+                        parent = relations.get(parent, None)
+                    t = string.Template(tree_rule['part_template'])
+                    parent_strs = list()
+                    for i in reversed(parent_ids):
+                        try:
+                            template_dict = datadict.copy()
+                            template_dict.update(oud[i])
+                            parent_strs.append(t.substitute(template_dict))
+                        except KeyError:
+                            pass
+                # print(parent_strs)
 
-
-                for varname, tree_props in tree_maps.items():
-                    t = string.Template(tree_props['key'])
-                    tree = ou_trees[tree_props['relation']]
-                    # join tree path for this user
-                field_templates = props['fields']
-                field_vals = _field_adder(datadict,
-                                          extra_fields=field_templates,
-                                          translations=translations,
-                                          update_datadict=False)
-                groups[dn] = field_vals
+                # print("got ", key, oud.get(key, ()), parents)
+                # tree_fields = tree_fields.update(field_vals)
+                # join tree path for this user
+                #field_vals = _field_adder(datadict,
+                #                      extra_fields=field_templates,
+                #                      translations=translations,
+                #                      update_datadict=False)
+                # groups[dn] = field_vals
         return groups
 
 
@@ -389,7 +405,7 @@ class UserDataField(models.Model):
     value = models.CharField(max_length=512)
 
 
-def outrees_at(timestamp=None):
+def oudicts_at(timestamp=None):
     if timestamp is None:
         timestamp = timezone.now()
     ouds = OUData.objects.filter(valid_to__gte=timestamp,
@@ -403,29 +419,37 @@ def outrees_at(timestamp=None):
     for oud in ouds:
         source_id = oud.dataset.source_id
         oud_sources[oud.uid] = source_id
-        ous[oud.uid] = (oud.shortname, oud.name, source_id)
+        ous[oud.uid] = {"shortname": oud.shortname, "name": oud.name, "source": source_id}
     for our in ours: 
         source_id = our.dataset.source_id
         our_sources[(our.relation, our.ou1_id)] = source_id
         id_relations[our.relation][our.ou1_id] = our.ou2_id
+        #if our.ou2_id not in ous:
+        #    ous[our.ou2_id] = {"uid": our.ou2_id, "shortname": None, "name": None, "source": source_id}
+        # add missing parents
+    source_ids = set(oud_sources.values()).union(set(our_sources.values()))
+    return ous, id_relations, source_ids
+
+
+def outrees_at(timestamp=None):
     outree = dict()
-    source_ids = set(oud_sources.values()).union(our_sources.values())
+    ous, id_relations, source_ids = oudicts_at(timestamp)
     for k, v in id_relations.items():
         toplevel = set() # toplevel OUs
         rel_ous = dict()
         # build a list of OUs with lists for children, add all OUs to toplevel
-        for uid, (shortname, name, source_id) in ous.items():
-            rel_ous[uid] = (uid, shortname, name, [], source_id)
+        for uid, ou_data in ous.items():
+            d = { "uid": uid,
+                  "children": []}
+            d.update(ou_data)
+            rel_ous[uid] = d
             toplevel.add(uid)
-        # add missing parents
-        for child_id, parent_id in v.items():
-            if parent_id not in toplevel:
-                toplevel.add(parent_id)
-                rel_ous[parent_id] = (parent_id, None, None, [])
         # remove OUs with parents from toplevel, build children lists
         for child_id, parent_id in v.items():
-            toplevel.discard(child_id)
-            rel_ous[parent_id][3].append(rel_ous[child_id])
+            rel_ous[child_id]["parent"] = parent_id
+            if parent_id in rel_ous:
+                toplevel.discard(child_id)
+                rel_ous[parent_id]["children"].append(rel_ous[child_id])
         rel_outree = []
         # add toplevel OUs to output
         for i in toplevel:
@@ -447,7 +471,7 @@ def ldapactionbatch_at(timestamp=None):
     actionbatch = LDAPActionBatch(description=timestamp.isoformat())
     users = dict()
     groups = dict()
-    ou_trees, outree_source_ids = outrees_at(timestamp)
+    ous, ou_relations, outree_source_ids = oudicts_at(timestamp)
     for uid, userdata in latest_userdata().items():
         users[uid] = userdata.with_extra(timestamp)
         groups_to_join = userdata.groups_at(timestamp, ou_trees=ou_trees)
