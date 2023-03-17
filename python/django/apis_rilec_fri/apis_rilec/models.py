@@ -354,7 +354,8 @@ class UserData(models.Model):
             translations = _get_rules('TRANSLATIONS')
         oud, relationsd, outree_source_ids = oudicts_at(timestamp)
         datadicts = self.with_extra(timestamp)
-        groups = list()
+        groups = dict()
+        joined_groups = list()
         for field_dict, flags in group_rules:
             outree_rules = flags.get("outrees", [])
             tree_fields = dict()
@@ -373,18 +374,17 @@ class UserData(models.Model):
                         parent_ids.append(parent)
                         parent = relations.get(parent, None)
                     t = string.Template(tree_rule['part_template'])
-                    parent_strs = list()
                     for i in reversed(parent_ids):
                         try:
-                            template_dict = datadict.copy()
-                            f_oud = oud[i].copy()
-                            parent_strs.append(t.substitute(template_dict))
+                            f_oud = datadict.copy()
+                            f_oud.update(oud[i])
+                            parent_strs.append(t.substitute(f_oud))
                             f_oud['ou_dn_part'] = ",".join(parent_strs)
+                            f_oud[]
+                            template_dict = datadict.copy()
                             for field, fkey in field_templates.items():
-                                if fkey != "ou_dn_part":
-                                    template_dict[field] = f_oud[fkey]
-                            parent_dicts.append(template_dict)
-                        except KeyError:
+                                template_dict[field] = f_oud[fkey]
+                        except KeyError as e:
                             pass
                 for pdict in parent_dicts:
                     # print(pdict)
@@ -393,7 +393,8 @@ class UserData(models.Model):
                                          extra_fields=field_dict,
                                          translations=translations,
                                          update_datadict=False)
-                    groups.append(group)
+                    if 'distinguishedName' in group:
+                        groups[group['distinguishedName']] = group
         return groups
 
 
