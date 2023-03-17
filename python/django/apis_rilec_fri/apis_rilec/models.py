@@ -353,14 +353,15 @@ class UserData(models.Model):
         if translations is None:
             translations = _get_rules('TRANSLATIONS')
         oud, relationsd, outree_source_ids = oudicts_at(timestamp)
-        groups = dict()
         datadicts = self.with_extra(timestamp)
+        groups = list()
         for field_dict, flags in group_rules:
             outree_rules = flags.get("outrees", [])
             tree_fields = dict()
-            # Fill ou tree based groups
-            for tree_rule in outree_rules:
-                for datadict in datadicts:
+            for datadict in datadicts:
+                # Fill ou tree based groups
+                parent_dicts = [ datadict.copy() ]
+                for tree_rule in outree_rules:
                     key = _fill_template(datadict, tree_rule['key'], [], translations)
                     if key is None:
                         continue
@@ -376,20 +377,23 @@ class UserData(models.Model):
                     for i in reversed(parent_ids):
                         try:
                             template_dict = datadict.copy()
-                            template_dict.update(oud[i])
+                            f_oud = oud[i].copy()
                             parent_strs.append(t.substitute(template_dict))
+                            f_oud['ou_dn_part'] = ",".join(parent_strs)
+                            for field, fkey in field_templates.items():
+                                if fkey != "ou_dn_part":
+                                    template_dict[field] = f_oud[fkey]
+                            parent_dicts.append(template_dict)
                         except KeyError:
                             pass
-                # print(parent_strs)
-
-                # print("got ", key, oud.get(key, ()), parents)
-                # tree_fields = tree_fields.update(field_vals)
-                # join tree path for this user
-                #field_vals = _field_adder(datadict,
-                #                      extra_fields=field_templates,
-                #                      translations=translations,
-                #                      update_datadict=False)
-                # groups[dn] = field_vals
+                for pdict in parent_dicts:
+                    # print(pdict)
+                    # fill the actual groups
+                    group = _field_adder(pdict,
+                                         extra_fields=field_dict,
+                                         translations=translations,
+                                         update_datadict=False)
+                    groups.append(group)
         return groups
 
 
