@@ -85,12 +85,15 @@ def _fill_template(datadict, template, trans_names, translations):
         return None
     return data
 
-def _field_adder(datadict, extra_fields, translations, update_datadict=True):
+def _field_adder(datadict, extra_fields, translations, source=None, update_datadict=True):
     new_fields = dict()
-    for fieldname, (template, trans_names) in extra_fields.items():
-        new_data = _fill_template(datadict, template, trans_names, translations)
-        if new_data is not None:
-            new_fields[fieldname] = new_data
+    for fieldname, rulelist in extra_fields.items():
+        for (fsource, template, trans_names) in rulelist:
+            if fsource is not None and fsource != source:
+                continue
+            new_data = _fill_template(datadict, template, trans_names, translations)
+            if new_data is not None:
+                new_fields[fieldname] = new_data
     if update_datadict:
         datadict.update(new_fields)
         return datadict
@@ -140,7 +143,7 @@ class DataSource(models.Model):
     def parsed_json(self):
         return json.loads(self.data)
     
-    def _to_userdatadicts(self, timestamp, prefix, dataitem):
+    def _apis_to_userdatadicts(self, timestamp, prefix, dataitem):
         valid_from_d = dataitem['veljaOd']
         valid_to_d = dataitem['veljaDo']
         infotip = dataitem.get('infotip', '0000')
@@ -176,7 +179,7 @@ class DataSource(models.Model):
                 datadicts.append(d)
         return datadicts
 
-    def _to_oudata(self, dataset, dataitem):
+    def _apis_to_oudata(self, dataset, dataitem):
         ou_data_sets = list()
         valid_from_d = dataitem.get('veljaOd')
         valid_to_d = dataitem.get('veljaDo')
@@ -194,7 +197,7 @@ class DataSource(models.Model):
             ou_data_sets.append(oud)
         return ou_data_sets
 
-    def _to_ourelations(self, dataset, dataitem):
+    def _apis_to_ourelations(self, dataset, dataitem):
         ou_relations = list()
         valid_from_d = dataitem.get('veljaOd')
         valid_to_d = dataitem.get('veljaDo')
@@ -213,7 +216,7 @@ class DataSource(models.Model):
             ou_relations.append(our)
         return ou_relations
     
-    def _to_datasets_apis(self):
+    def _apis_to_datasets(self):
         in_data = self.parsed_json()
         try:
             timestamp = timezone.datetime.fromisoformat(in_data['TimeStamp'])
@@ -228,15 +231,15 @@ class DataSource(models.Model):
             if type(v) == list:
                 for dataitem in v:
                     if k == 'OE':
-                        ou_data += self._to_oudata(ds, dataitem)
+                        ou_data += self._apis_to_oudata(ds, dataitem)
                     elif k == 'NadrejenaOE':
-                        ou_relations += self._to_ourelations(ds, dataitem)
+                        ou_relations += self._apis_to_ourelations(ds, dataitem)
                     else:
                         uid = dataitem.get('UL_Id', None)
                         if uid is None:
                             continue
                         else:
-                            user_dicts[uid] += self._to_userdatadicts(timestamp, k, dataitem)
+                            user_dicts[uid] += self._apis_to_userdatadicts(timestamp, k, dataitem)
         user_fields = list()
         # Create UserData and fields from user_dicts
         for uid, fieldlist in user_dicts.items():
@@ -251,8 +254,21 @@ class DataSource(models.Model):
         OUData.objects.bulk_create(ou_data)
         OURelation.objects.bulk_create(ou_relations)
 
-    def _to_datasets_studis(self):
+    def _studis_to_datasets(self):
         # TODO implement this
+        parsed = self.parsed_json()
+        data = parsed['data']
+        api_url = parsed['api_url']
+        if api_url.startswith("osebeapi/oseba"):
+            pass
+        elif api_url.startswith("sifrantiapi/nazivdelavca"):
+            pass
+        elif api_url.startswith("sifrantiapi/oddelek"):
+            pass
+        elif api_url.startswith("sifrantiapi/funkcijavoddelku"):
+            pass
+        else:
+            pass
         pass
 
     def _to_datasets_projekti(self):
@@ -261,11 +277,50 @@ class DataSource(models.Model):
 
     def to_datasets(self):
         handlers = {
-            'apis': self._to_datasets_apis,
-            'studis': self._to_datasets_studis,
-            'projekti': self._to_datasets_projekti,
+            'apis': self._apis_to_datasets,
+            'studis': self._studis_to_datasets,
+            'projekti': self._projekti_to_datasets,
         }
         return handlers[self.source]()
+
+
+class Studis:
+    def __init__(self, cached=True):
+        token = settings.STUDIS_API_TOKEN
+        self.base_url = settings.STUDIS_API_BASE_URL
+        self.auth = {'Content-Type': 'application/json',
+                     'AUTHENTICATION_TOKEN': token}
+        self.cached = cached
+        self.cached_data = dict()
+
+    def data(self, url):
+        if self.cached and url in self.cached_data:
+            return self.cached_data[url]
+        reader = codecs.getreader("utf-8")
+        req_url = self.base_url + "/" + url
+        # Encode url (replace spaces with %20 etc...)
+        req_url = quote(req_url, safe="/:=&?#+!$,;'@()*[]")
+        request = Request(req_url, None, self.auth)
+        response = urlopen(request)
+        data = json.load(reader(response))
+        if self.cached:
+            self.cached_data[url] = data
+        return data
+
+
+def get_data_studis():
+    studis = Studis()
+    for api_url in ["osebeapi/oseba",
+                    "sifrantiapi/oddelek",
+                    "sifrantiapi/funkcijavoddelku"]:
+        d = studis.data(api_url)
+        ds = DataSource(source="studis", timestamp=timezone.now(),
+                data=json.dumps({
+                    "api_url": api_url,
+                    "base_url": studis.base_url,
+                    "data": d,
+                })
+            )
 
 
 class DataSet(models.Model):
@@ -339,10 +394,12 @@ class UserData(models.Model):
             translations = _get_rules('TRANSLATIONS')
         # this would reload the rules every time the function is run.
         # extra_user_field_gen = extra_user_field_gen_factory()
+        source = self.dataset.source.source
         for datadict in self.as_dicts(timestamp=timestamp):
-            translated_dicts.append(_field_adder(datadict, 
+            translated_dicts.append(_field_adder(datadict,
                                                  extra_fields=extra_fields, 
                                                  translations=translations,
+                                                 source=source,
                                                  update_datadict=True))
             # translated_dicts.append(datadict)
         return translated_dicts
@@ -380,7 +437,6 @@ class UserData(models.Model):
                             f_oud.update(oud[i])
                             parent_strs.append(t.substitute(f_oud))
                             f_oud['ou_dn_part'] = ",".join(parent_strs)
-                            f_oud[]
                             template_dict = datadict.copy()
                             for field, fkey in field_templates.items():
                                 template_dict[field] = f_oud[fkey]
