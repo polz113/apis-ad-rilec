@@ -138,6 +138,7 @@ DEFAULT_USER_FIELD_ADDER = _field_adder
 
 class DataSource(models.Model):
     DATA_SOURCES = [('apis', 'Apis'), ('studis', 'Studis')]
+    subsource = models.JSONField(default=dict)
     source = models.CharField(max_length=32, choices=DATA_SOURCES)
     timestamp = models.DateTimeField()
     data = models.BinaryField()
@@ -257,12 +258,52 @@ class DataSource(models.Model):
         OURelation.objects.bulk_create(ou_relations)
 
     def _studis_to_datasets(self):
-        # TODO implement this
         parsed = self.parsed_json()
-        data = parsed['data']
-        api_url = parsed['api_url']
+        api_url = self.subsource['api_url']
+        timestamp = timezone.now()
+        ds = DataSet(timestamp=timestamp, source=self)
+        ds.save()
+        valid_from = timestamp
+        valid_to = timestamp + timezone.timedelta(days=365*200)
+        field_base = {"changed_t": self.timestamp,
+                      "fieldgroup": 0,
+                      "valid_from": valid_from,
+                      "valid_to": valid_to}
         if api_url.startswith("osebeapi/oseba"):
-            pass
+            user_fields = list()
+            for user in parsed:
+                uid = user.get('ul_id_predavatelja', None)
+                if uid is None:
+                    uid = '?'
+                ud = UserData(dataset=ds, uid=uid)
+                ud.save()
+                for k, l in user.items():
+                    if type(l) != list:
+                        l = [l]
+                    for i in l:
+                        fields = []      
+                        if type(i) == dict:
+                            for fkey, fval in i.items():
+                                field = {
+                                    "field": "{}__{}".format(k, fkey),
+                                    "value": fval,
+                                }
+                                field.update(field_base)
+                                fields.append(field)
+                        else:
+                            field = {
+                                "field": k,
+                                "value": i,
+                            }
+                            field.update(field_base)
+                            fields.append(field)
+                        for field in fields:
+                            if field['value'] is None:
+                                continue
+                            uf = UserDataField(userdata=ud, **field)
+                            user_fields.append(uf)
+            if len(user_fields):
+                UserDataField.objects.bulk_create(user_fields)
         elif api_url.startswith("sifrantiapi/nazivdelavca"):
             pass
         elif api_url.startswith("sifrantiapi/oddelek"):
@@ -315,15 +356,15 @@ def get_data_studis():
     studis = Studis()
     for api_url in ["osebeapi/oseba?slika=false",
                     "sifrantiapi/oddelek",
+                    "sifrantiapi/nazivdelavca",
                     "sifrantiapi/funkcijavoddelku"]:
         d = studis.data(api_url)
-        json_data = json.dumps({
-                    "api_url": api_url,
-                    "base_url": studis.base_url,
-                    "data": d.decode('utf-8'),
-                }).encode('utf-8')
-        ds = DataSource(source="studis", timestamp=timezone.now(),
-                data=json_data)
+        source_d = {"api_url": api_url,
+                    "base_url": studis.base_url}
+        ds = DataSource(source="studis", 
+                        subsource=source_d, 
+                        timestamp=timezone.now(),
+                        data=d)
         ds.save()
 
 
