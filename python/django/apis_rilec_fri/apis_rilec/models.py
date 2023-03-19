@@ -1,12 +1,14 @@
 from django.db import models
 from django.utils import timezone
 from django.utils.datastructures import MultiValueDict
+from django.conf import settings
 
+import codecs
 from collections import defaultdict
 import json
-import string
 import os
-
+import string
+from urllib.request import Request, urlopen, quote
 
 # Create your models here.
 
@@ -296,13 +298,14 @@ class Studis:
     def data(self, url):
         if self.cached and url in self.cached_data:
             return self.cached_data[url]
-        reader = codecs.getreader("utf-8")
+        # reader = codecs.getreader("utf-8")
         req_url = self.base_url + "/" + url
         # Encode url (replace spaces with %20 etc...)
         req_url = quote(req_url, safe="/:=&?#+!$,;'@()*[]")
         request = Request(req_url, None, self.auth)
         response = urlopen(request)
-        data = json.load(reader(response))
+        # data = json.load(reader(response))
+        data = response.read()
         if self.cached:
             self.cached_data[url] = data
         return data
@@ -310,17 +313,17 @@ class Studis:
 
 def get_data_studis():
     studis = Studis()
-    for api_url in ["osebeapi/oseba",
+    for api_url in ["osebeapi/oseba?slika=false",
                     "sifrantiapi/oddelek",
                     "sifrantiapi/funkcijavoddelku"]:
         d = studis.data(api_url)
-        ds = DataSource(source="studis", timestamp=timezone.now(),
-                data=json.dumps({
+        json_data = json.dumps({
                     "api_url": api_url,
                     "base_url": studis.base_url,
-                    "data": d,
-                })
-            )
+                    "data": d.decode('utf-8'),
+                }).encode('utf-8')
+        ds = DataSource(source="studis", timestamp=timezone.now(),
+                data=json_data)
         ds.save()
 
 

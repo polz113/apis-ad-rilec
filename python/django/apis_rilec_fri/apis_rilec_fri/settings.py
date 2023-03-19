@@ -11,8 +11,30 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
 from pathlib import Path
+import environ
 
-X_API_KEY = "ToleJeSkrivnost"
+root = environ.Path(__file__) - 3  # get root of the project
+env = environ.Env()
+environ.Env.read_env()  # reading .env file
+
+SITE_ROOT = root()
+
+DEBUG = env.bool('DEBUG', default=False)
+
+TEMPLATE_DEBUG = DEBUG
+
+
+public_root = root.path('public/')
+MEDIA_ROOT = public_root('media')
+MEDIA_URL = env.str('MEDIA_URL', default='media/')
+STATIC_ROOT = public_root('static')
+
+
+
+X_API_KEY = env.str('X_API_KEY')
+STUDIS_API_TOKEN = env.str('STUDIS_API_TOKEN')
+STUDIS_API_BASE_URL = env.str('STUDIS_API_BASE_URL', default="https://studisfri.uni-lj.si/api")
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -21,10 +43,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure--f%_70xv7g!vbkz*j+1a+mbq2g%@mq9z3qhwa!ns+009n%z6y^'
-
+SECRET_KEY = env.str('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+
 
 ALLOWED_HOSTS = []
 
@@ -76,12 +97,14 @@ WSGI_APPLICATION = 'apis_rilec_fri.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
+DATABASES = {'default': env.db('DATABASE_URL', default="sqlite:///" + str(BASE_DIR / 'db.sqlite3'))}
+
+#DATABASES = {
+#    'default': {
+#        'ENGINE': 'django.db.backends.sqlite3',
+#        'NAME': BASE_DIR / 'db.sqlite3',
+#    }
+#}
 
 
 # Password validation
@@ -118,7 +141,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.1/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = env.str('STATIC_URL', default='static/')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
