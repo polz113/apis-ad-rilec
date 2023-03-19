@@ -24,7 +24,7 @@ DEBUG = env.bool('DEBUG', default=False)
 TEMPLATE_DEBUG = DEBUG
 
 
-public_root = root.path('public/')
+public_root = environ.Path(env.str('PUBLIC_ROOT', default=root.path('public/')))
 MEDIA_ROOT = public_root('media')
 MEDIA_URL = env.str('MEDIA_URL', default='media/')
 STATIC_ROOT = public_root('static')
