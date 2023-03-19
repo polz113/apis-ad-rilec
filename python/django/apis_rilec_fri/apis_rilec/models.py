@@ -321,6 +321,7 @@ def get_data_studis():
                     "data": d,
                 })
             )
+        ds.save()
 
 
 class DataSet(models.Model):
