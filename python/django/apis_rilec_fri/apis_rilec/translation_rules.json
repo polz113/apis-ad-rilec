@@ -2,9 +2,65 @@
 
 {
     "EXTRA_FIELDS": {
+        "ime": [
+            ["apis", "${OsebniPodatki__0002__0__ime}", []]
+        ],
+        "priimek": [
+            ["apis", "${OsebniPodatki__0002__0__priimek}", []]
+        ],
+        "default_username": [
+            ["apis", "${OsebniPodatki__0002__0__ime} ${OsebniPodatki__0002__0__priimek}", ["default_username_fn"]],
+            ["studis", "${ime} ${priimek}", ["default_username_fn"]]
+        ],
+        "celoime": [
+            ["apis", "${OsebniPodatki__0002__0__ime} ${OsebniPodatki__0002__0__priimek}", []],
+            ["studis", "${ime} ${priimek}", []]
+        ],
+        "email": [
+            ["apis", "${Komunikacija__0105__0010__vrednostNaziv}", []],
+        ],
+        "ad_lokacija": [
+            ["studis", "${lokacija}", ["sifrant_lokacije"]],
+            ["apis", "${Komunikacija__0105__9005__vrednostNaziv}", []]
+        ],
+        "userPrincipalName": [
+            ["apis", "${Komunikacija__0105__9007__vrednostNaziv}", []],
+            ["studis", "${upn}", []]
+        ],
+        "telefon": [
+            ["apis", "{Komunikacija__0105__0020__vrednostNaziv}", []]
+        ],
+        "job_title": [
+        ],
+        "ip_telefon": [
+        ],
+        "domaci_telefon": [
+        ],
+        "mobilni_telefon": [
+        ],
+        "fax": [
+        ],
+        "oddelek": [
+        ],
+        "streetAddress": [
+        ],
+        "homepage": [
+        ],
+        "izobrazba_prefix": [
+        ],
+        "izobrazba_suffix": [
+        ],
+        "personal_position": [
+        ],
+        "manager_dn": [
+        ],
+        "ou_name": [
+        ],
         "clanica_domena": [
-            ["apis", "${Ukrep__clanica_Id}", ["clanica_domena_repl"]],
-            ["studis", "${zavod}", ["zavod_domena_repl"]]
+            ["apis", "${Ukrep__clanica_Id}",
+                ["clanica_domena_repl"]],
+            ["studis", "${zavod}",
+                ["zavod_domena_repl"]]
         ],
         "clanica_prefix": [
             ["apis", "${Ukrep__clanica_Id}", ["clanica_prefix_repl"]],
@@ -112,28 +168,43 @@
         ]
     },
     "USER_RULES": {
-        "apis": {
-            "givenName": "${OsebniPodatki__0002__0__ime}",
-            "sn": "${OsebniPodatki__0002__0__priimek}",
-            "userPrincipalName": "${Komunikacija__0105__9007__vrednostNaziv}",
-            "employeeID": "${uid}",
-            "telephoneNumber": "${Komunikacija__0105__0020__vrednostNaziv}",
-            "company": "${clanica_ime}",
-            "mail": "${Komunikacija__0105__0010__vrednostNaziv}",
-            "physicalDeliveryOfficeName": "${Komunikacija__0105__9005__vrednostNaziv}",
-            "title": "${OsebniPodatki__0002__0__nazivPredImenom}"
-        },
-        "studis": {
-            "givenName": "${ime}",
-            "sn": "${priimek}",
-            "userPrincipalName": "${upn}",
-            "employeeID": "${uid}",
-            "telephoneNumber": "${telefon}",
-            "company": "${clanica_ime}",
-            "mail": "${email}",
-            "physicalDeliveryOfficeName": "${lokacija}",
-            "title": "${OsebniPodatki__0002__0__nazivPredImenom}"
-        }
+        "objectClass": "top;person;organizationalPerson;user",
+        "co": "Slovenia",
+        "objectCategory": "CN=Person,CN=Schema,CN=Configuration,DC=uni-lj,DC=si",
+        "cn": "${ime} ${priimek}",
+        "sn": "${priimek}",
+        "givenName": "${ime}",
+        "displayName": "${celoime}",
+        "company": "${clanica_ime}",
+        "name": "${celoime}",
+        "sAMAccountName": "${default_username}",
+        "userPrincipalName": "${userPrincipalName}",
+        "mail": "${email}",
+        "employeeID": "${uid}",
+        "c": "SI",
+        "l": "Ljubljana",
+        "title": "${job_title}",
+        "description": "${job_title}, {izobrazba_prefix}",
+        "postalCode": "1000",
+        "physicalDeliveryOfficeName": "${ad_lokacija}",
+        "telephoneNumber": "${telefon}",
+        "department": "${oddelek}",
+        "streetAddress": "${streetAddress}",
+        "facsimileTelephoneNumber": "${fax}",
+        "wWWHomePage": "${homepage}",
+        "ipPhone": "${ip_telefon}",
+        "manager": "${manager_dn}",
+        "homePhone": "${domaci_telefon}",
+        "mobile": "${mobilni_telefon}",
+        "displayNamePrintable": "${celoime}",
+        "extensionAttribute15": "${clanica_ime}",
+        "schacHomeOrganization": "${clanica_dnsdomena}",
+        "eduPersonAffiliation": "staff",
+        "eduPersonPrimaryAffiliation": "employee",
+        "PersonalTitle": "${izobrazba_prefix}",
+        "schacPersonalTitle": "${izobrazba_suffix}",
+        "schacPersonalPosition": "${personal_position}",
+        "OU": "${ou_name}"
     },
     "GROUP_RULES": [
         [
@@ -142,76 +213,82 @@
                 "groupType": "group_types"
             }, {
                 "main_ou": true,
-                "fields": {
-                    "clanica_domena_repl": "${clanica_domena}",
-                    "clanica_prefix_repl": "${clanica_prefix}"
+                "keys": {
+                    "clanica_domena_repl": "${clanica_id}",
+                    "clanica_prefix_repl": "${clanica_id}",
+                    "group_types": "global security"
                 }
             }
         ],
         [
             {
-                "distinguishedName": "${clanica_domena_repl},OU=${clanica_prefix_repl},OU=autopravice,OU=oddelki,${studis_oumap},${vrsta_zaposlitve_r}",
+                "distinguishedName": "${clanica_domena_repl},OU=${clanica_prefix_repl},OU=autopravice,OU=oddelki,${apis_oumap},${vrsta_zaposlitve_r}",
                 "groupType": "group_types",
                 "name": "${vrsta_zaposlitve_r}"
             }, 
             { 
-                "fields": {
-                    "studis_oumap": "${OrgDodelitev__0001__0__glavnaOrganizacijskaEnota_Id}", 
-                    "part_template": "OU=${shortname}",
-                    "fields": {
-                        "clanica_domena_repl": "${clanica_domena}",
-                        "clanica_prefix_repl": "${clanica_prefix}",
-                        "vrsta_zaposlitve_r": "${vrsta_zaposlitve}"
-                    }
-                ]
+                "apis_part_template": "OU=${shortname}",
+                "keys": {
+                    "apis_oumap": "${OrgDodelitev__0001__0__glavnaOrganizacijskaEnota_Id}",
+                    "clanica_domena_repl": "${clanica_domena}",
+                    "clanica_prefix_repl": "${clanica_prefix}",
+                    "vrsta_zaposlitve_r": "${vrsta_zaposlitve}",
+                    "group_types": "global security"
+                }
             }
         ],
         [
             {
-                "distinguishedName": ["${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=zaposlitev,OU=${vrsta_zaposlitve}", []],
-                "groupType": ["global security", ["group_types"]],
-                "name": ["${vrsta_zaposlitve}", []]
-            }, {}
-        ],
-        [
-            {
-
-                "distinguishedName": ["${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=razporeditev,${OE_MAP_DN}", [ "sap_ou_shortnames" ]],
-                "cn": ["FRI-${OE_MAP_shortname}", ["sap_ou_shortnames"]],
-                "description": ["${OE_MAP_name}", []],
-                "mail": ["FRI-${OE_MAP_name}@fri.uni-lj.si", []],
-                "name": ["${OE_MAP_shortname}", ["sap_ou_names"]],
-                "groupType": ["global security", ["group_types"]]
-            },
-            {
-                "outrees": [
-                    {
-                        "key": "${OrgDodelitev__0001__0__glavnaOrganizacijskaEnota_Id}", 
-                        "relation": "1001__A002",
-                        "part_template": "OU=${shortname}",
-                        "fields": {
-                            "OE_MAP_DN": "ou_dn_part",
-                            "OE_MAP_shortname": "shortname",
-                            "OE_MAP_name": "name",
-                            "OE_MAP_uid": "uid"
-                        }
+                "distinguishedName": "${clanica_domena_repl},OU=${clanica_prefix_repl},OU=autopravice,OU=zaposlitev,OU=${vrsta_zaposlitve_r}",
+                "groupType": "${group_types}",
+                "name": "${vrsta_zaposlitve_r}",
+            }, {
+                "group_values": {
+                    "groupType": {
+                        "group_types": "global security"
                     }
-                ]
+                }
+                "keys": {
+                    "clanica_domena_repl": "${clanica_id}",
+                    "clanica_prefix_repl": "${clanica_id}",
+                }
             }
         ],
         [
             {
-                "distinguishedName": ["${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=habilitacija,OU=${habilitacija}", []], 
-                "groupType": ["global security", ["group_types"]],
-                "name": ["$habilitacija", []]
-            }, {}
+                "distinguishedName": "${clanica_domena_repl},OU=${clanica_prefix_repl},OU=autopravice,OU=habilitacija,OU=${habilitacija_repl}", 
+                "groupType": "group_types",
+                "name": "$habilitacija_repl",
+            }, {
+                "keys": {
+                    "clanica_domena_repl": "${clanica_domena}",
+                    "clanica_prefix_repl": "${clanica_prefix}",
+                    "group_types": "global security"
+                }
+            }
         ],
         [
             {
-                "distinguishedName": ["${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=delovnomesto,OU=${Razporeditev__1001__B008__delovnoMesto}", []], 
-                "groupType": ["global security", ["group_types"]],
-                "name": ["${Razporeditev__1001__B008__delovnoMesto}", []]
-            }, {}
+                "distinguishedName": "${clanica_domena_repl},OU=${clanica_prefix_repl},OU=autopravice,OU=delovnomesto,OU=${delovna_mesta_repl}", 
+                "groupType": "group_types",
+                "name": "${apis_blabla}",
+            }, {
+                
+                "group_dn_value_sources": {
+                    "clanica_id": "clanica_domena_repl",
+                    "delovnomesto": "delovna_mesta_repl",
+                },
+                "group_value_defaults": {
+                    
+                },
+                "keys": {
+                    "clanica_domena_repl": "${clanica_id}",
+                    "clanica_prefix_repl": "${clanica_prefix}",
+                    "delovna_mesta_repl":
+                        "{Razporeditev__1001__B008__delovnoMesto}",
+                    "group_types": "global security"
+                }
+            }
         ]
     ]
 }

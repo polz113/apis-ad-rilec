@@ -8,6 +8,7 @@ from collections import defaultdict
 import json
 import os
 import string
+import itertools
 from urllib.request import Request, urlopen, quote
 
 # Create your models here.
@@ -304,16 +305,46 @@ class DataSource(models.Model):
                             user_fields.append(uf)
             if len(user_fields):
                 UserDataField.objects.bulk_create(user_fields)
+        elif api_url.startswith("sifrantiapi/vrstanazivadelavca"):
+            pass
         elif api_url.startswith("sifrantiapi/nazivdelavca"):
+            pass
+        elif api_url.startswith("sifrantiapi/vrstadelovnegamesta"):
+            pass
+        elif api_url.startswith("sifrantiapi/delovnomesto"):
+            pass
+        elif api_url.startswith("sifrantiapi/vrstaoddelka"):
             pass
         elif api_url.startswith("sifrantiapi/oddelek"):
             pass
         elif api_url.startswith("sifrantiapi/funkcijavoddelku"):
             pass
+        elif api_url.startswith("sifrantiapi/funkcijepodrocja"):
+            pass
+        elif api_url.startswith("sifrantiapi/funkcijedelavcev"):
+            pass
+        elif api_url.startswith("sifrantiapi/semestri"):
+            pass
+        elif api_url.startswith("sifrantiapi/letniki"):
+            pass
+        elif api_url.startswith("sifrantiapi/tipivpisa"):
+            pass
+        elif api_url.startswith("sifrantiapi/nacinistudija"):
+            pass
+        elif api_url.startswith("sifrantiapi/tipiizvajanjapredmeta"):
+            pass
+        elif api_url.startswith("sifrantiapi/kadrovskistatusi"):
+            pass
+        elif api_url.startswith("sifrantiapi/naciniizborapredmeta"):
+            pass
+        elif api_url.startswith("sifrantiapi/zavodi"):
+            pass
+        elif api_url.startswith("sifrantiapi/kategorijeoseb"):
+            pass
+        elif api_url.startswith("sifrantiapi/prostori"):
+            pass
         else:
             pass
-        pass
-
     def _to_datasets_projekti(self):
         # TODO implement projekti, then this
         pass
@@ -355,9 +386,19 @@ class Studis:
 def get_data_studis():
     studis = Studis()
     for api_url in ["osebeapi/oseba?slika=false",
-                    "sifrantiapi/oddelek",
+                    "sifrantiapi/vrstanazivadelavca",
                     "sifrantiapi/nazivdelavca",
-                    "sifrantiapi/funkcijavoddelku"]:
+                    "sifrantiapi/vrstadelovnegamesta",
+                    "sifrantiapi/delovnomesto",
+                    "sifrantiapi/vrstaoddelka",
+                    "sifrantiapi/oddelek",
+                    "sifrantiapi/funkcijavoddelku",
+                    "sifrantiapi/funkcijepodrocja",
+                    "sifrantiapi/funkcijedelavcev",
+                    "sifrantiapi/kadrovskistatusi",
+                    "sifrantiapi/zavodi",
+                    "sifrantiapi/kategorijeoseb",
+                    "sifrantiapi/prostori"]:
         d = studis.data(api_url)
         source_d = {"api_url": api_url,
                     "base_url": studis.base_url}
@@ -454,49 +495,37 @@ class UserData(models.Model):
             group_rules = _get_rules('GROUP_RULES')
         if translations is None:
             translations = _get_rules('TRANSLATIONS')
-        oud, relationsd, outree_source_ids = oudicts_at(timestamp)
-        datadicts = self.with_extra(timestamp)
-        groups = dict()
-        joined_groups = list()
-        for field_dict, flags in group_rules:
-            outree_rules = flags.get("outrees", [])
-            tree_fields = dict()
-            for datadict in datadicts:
-                # Fill ou tree based groups
-                parent_dicts = [ datadict.copy() ]
-                for tree_rule in outree_rules:
-                    key = _fill_template(datadict, tree_rule['key'], [], translations)
-                    if key is None:
-                        continue
-                    relations = relationsd[tree_rule['relation']]
-                    field_templates = tree_rule['fields']
-                    parent = key
-                    parent_ids = []
-                    while parent is not None:
-                        parent_ids.append(parent)
-                        parent = relations.get(parent, None)
-                    t = string.Template(tree_rule['part_template'])
-                    for i in reversed(parent_ids):
-                        try:
-                            f_oud = datadict.copy()
-                            f_oud.update(oud[i])
-                            parent_strs.append(t.substitute(f_oud))
-                            f_oud['ou_dn_part'] = ",".join(parent_strs)
-                            template_dict = datadict.copy()
-                            for field, fkey in field_templates.items():
-                                template_dict[field] = f_oud[fkey]
-                        except KeyError as e:
-                            pass
-                for pdict in parent_dicts:
-                    # print(pdict)
-                    # fill the actual groups
-                    group = _field_adder(pdict,
-                                         extra_fields=field_dict,
-                                         translations=translations,
-                                         update_datadict=False)
-                    if 'distinguishedName' in group:
-                        groups[group['distinguishedName']] = group
-        return groups
+        pass
+
+
+def create_groups(self, timestamp=None, group_rules=None, translations=None):
+    if group_rules is None:
+        group_rules = _get_rules('GROUP_RULES')
+    if translations is None:
+        translations = _get_rules('TRANSLATIONS')
+    oud, relationsd, outree_source_ids = oudicts_at(timestamp)
+    groups = list()
+    for field_dict, flags in group_rules:
+        keys = flags.get("keys", {})
+        dn_template = field_dict.pop("distinguishedName", None)
+        if dn_template is None:
+            continue
+        t = string.Template(dn_template)
+        parameters = t.get_identifiers()
+        # get a cartesian product of all translations for this dn_template
+        values_list = [translations[p].get_values() for p in parameters]
+        all_values = itertools.product(*values_list)
+        # create all possible groups
+        for vals in all_values:
+            d = dict()
+            for i, p in enumerate(parameters):
+                d[p] = vals[i]
+            group_dict = dict()
+            for fieldname, template in field_dict.items():
+                t1 = string.Template(template)
+                group_dict[fieldname] = t1.substitute(d)
+            groups.append(group_dict)
+    return groups
 
 
 class UserDataField(models.Model):
@@ -510,11 +539,15 @@ class UserDataField(models.Model):
     field = models.CharField(max_length=256)
     value = models.CharField(max_length=512)
 
-class Translation(models.Model)
+class TranslationTable(models.Model):
     name = models.CharField(max_length=256)
+    flags = models.JSONField()
+
+
+class TranslationRule(models.Model):
+    table = models.ForeignKey('TranslationTable', on_delete=models.CASCADE, related_name='rules')
     pattern = models.TextField()
     replacement = models.TextField()
-    flags = models.JSONField()
     
 
 def oudicts_at(timestamp=None):
