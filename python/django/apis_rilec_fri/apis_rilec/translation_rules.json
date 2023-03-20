@@ -7,7 +7,7 @@
             ["studis", "${zavod}", ["zavod_domena_repl"]]
         ],
         "clanica_prefix": [
-            ["apis", "${Ukrep__clanica_Id}", ["clanica_prefix_repl"]]
+            ["apis", "${Ukrep__clanica_Id}", ["clanica_prefix_repl"]],
             ["studis", "${zavod}", ["zavod_prefix_repl"]]
         ],
         "clanica_ime": [
@@ -15,7 +15,7 @@
                 "apis",
                 "${Ukrep__clanica_Id}", 
                 ["clanica_ime_repl"]
-            ]
+            ],
             [
                 "studis",
                 "${zavod}", 
@@ -138,28 +138,30 @@
     "GROUP_RULES": [
         [
             {
-                "distinguishedName": ["${clanica_domena},OU=${clanica_prefix},OU=Users", []],
-                "groupType": ["global security", ["group_types"]]
-            }, {"main_ou": true}
+                "distinguishedName": "${clanica_domena_repl},OU=${clanica_prefix_repl},OU=Users",
+                "groupType": "group_types"
+            }, {
+                "main_ou": true,
+                "fields": {
+                    "clanica_domena_repl": "${clanica_domena}",
+                    "clanica_prefix_repl": "${clanica_prefix}"
+                }
+            }
         ],
         [
             {
-                "distinguishedName": ["${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=oddelki,${OE_MAP_DN},${vrsta_zaposlitve}", []],
-                "groupType": ["global security", ["group_types"]],
-                "name": ["$vrsta_zaposlitve", []]
+                "distinguishedName": "${clanica_domena_repl},OU=${clanica_prefix_repl},OU=autopravice,OU=oddelki,${studis_oumap},${vrsta_zaposlitve_r}",
+                "groupType": "group_types",
+                "name": "${vrsta_zaposlitve_r}"
             }, 
             { 
-                "outrees": [
-                    {
-                        "key": "${OrgDodelitev__0001__0__glavnaOrganizacijskaEnota_Id}", 
-                        "relation": "1001__A002",
-                        "part_template": "OU=${shortname}",
-                        "fields": {
-                            "OE_MAP_DN": "ou_dn_part",
-                            "OE_MAP_shortname": "shortname",
-                            "OE_MAP_name": "name",
-                            "OE_MAP_uid": "uid"
-                        }
+                "fields": {
+                    "studis_oumap": "${OrgDodelitev__0001__0__glavnaOrganizacijskaEnota_Id}", 
+                    "part_template": "OU=${shortname}",
+                    "fields": {
+                        "clanica_domena_repl": "${clanica_domena}",
+                        "clanica_prefix_repl": "${clanica_prefix}",
+                        "vrsta_zaposlitve_r": "${vrsta_zaposlitve}"
                     }
                 ]
             }

@@ -510,6 +510,12 @@ class UserDataField(models.Model):
     field = models.CharField(max_length=256)
     value = models.CharField(max_length=512)
 
+class Translation(models.Model)
+    name = models.CharField(max_length=256)
+    pattern = models.TextField()
+    replacement = models.TextField()
+    flags = models.JSONField()
+    
 
 def oudicts_at(timestamp=None):
     if timestamp is None:
