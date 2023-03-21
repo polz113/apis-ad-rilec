@@ -3,34 +3,35 @@
 {
     "EXTRA_FIELDS": {
         "ime": [
-            ["apis", "${OsebniPodatki__0002__0__ime}", []]
+            ["${OsebniPodatki__0002__0__ime}", []]
         ],
         "priimek": [
-            ["apis", "${OsebniPodatki__0002__0__priimek}", []]
+            ["${OsebniPodatki__0002__0__priimek}", []]
         ],
         "default_username": [
-            ["apis", "${OsebniPodatki__0002__0__ime} ${OsebniPodatki__0002__0__priimek}", ["default_username_fn"]],
-            ["studis", "${ime} ${priimek}", ["default_username_fn"]]
+            ["${OsebniPodatki__0002__0__ime} ${OsebniPodatki__0002__0__priimek}", ["default_username_fn"]],
+            ["${ime} ${priimek}", ["default_username_fn"]]
         ],
         "celoime": [
-            ["apis", "${OsebniPodatki__0002__0__ime} ${OsebniPodatki__0002__0__priimek}", []],
-            ["studis", "${ime} ${priimek}", []]
+            ["${OsebniPodatki__0002__0__ime} ${OsebniPodatki__0002__0__priimek}", []],
+            ["${ime} ${priimek}", []]
         ],
         "email": [
-            ["apis", "${Komunikacija__0105__0010__vrednostNaziv}", []],
+            ["${Komunikacija__0105__0010__vrednostNaziv}", []]
         ],
         "ad_lokacija": [
-            ["studis", "${lokacija}", ["sifrant_lokacije"]],
-            ["apis", "${Komunikacija__0105__9005__vrednostNaziv}", []]
+            ["${lokacija}", ["studis_sifrant_lokacije"]],
+            ["${Komunikacija__0105__9005__vrednostNaziv}", []]
         ],
         "userPrincipalName": [
-            ["apis", "${Komunikacija__0105__9007__vrednostNaziv}", []],
-            ["studis", "${upn}", []]
+            ["${Komunikacija__0105__9007__vrednostNaziv}", []],
+            ["${upn}", []]
         ],
         "telefon": [
-            ["apis", "{Komunikacija__0105__0020__vrednostNaziv}", []]
+            ["${Komunikacija__0105__0020__vrednostNaziv}", []]
         ],
         "job_title": [
+            ["${OsebniPodatki__0002__0__nazivPredImenom}", []]
         ],
         "ip_telefon": [
         ],
@@ -57,39 +58,41 @@
         "ou_name": [
         ],
         "clanica_domena": [
-            ["apis", "${Ukrep__clanica_Id}",
+            ["${Ukrep__clanica_Id}",
                 ["clanica_domena_repl"]],
-            ["studis", "${zavod}",
+            ["${zavod}",
                 ["zavod_domena_repl"]]
         ],
         "clanica_prefix": [
-            ["apis", "${Ukrep__clanica_Id}", ["clanica_prefix_repl"]],
-            ["studis", "${zavod}", ["zavod_prefix_repl"]]
+            ["${Ukrep__clanica_Id}", ["clanica_prefix_repl"]],
+            ["${zavod}", ["zavod_prefix_repl"]]
         ],
         "clanica_ime": [
             [
-                "apis",
                 "${Ukrep__clanica_Id}", 
                 ["clanica_ime_repl"]
             ],
             [
-                "studis",
                 "${zavod}", 
                 ["zavod_ime_repl"]
             ]
         ],
         "habilitacija": [
             [
-                "apis",
                 "${Habilitacija__2003__9004__habilitacijskoPodrocje}.${Habilitacija__2003__9004__habilitacijskoPodpodrocje}",
                 ["habilitacija_repl"]
             ]
         ],
         "vrsta_zaposlitve": [
             [
-                "apis",
                 "${OrgDodelitev__0001__0__skupinaZaposlenih}.${OrgDodelitev__0001__0__podskupinaZaposlenih}",
                 ["vrsta_zaposlitve_r"]
+            ]
+        ],
+        "apis_oupart": [
+            [
+                "${OrgDodelitev__0001__0__glavnaOrganizacijskaEnota_Id}",
+                ["apis_ou_parts"]
             ]
         ]
     },
@@ -112,7 +115,7 @@
         "zavod_ime_repl": [
             [ "63", "Fakulteta za računalništvo in informatiko", {}]
         ],
-        "vrsta_zaposlitve_r":[
+        "vrsta_zaposlitve_repl":[
             [ "1.11", "Redni", {}],
             [ "1.00", "Izredni", {}],
             [ "", "Zunanji", {"default": true} ]
@@ -209,84 +212,91 @@
     "GROUP_RULES": [
         [
             {
-                "distinguishedName": "${clanica_domena_repl},OU=${clanica_prefix_repl},OU=Users",
-                "groupType": "group_types"
+                "objectClass": "top; organizationalUnit",
+                "distinguishedName": "${clanica_domena},OU=${clanica_prefix},OU=Users",
+                "groupType": "${group_type}"
             }, {
                 "main_ou": true,
-                "keys": {
-                    "clanica_domena_repl": "${clanica_id}",
-                    "clanica_prefix_repl": "${clanica_id}",
-                    "group_types": "global security"
+                "create_fields": {
+                    "clanica_domena": [["${clanica_id}", ["clanica_domena_repl"]]],
+                    "clanica_prefix": [["${clanica_id}", ["clanica_prefix_repl"]]],
+                    "group_type": [["${group_type}", ["group_types"]]]
+                },
+                "create_sources": {
+                    "clanica_id": ["translate_keys", ["clanica_domena_repl"]],
+                    "group_type": ["constant", ["global security"]]
                 }
             }
         ],
         [
             {
-                "distinguishedName": "${clanica_domena_repl},OU=${clanica_prefix_repl},OU=autopravice,OU=oddelki,${apis_oumap},${vrsta_zaposlitve_r}",
-                "groupType": "group_types",
-                "name": "${vrsta_zaposlitve_r}"
-            }, 
-            { 
-                "apis_part_template": "OU=${shortname}",
-                "keys": {
-                    "apis_oumap": "${OrgDodelitev__0001__0__glavnaOrganizacijskaEnota_Id}",
-                    "clanica_domena_repl": "${clanica_domena}",
-                    "clanica_prefix_repl": "${clanica_prefix}",
-                    "vrsta_zaposlitve_r": "${vrsta_zaposlitve}",
-                    "group_types": "global security"
-                }
-            }
-        ],
-        [
+                "objectClass": "top; group",
+                "distinguishedName": "${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=oddelki,${apis_ous},${vrsta_zaposlitve}",
+                "groupType": "${group_type}",
+                "name": "${vrsta_zaposlitve}"
+            },
             {
-                "distinguishedName": "${clanica_domena_repl},OU=${clanica_prefix_repl},OU=autopravice,OU=zaposlitev,OU=${vrsta_zaposlitve_r}",
-                "groupType": "${group_types}",
-                "name": "${vrsta_zaposlitve_r}",
-            }, {
-                "group_values": {
-                    "groupType": {
-                        "group_types": "global security"
+                "parent_templates":[
+                    {
+                        "objectClass": "top; organizationalUnit",
+                        "distinguishedName": "${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=oddelki,${apis_ous}"
+                    }, {
+                        "objectClass": "top; organizationalUnit",
+                        "distinguishedName": "${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=oddelki"
                     }
-                }
-                "keys": {
-                    "clanica_domena_repl": "${clanica_id}",
-                    "clanica_prefix_repl": "${clanica_id}",
+                ],
+                "create_fields": {
+                    "apis_ous": [["${group_uid}", ["apis_ou_parts"]]],
+                    "clanica_domena": [["${clanica_id}", ["clanica_domena_repl"]]],
+                    "clanica_prefix": [["${clanica_id}", ["clanica_prefix_repl"]]],
+                    "vrsta_zaposlitve": [["${vrsta_zaposlitve_id}", ["vrsta_zaposlitve_repl"]]],
+                    "group_type": [["${group_type}", ["group_types"]]]
+                },
+                "create_sources": {
+                    "clanica_id": ["translate_keys", ["clanica_domena_repl"]],
+                    "vrsta_zaposlitve_id": ["translate_keys", ["vrsta_zaposlitve_repl"]],
+                    "group_uid": ["translate_keys", ["apis_ou_parts"]],
+                    "group_type": ["constant", ["global security"]]
                 }
             }
         ],
         [
             {
-                "distinguishedName": "${clanica_domena_repl},OU=${clanica_prefix_repl},OU=autopravice,OU=habilitacija,OU=${habilitacija_repl}", 
-                "groupType": "group_types",
-                "name": "$habilitacija_repl",
+                "objectClass": "top; group",
+                "distinguishedName": "${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=zaposlitev,OU=${vrsta_zaposlitve}",
+                "groupType": "${group_type}",
+                "name": "${vrsta_zaposlitve}"
             }, {
-                "keys": {
-                    "clanica_domena_repl": "${clanica_domena}",
-                    "clanica_prefix_repl": "${clanica_prefix}",
-                    "group_types": "global security"
+                "create_fields": {
+                    "clanica_domena": [["${clanica_id}", ["clanica_domena_repl"]]],
+                    "clanica_prefix": [["${clanica_id}", ["clanica_prefix_repl"]]],
+                    "vrsta_zaposlitve": [["${vrsta_zaposlitve_id}", ["vrsta_zaposlitve_repl"]]],
+                    "group_type": [["${group_type}", ["group_types"]]]
+                },
+                "create_sources": {
+                    "clanica_id": ["translate_keys", ["clanica_domena_repl"]],
+                    "vrsta_zaposlitve_id": ["translate_keys", ["vrsta_zaposlitve_repl"]],
+                    "group_type": ["constant", ["global security"]]
                 }
             }
         ],
         [
             {
-                "distinguishedName": "${clanica_domena_repl},OU=${clanica_prefix_repl},OU=autopravice,OU=delovnomesto,OU=${delovna_mesta_repl}", 
-                "groupType": "group_types",
-                "name": "${apis_blabla}",
+                "objectClass": "top; group",
+                "distinguishedName": "${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=habilitacija,OU=${habilitacija}", 
+                "groupType": "${group_type}",
+                "name": "${habilitacija}"
             }, {
-                
-                "group_dn_value_sources": {
-                    "clanica_id": "clanica_domena_repl",
-                    "delovnomesto": "delovna_mesta_repl",
+                "create_fields": {
+                    "clanica_domena": [["${clanica_id}", ["clanica_domena_repl"]]],
+                    "clanica_prefix": [["${clanica_id}", ["clanica_prefix_repl"]]],
+                    "habilitacija": [["${habilitacija}", []]],
+                    "group_type": [["${group_type}", ["group_types"]]]
                 },
-                "group_value_defaults": {
-                    
-                },
-                "keys": {
-                    "clanica_domena_repl": "${clanica_id}",
-                    "clanica_prefix_repl": "${clanica_prefix}",
-                    "delovna_mesta_repl":
-                        "{Razporeditev__1001__B008__delovnoMesto}",
-                    "group_types": "global security"
+                "create_sources": {
+                    "clanica_id": ["translate_keys", ["clanica_domena_repl"]],
+                    "habilitacija": ["translate_values", ["habilitacija_repl"]],
+                    "group_type": ["constant", ["global security"]]
                 }
             }
         ]
