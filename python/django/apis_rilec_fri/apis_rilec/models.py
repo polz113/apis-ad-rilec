@@ -16,10 +16,42 @@ from urllib.request import Request, urlopen, quote
 FIELD_DELIMITER='__'
 
 
-def _get_rules(name=None):
+def _get_rules(name=None, timestamp=None):
     dirname = os.path.dirname(__file__)
     with open(os.path.join(dirname, 'translation_rules.json')) as f:
         d = json.load(f)
+    oud, relationsd, outree_source_ids = oudicts_at(timestamp)
+    ou_shortnames = list()
+    ou_names = list()
+    ou_parts = list()
+    relations = relationsd.get('1001__A002', {})
+    for ou_id, ou_data in oud.items():
+        shortname = ou_data['shortname']
+        ouname = ou_data['name']
+        # build a list of parent ids for each ou
+        parent = ou_id
+        parent_ids = []
+        while parent is not None:
+            parent_ids.append(parent)
+            parent = relations.get(parent, None)
+        # turn the list of ids into OUs
+        t = string.Template("OU=${shortname}")
+        parent_strs = []
+        for i in reversed(parent_ids):
+            try:
+                parent_strs.append(t.substitute(oud[i]))
+            except KeyError as e:
+                pass
+        # now store the names, shortnames and ou_parts
+        ou_shortnames.append([ou_id, shortname, {}])
+        ou_names.append([ou_id, ouname, {}])
+        ou_parts.append([ou_id, ",".join(parent_strs), {}])
+    translations = {
+        "apis_ou_shortnames": ou_shortnames,
+        "apis_ou_names": ou_names,
+        "apis_ou_parts": ou_parts,
+    }
+    d['TRANSLATIONS'].update(translations)
     if name is None:
         return d
     return d[name]
@@ -88,12 +120,10 @@ def _fill_template(datadict, template, trans_names, translations):
         return None
     return data
 
-def _field_adder(datadict, extra_fields, translations, source=None, update_datadict=True):
-    new_fields = dict()
+def _field_adder(datadict, extra_fields, translations, update_datadict=True):
+    new_fields = MultiValueDict()
     for fieldname, rulelist in extra_fields.items():
-        for (fsource, template, trans_names) in rulelist:
-            if fsource is not None and fsource != source:
-                continue
+        for (template, trans_names) in rulelist:
             new_data = _fill_template(datadict, template, trans_names, translations)
             if new_data is not None:
                 new_fields[fieldname] = new_data
@@ -102,37 +132,6 @@ def _field_adder(datadict, extra_fields, translations, source=None, update_datad
         return datadict
     return new_fields
 
-"""
-def field_adder_factory():
-    translations = __get_rules('TRANSLATIONS')
-    extra_fields = __get_rules('EXTRA_FIELDS')
-    field_add_functions = dict()
-    for fieldname, (template, trans_names) in extra_fields.items():
-        t = string.Template(template)
-        translators = list()
-        for tname in trans_names:
-            rules = translations.get(tname, [])
-            translators.append(__make_translator(rules))
-        def __field_add(datadict):
-            try:
-                print(t.template)
-                data = t.substitute(datadict)
-                # print("Yaaay, ", data)
-                # for translator in translators:
-                #     data = translator(data)
-            except KeyError as e:
-                # print("Booo, ", template, datadict)
-                return None
-            return data
-        field_add_functions[fieldname] = __field_add
-    def __field_adder(datadict):
-        for fieldname, field_add_fn in field_add_functions.items():
-            new_data = field_add_fn(datadict)
-            if new_data is not None:
-                datadict[fieldname] = new_data
-        return datadict
-    return __field_adder
-"""
 
 DEFAULT_USER_FIELD_ADDER = _field_adder
 
@@ -275,7 +274,9 @@ class DataSource(models.Model):
             for user in parsed:
                 uid = user.get('ul_id_predavatelja', None)
                 if uid is None:
-                    uid = '?'
+                    uid = get_uid_by_upn(user['upn'])
+                    if uid is None:
+                        uid='?'
                 ud = UserData(dataset=ds, uid=uid)
                 ud.save()
                 for k, l in user.items():
@@ -345,7 +346,7 @@ class DataSource(models.Model):
             pass
         else:
             pass
-    def _to_datasets_projekti(self):
+    def _projekti_to_datasets(self):
         # TODO implement projekti, then this
         pass
 
@@ -356,6 +357,7 @@ class DataSource(models.Model):
             'projekti': self._projekti_to_datasets,
         }
         return handlers[self.source]()
+
 
 
 class Studis:
@@ -458,16 +460,16 @@ class UserData(models.Model):
                 ).order_by(
                     'fieldgroup'
                 )
-        common_d = {"uid": self.uid}
+        common_d = MultiValueDict({"uid": [self.uid]})
         for i in ffields.filter(fieldgroup=None):
-            common_d[i.field] = i.value
+            common_d.appendlist(i.field, i.value)
         for i in ffields.exclude(fieldgroup=None):
             if i.fieldgroup is None or i.fieldgroup != prev_fieldgroup:
                 if d is not None:
                     dicts.append(d)
                 prev_fieldgroup = i.fieldgroup
                 d = common_d.copy()
-            d[i.field] = i.value
+            d.appendlist(i.field, i.value)
         if d is not None:
             dicts.append(d)
         return dicts
@@ -485,7 +487,6 @@ class UserData(models.Model):
             translated_dicts.append(_field_adder(datadict,
                                                  extra_fields=extra_fields, 
                                                  translations=translations,
-                                                 source=source,
                                                  update_datadict=True))
             # translated_dicts.append(datadict)
         return translated_dicts
@@ -498,31 +499,43 @@ class UserData(models.Model):
         pass
 
 
-def create_groups(self, timestamp=None, group_rules=None, translations=None):
+
+def create_groups(timestamp=None, group_rules=None, translations=None):
     if group_rules is None:
         group_rules = _get_rules('GROUP_RULES')
     if translations is None:
         translations = _get_rules('TRANSLATIONS')
-    oud, relationsd, outree_source_ids = oudicts_at(timestamp)
     groups = list()
     for field_dict, flags in group_rules:
-        keys = flags.get("keys", {})
-        dn_template = field_dict.pop("distinguishedName", None)
-        if dn_template is None:
-            continue
-        t = string.Template(dn_template)
-        parameters = t.get_identifiers()
+        create_sources = flags.get("create_sources", {})
+        create_fields = flags.get("create_fields", {})
         # get a cartesian product of all translations for this dn_template
-        values_list = [translations[p].get_values() for p in parameters]
-        all_values = itertools.product(*values_list)
+        props = list()
+        propnames = list()
+        for field_name, (mode, args) in create_sources.items():
+            if mode == 'translate_keys':
+                trans_list = translations.get(args[0], [])
+                vals = [i[0] for i in trans_list]
+            elif mode == 'translate_values':
+                trans_list = translations.get(args[0], [])
+                vals = [i[1] for i in trans_list]
+            elif mode == 'constant':
+                vals = args
+            else:
+                pass
+            props.append(vals)
+            propnames.append(field_name)
+        # print(propnames, props)
+        all_values = itertools.product(*props)
         # create all possible groups
         for vals in all_values:
             d = dict()
-            for i, p in enumerate(parameters):
+            for i, p in enumerate(propnames):
                 d[p] = vals[i]
             group_dict = dict()
             for fieldname, template in field_dict.items():
                 t1 = string.Template(template)
+                d = _field_adder(d, extra_fields=create_fields, translations=translations)
                 group_dict[fieldname] = t1.substitute(d)
             groups.append(group_dict)
     return groups
@@ -539,8 +552,17 @@ class UserDataField(models.Model):
     field = models.CharField(max_length=256)
     value = models.CharField(max_length=512)
 
+
+def get_uid_by_upn(upn):
+    possible=set(UserDataField.objects.filter(field='Komunikacija__0105__9007__vrednostNaziv', value__iexact=upn).values_list('userdata__uid', flat=True))
+    if len(possible) == 1:
+        return possible.pop()
+    return None
+
+
 class TranslationTable(models.Model):
     name = models.CharField(max_length=256)
+    source = models.ForeignKey('DataSet', null=True, on_delete=models.SET_NULL)
     flags = models.JSONField()
 
 
@@ -633,12 +655,20 @@ class LDAPActionBatch(models.Model):
     description = models.CharField(max_length=512, blank=True, default='')
     actions = models.ManyToManyField('LDAPAction')
     def apply(self):
+        ldap_conn = ldap.initialize("ldaps://192.168.251.101:3268")
+        # ldap_conn.set_option(ldap.OPT_X_TLS_CACERTFILE, '/path/to/ca.pem')
+        # ldap_conn.set_option(ldap.OPT_X_TLS_NEWCTX, 0)
+        # ldap_conn.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
+        # ldap_conn.start_tls_s()
+        ldap_conn.simple_bind_s(dn, password)
         pass
 
 class LDAPAction(models.Model):
     ACTION_CHOICES = [
         ('user_upsert', 'Upsert user data'),
+        ('group_upsert', 'Upsert group data'),
         ('add', 'Add'),
+        ('modify', 'Modify'),
         ('delete', 'Delete')]
     sources = models.ManyToManyField('DataSet')
     action = models.CharField(max_length=16, choices=ACTION_CHOICES)

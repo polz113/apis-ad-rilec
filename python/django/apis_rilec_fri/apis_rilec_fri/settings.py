@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 
 from pathlib import Path
 import environ
+import ldap
 
 root = environ.Path(__file__) - 3  # get root of the project
 env = environ.Env()
@@ -22,6 +23,83 @@ SITE_ROOT = root()
 DEBUG = env.bool('DEBUG', default=False)
 
 TEMPLATE_DEBUG = DEBUG
+
+ldap_options_dict = {
+    "NEVER": ldap.OPT_X_TLS_NEVER,
+    "ALLOW": ldap.OPT_X_TLS_ALLOW,
+    "DEMAND": ldap.OPT_X_TLS_DEMAND,
+    "HARD": ldap.OPT_X_TLS_HARD,
+}
+
+ldap_scope_dict = {
+    "SUBTREE": ldap.SCOPE_SUBTREE,
+    "BASE": ldap.SCOPE_BASE,
+    "ONELEVEL": ldap.SCOPE_ONELEVEL,
+}
+
+
+LDAP_SERVER_URI = env.str('LDAP_SERVER_URI')
+LDAP_BIND_DN = env.str("LDAP_BIND_DN") 
+LDAP_BIND_PASSWORD = env.str("LDAP_BIND_PASSWORD")
+# LDAP_START_TLS = True
+LDAP_START_TLS = env.bool('LDAP_START_TLS')
+
+#AUTH_LDAP_USER_SEARCH = LDAPSearch(
+#        env.str( "LDAP_USER_SEARCH_BASE"),
+#        ldap_scope_dict[env.str("LDAP_USER_SEARCH_SCOPE", default="SUBTREE")], 
+#        "(objectClass=group)"
+#    )
+
+LDAP_GLOBAL_OPTIONS = {
+    ldap.OPT_X_TLS_REQUIRE_CERT: ldap_options_dict[env.str("LDAP_OPT_X_TLS_REQUIRE_CERT", default="NEVER")]
+}
+
+# Mirror groups in LDAP
+#AUTH_LDAP_GROUP_SEARCH = LDAPSearch(
+#    env.str("LDAP_GROUP_SEARCH_BASE"),
+#    ldap_scope_dict[env.str("LDAP_GROUP_SEARCH_SCOPE", default="SUBTREE")], 
+#    "(objectClass=group)"
+#)
+
+# LDAP_GROUP_TYPE = GroupOfNamesType(name_attr="cn")
+AUTH_LDAP_MIRROR_GROUPS = env.bool("AUTH_LDAP_MIRROR_GROUPS", default=True)
+#LDAP_REQUIRE_GROUP = "cn=enabled,ou=django,ou=groups,dc=example,dc=com"
+# Populate the Django user from the LDAP directory.
+
+AUTH_LDAP_USER_ATTR_MAP = {
+    "first_name": "givenName",
+    "last_name": "sn",
+    "email": "mail"
+}
+
+#LDAP_PROFILE_ATTR_MAP = 
+# LDAP_USER_FLAGS_BY_GROUP = 
+AUTH_LDAP_ALWAYS_UPDATE_USER = env.bool("AUTH_LDAP_ALWAYS_UPDATE_USER", default=True)
+# Use LDAP group membership to calculate group permissions.
+#LDAP_FIND_GROUP_PERMS = True
+# Cache group memberships for an hour to minimize LDAP traffic
+AUTH_LDAP_CACHE_GROUPS = env.bool("AUTH_LDAP_CACHE_GROUPS", default=True)
+AUTH_LDAP_GROUP_CACHE_TIMEOUT = env.int("AUTH_GROUP_CACHE_TIMEOUT", default=3600)
+
+
+
+AUTH_LDAP_SERVER_URI=LDAP_SERVER_URI 
+AUTH_LDAP_BIND_DN=LDAP_BIND_DN 
+AUTH_LDAP_BIND_PASSWORD=LDAP_BIND_PASSWORD 
+AUTH_LDAP_START_TLS=LDAP_START_TLS 
+#AUTH_LDAP_USER_SEARCH=LDAP_USER_SEARCH 
+AUTH_LDAP_GLOBAL_OPTIONS=LDAP_GLOBAL_OPTIONS 
+#AUTH_LDAP_GROUP_SEARCH=LDAP_GROUP_SEARCH 
+# AUTH_LDAP_GROUP_TYPE=LDAP_GROUP_TYPE 
+#AUTH_LDAP_REQUIRE_GROUP=LDAP_REQUIRE_GROUP 
+# Populate the Django user from the LDAP directory.
+#AUTH_LDAP_PROFILE_ATTR_MAP=LDAP_PROFILE_ATTR_MAP 
+# AUTH_LDAP_USER_FLAGS_BY_GROUP=LDAP_USER_FLAGS_BY_GROUP 
+# Use LDAP group membership to calculate group permissions.
+#AUTH_LDAP_FIND_GROUP_PERMS=LDAP_FIND_GROUP_PERMS 
+
+
+
 
 
 public_root = environ.Path(env.str('PUBLIC_ROOT', default=root.path('public/')))
