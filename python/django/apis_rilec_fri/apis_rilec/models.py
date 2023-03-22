@@ -501,6 +501,7 @@ class UserData(models.Model):
             translations = _get_rules('TRANSLATIONS')
         datadicts = self.with_extra(timestamp=timestamp, translations=translations)
         result = set()
+        default_dn = None
         for fields, flags in group_rules:
             for d in datadicts:
                 try:
@@ -514,7 +515,9 @@ class UserData(models.Model):
                     result.add(data.encode('utf-8'))
                 except KeyError:
                     pass
-        return list(result)
+            if flags.get('main_ou', False):
+                default_dn = data
+        return default_dn, list(result)
 
     def by_rules(self, user_rules=None, timestamp=None, extra_fields=None, translations=None):
         if user_rules is None:
