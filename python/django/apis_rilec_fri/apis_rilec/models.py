@@ -499,12 +499,28 @@ class UserData(models.Model):
             group_rules = _get_rules('GROUP_RULES')
         if translations is None:
             translations = _get_rules('TRANSLATIONS')
-        pass
-
+        datadicts = self.with_extra(timestamp=timestamp, translations=translations)
+        result = set()
+        for fields, flags in group_rules:
+            for d in datadicts:
+                try:
+                    template = fields['distinguishedName']
+                    print(template)
+                    t = string.Template(template)
+                    identifiers = t.get_identifiers()
+                    for i in identifiers:
+                        print("    ",i,":", d.get(i))
+                    data = t.substitute(d)
+                    result.add(data.encode('utf-8'))
+                except KeyError:
+                    pass
+        return list(result)
 
     def by_rules(self, user_rules=None, timestamp=None, extra_fields=None, translations=None):
         if user_rules is None:
             user_rules = _get_rules('USER_RULES')
+        if translations is None:
+            translations = _get_rules('TRANSLATIONS')
         datadicts = self.with_extra(timestamp=timestamp, extra_fields=extra_fields, translations=translations)
         result = []
         for fieldname, templates in user_rules.items():
@@ -690,7 +706,7 @@ class LDAPActionBatch(models.Model):
         # ldap_conn.start_tls_s()
         ldap_conn.simple_bind_s(settings.LDAP_BIND_DN, settings.LDAP_BIND_PASSWORD)
         ux = ud0.by_rules()
-        dn = 
+        dn = "test"
         l.add_s("CN=Marko Toplak,CN=Users,DC=test,DC=nodomain", [tuple(i) for i in ux])
         pass
 
@@ -705,6 +721,8 @@ class LDAPAction(models.Model):
     action = models.CharField(max_length=16, choices=ACTION_CHOICES)
     dn = models.TextField()
     data = models.JSONField()
+    def apply(self, ldap_conn, user_data):
+        pass
 
 class LDAPApply(models.Model):
     batch = models.ForeignKey('LDAPActionBatch', on_delete=models.RESTRICT)

@@ -79,14 +79,14 @@
         ],
         "habilitacija": [
             [
-                "${Habilitacija__2003__9004__habilitacijskoPodrocje}.${Habilitacija__2003__9004__habilitacijskoPodpodrocje}",
+                "${Habilitacija__9004__0__habilizacijskiNaziv}",
                 ["habilitacija_repl"]
             ]
         ],
         "vrsta_zaposlitve": [
             [
                 "${OrgDodelitev__0001__0__skupinaZaposlenih}.${OrgDodelitev__0001__0__podskupinaZaposlenih}",
-                ["vrsta_zaposlitve_r"]
+                ["vrsta_zaposlitve_repl"]
             ]
         ],
         "apis_oupart": [
