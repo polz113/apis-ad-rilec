@@ -257,6 +257,44 @@ class DataSource(models.Model):
         OUData.objects.bulk_create(ou_data)
         OURelation.objects.bulk_create(ou_relations)
 
+    def _studis_to_userdata(self, parsed):
+        user_fields = list()
+        for user in parsed:
+            uid = user.get('ul_id_predavatelja', None)
+            if uid is None:
+                uid = get_uid_by_upn(user['upn'])
+                if uid is None:
+                    uid='?'
+            ud = UserData(dataset=ds, uid=uid)
+            ud.save()
+            for k, l in user.items():
+                if type(l) != list:
+                    l = [l]
+                for i in l:
+                    fields = []      
+                    if type(i) == dict:
+                        for fkey, fval in i.items():
+                            field = {
+                                "field": "{}__{}".format(k, fkey),
+                                "value": fval,
+                            }
+                            field.update(field_base)
+                            fields.append(field)
+                    else:
+                        field = {
+                            "field": k,
+                            "value": i,
+                        }
+                        field.update(field_base)
+                        fields.append(field)
+                    for field in fields:
+                        if field['value'] is None:
+                            continue
+                        uf = UserDataField(userdata=ud, **field)
+                        user_fields.append(uf)
+        if len(user_fields):
+            UserDataField.objects.bulk_create(user_fields)
+
     def _studis_to_datasets(self):
         parsed = self.parsed_json()
         api_url = self.subsource['api_url']
@@ -270,42 +308,7 @@ class DataSource(models.Model):
                       "valid_from": valid_from,
                       "valid_to": valid_to}
         if api_url.startswith("osebeapi/oseba"):
-            user_fields = list()
-            for user in parsed:
-                uid = user.get('ul_id_predavatelja', None)
-                if uid is None:
-                    uid = get_uid_by_upn(user['upn'])
-                    if uid is None:
-                        uid='?'
-                ud = UserData(dataset=ds, uid=uid)
-                ud.save()
-                for k, l in user.items():
-                    if type(l) != list:
-                        l = [l]
-                    for i in l:
-                        fields = []      
-                        if type(i) == dict:
-                            for fkey, fval in i.items():
-                                field = {
-                                    "field": "{}__{}".format(k, fkey),
-                                    "value": fval,
-                                }
-                                field.update(field_base)
-                                fields.append(field)
-                        else:
-                            field = {
-                                "field": k,
-                                "value": i,
-                            }
-                            field.update(field_base)
-                            fields.append(field)
-                        for field in fields:
-                            if field['value'] is None:
-                                continue
-                            uf = UserDataField(userdata=ud, **field)
-                            user_fields.append(uf)
-            if len(user_fields):
-                UserDataField.objects.bulk_create(user_fields)
+            self._studis_to_userdata(parsed)
         elif api_url.startswith("sifrantiapi/vrstanazivadelavca"):
             pass
         elif api_url.startswith("sifrantiapi/nazivdelavca"):
@@ -499,6 +502,28 @@ class UserData(models.Model):
         pass
 
 
+    def by_rules(self, user_rules=None, timestamp=None, extra_fields=None, translations=None):
+        if user_rules is None:
+            user_rules = _get_rules('USER_RULES')
+        datadicts = self.with_extra(timestamp=timestamp, extra_fields=extra_fields, translations=translations)
+        result = []
+        for fieldname, templates in user_rules.items():
+            if type(templates) != list:
+                templates = [templates]
+            values = set()
+            for template in templates:
+                t = string.Template(template)
+                for d in datadicts:
+                    try:
+                        data = t.substitute(d)
+                        values.add(data.encode('utf-8'))
+                    except KeyError:
+                        pass
+            if len(values) > 0:
+                result.append([fieldname, list(values)])
+        return result
+                
+
 
 def create_groups(timestamp=None, group_rules=None, translations=None):
     if group_rules is None:
@@ -625,21 +650,24 @@ def outrees_at(timestamp=None):
     return outree, source_ids
 
 
-def latest_userdata():
+def latest_userdata(source=None):
     latest_userdata = dict()
-    for ud in UserData.objects.order_by('dataset__timestamp'):
+    users = UserData.objects.all()
+    if source is not None:
+        users = users.filter(dataset__source__source=source)
+    for ud in users.order_by('dataset__timestamp'):
         latest_userdata[ud.uid] = ud
     return latest_userdata
 
 
-def ldapactionbatch_at(timestamp=None):
+def ldapactionbatch_at(timestamp=None, source=None):
     if timestamp is None:
         timestamp = timezone.now()
     actionbatch = LDAPActionBatch(description=timestamp.isoformat())
     users = dict()
     groups = dict()
     ous, ou_relations, outree_source_ids = oudicts_at(timestamp)
-    for uid, userdata in latest_userdata().items():
+    for uid, userdata in latest_userdata(source=source).items():
         users[uid] = userdata.with_extra(timestamp)
         groups_to_join = userdata.groups_at(timestamp, ou_trees=ou_trees)
         for group in groups_to_join:
@@ -655,12 +683,15 @@ class LDAPActionBatch(models.Model):
     description = models.CharField(max_length=512, blank=True, default='')
     actions = models.ManyToManyField('LDAPAction')
     def apply(self):
-        ldap_conn = ldap.initialize("ldaps://192.168.251.101:3268")
+        ldap_conn = ldap.initialize(SETTINGS.LDAP_SERVER_URI)
         # ldap_conn.set_option(ldap.OPT_X_TLS_CACERTFILE, '/path/to/ca.pem')
         # ldap_conn.set_option(ldap.OPT_X_TLS_NEWCTX, 0)
         # ldap_conn.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
         # ldap_conn.start_tls_s()
-        ldap_conn.simple_bind_s(dn, password)
+        ldap_conn.simple_bind_s(settings.LDAP_BIND_DN, settings.LDAP_BIND_PASSWORD)
+        ux = ud0.by_rules()
+        dn = 
+        l.add_s("CN=Marko Toplak,CN=Users,DC=test,DC=nodomain", [tuple(i) for i in ux])
         pass
 
 class LDAPAction(models.Model):
