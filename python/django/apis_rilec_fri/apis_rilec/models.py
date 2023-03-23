@@ -47,8 +47,8 @@ def _get_rules(name=None, timestamp=None):
         ou_names.append([ou_id, ouname, {}])
         ou_parts.append([ou_id, ",".join(parent_strs), {}])
     translations = {
-        "apis_ou_shortnames": ou_shortnames,
-        "apis_ou_names": ou_names,
+        "apis_ou__shortname": ou_shortnames,
+        "apis_ou__name": ou_names,
         "apis_ou_parts": ou_parts,
     }
     d['TRANSLATIONS'].update(translations)
@@ -257,7 +257,7 @@ class DataSource(models.Model):
         OUData.objects.bulk_create(ou_data)
         OURelation.objects.bulk_create(ou_relations)
 
-    def _studis_to_userdata(self, parsed):
+    def _studis_to_userdata(self, dataset, parsed):
         user_fields = list()
         for user in parsed:
             uid = user.get('ul_id_predavatelja', None)
@@ -265,7 +265,7 @@ class DataSource(models.Model):
                 uid = get_uid_by_upn(user['upn'])
                 if uid is None:
                     uid='?'
-            ud = UserData(dataset=ds, uid=uid)
+            ud = UserData(dataset=dataset, uid=uid)
             ud.save()
             for k, l in user.items():
                 if type(l) != list:
@@ -274,33 +274,58 @@ class DataSource(models.Model):
                     fields = []      
                     if type(i) == dict:
                         for fkey, fval in i.items():
-                            field = {
+                            fields.append({
                                 "field": "{}__{}".format(k, fkey),
                                 "value": fval,
-                            }
-                            field.update(field_base)
-                            fields.append(field)
+                            })
                     else:
-                        field = {
+                        fields.append({
                             "field": k,
                             "value": i,
-                        }
-                        field.update(field_base)
-                        fields.append(field)
+                        })
                     for field in fields:
                         if field['value'] is None:
                             continue
-                        uf = UserDataField(userdata=ud, **field)
+                        uf = UserDataField(userdata=ud,
+                                           valid_from=self.timestamp,
+                                           valid_to=self.timestamp + timezone.timedelta(days=365000),
+                                           **field)
                         user_fields.append(uf)
         if len(user_fields):
             UserDataField.objects.bulk_create(user_fields)
 
+    def _studis_to_translations(self, dataset, table_prefix, parsed):
+        prefix = 'studis__' + table_prefix
+        rules = defaultdict(list)
+        for d in parsed:
+            pattern = d.pop('id')
+            if pattern is None:
+                continue
+            for k, v in d.items():
+                if v is None:
+                    continue
+                table_name = prefix + '__' + k
+                if type(v) == dict:
+                    for sub_k, sub_v in v.items():
+                        if sub_v is None:
+                            continue
+                        table_name = table_name + '__' + sub_k
+                        rules[table_name].append(TranslationRule(pattern = pattern, replacement = sub_v))
+                else:
+                    rules[table_name].append(TranslationRule(pattern = pattern, replacement = v))
+        for table_name, rule_list in rules.items():
+            t, created = TranslationTable.objects.get_or_create(name=table_name, dataset=dataset)
+            for i, r in enumerate(rule_list):
+                r.table = t
+                r.order = i
+            TranslationRule.objects.bulk_create(rule_list)
+
     def _studis_to_datasets(self):
         parsed = self.parsed_json()
         api_url = self.subsource['api_url']
-        timestamp = timezone.now()
-        ds = DataSet(timestamp=timestamp, source=self)
-        ds.save()
+        # timestamp = timezone.now()
+        timestamp = self.timestamp
+        ds, created = DataSet.objects.get_or_create(timestamp=timestamp, source=self)
         valid_from = timestamp
         valid_to = timestamp + timezone.timedelta(days=365*200)
         field_base = {"changed_t": self.timestamp,
@@ -308,47 +333,13 @@ class DataSource(models.Model):
                       "valid_from": valid_from,
                       "valid_to": valid_to}
         if api_url.startswith("osebeapi/oseba"):
-            self._studis_to_userdata(parsed)
-        elif api_url.startswith("sifrantiapi/vrstanazivadelavca"):
-            pass
-        elif api_url.startswith("sifrantiapi/nazivdelavca"):
-            pass
-        elif api_url.startswith("sifrantiapi/vrstadelovnegamesta"):
-            pass
-        elif api_url.startswith("sifrantiapi/delovnomesto"):
-            pass
-        elif api_url.startswith("sifrantiapi/vrstaoddelka"):
-            pass
-        elif api_url.startswith("sifrantiapi/oddelek"):
-            pass
-        elif api_url.startswith("sifrantiapi/funkcijavoddelku"):
-            pass
-        elif api_url.startswith("sifrantiapi/funkcijepodrocja"):
-            pass
-        elif api_url.startswith("sifrantiapi/funkcijedelavcev"):
-            pass
-        elif api_url.startswith("sifrantiapi/semestri"):
-            pass
-        elif api_url.startswith("sifrantiapi/letniki"):
-            pass
-        elif api_url.startswith("sifrantiapi/tipivpisa"):
-            pass
-        elif api_url.startswith("sifrantiapi/nacinistudija"):
-            pass
-        elif api_url.startswith("sifrantiapi/tipiizvajanjapredmeta"):
-            pass
-        elif api_url.startswith("sifrantiapi/kadrovskistatusi"):
-            pass
-        elif api_url.startswith("sifrantiapi/naciniizborapredmeta"):
-            pass
-        elif api_url.startswith("sifrantiapi/zavodi"):
-            pass
-        elif api_url.startswith("sifrantiapi/kategorijeoseb"):
-            pass
-        elif api_url.startswith("sifrantiapi/prostori"):
-            pass
+            self._studis_to_userdata(ds, parsed)
+        elif api_url.startswith("sifrantiapi"):
+            table_prefix = api_url.split('/')[1]
+            self._studis_to_translations(ds, table_prefix, parsed)
         else:
             pass
+
     def _projekti_to_datasets(self):
         # TODO implement projekti, then this
         pass
@@ -360,7 +351,6 @@ class DataSource(models.Model):
             'projekti': self._projekti_to_datasets,
         }
         return handlers[self.source]()
-
 
 
 class Studis:
@@ -543,7 +533,6 @@ class UserData(models.Model):
         return result
                 
 
-
 def create_groups(timestamp=None, group_rules=None, translations=None):
     if group_rules is None:
         group_rules = _get_rules('GROUP_RULES')
@@ -605,13 +594,18 @@ def get_uid_by_upn(upn):
 
 
 class TranslationTable(models.Model):
+    def __str__(self):
+        return "{} ({})".format(self.name, self.dataset)
     name = models.CharField(max_length=256)
-    source = models.ForeignKey('DataSet', null=True, on_delete=models.SET_NULL)
-    flags = models.JSONField()
+    dataset = models.ForeignKey('DataSet', null=True, on_delete=models.SET_NULL)
+    flags = models.JSONField(default=dict)
 
 
 class TranslationRule(models.Model):
+    def __str__(self):
+        return "{} -> {}".format(self.pattern, self.replacement)
     table = models.ForeignKey('TranslationTable', on_delete=models.CASCADE, related_name='rules')
+    order = models.IntegerField(default=0)
     pattern = models.TextField()
     replacement = models.TextField()
     
@@ -679,28 +673,75 @@ def latest_userdata(source=None):
     return latest_userdata
 
 
-def ldapactionbatch_at(timestamp=None, source=None):
+def get_ad_user_dn(ldap_conn, user_fields):
+    for i in ['employeeId', 'userPrincipalName']:
+        try:
+            ret = ldap_conn.search_s(settings.LDAP_SEARCH_BASE,
+                                     scope=settings.LDAP_USER_SEARCH_SCOPE,
+                                     # TODO: proper escaping
+                                     filterstr="{}={}".format(i, user_fields[i]),
+                                     attrlist=['distinguishedName'])
+            assert len(ret) == 1
+            return(ret[0][0])
+        except:
+            pass
+    return user_fields.get('distinguishedName', None)
+
+
+def user_ldapactionbatch_at(timestamp=None, rename_users=False, empty_groups=True):
     if timestamp is None:
         timestamp = timezone.now()
     actionbatch = LDAPActionBatch(description=timestamp.isoformat())
     users = dict()
     groups = dict()
     ous, ou_relations, outree_source_ids = oudicts_at(timestamp)
+    actions = list()
+    # prepare groups
+    for group in create_groups(timestamp=timestamp):
+        dn = group.pop('distinguishedName')
+        action = LDAPAction(action='upsert', dn=dn, data=group)
+        actions.append(action)
+    groups_membership = MultiValueDict()
     for uid, userdata in latest_userdata(source=source).items():
-        users[uid] = userdata.with_extra(timestamp)
-        groups_to_join = userdata.groups_at(timestamp, ou_trees=ou_trees)
-        for group in groups_to_join:
-            dn = group['distinguishedName']
-            old_group = groups.get(dn, dict())
-            # merge the group data, old data has priority
-            group.update(old_group)
-            groups[dn] = group
-    return users
-    # prepare group data
+        groups_to_join = userdata.groups_at(timestamp)
+        user_fields = userdata.by_rules(timestamp)
+        default_dn = user_fields.pop('distinguishedName')
+        # determine the DN of this user, renaming if neccessarry
+        existing_dn = get_ad_user_dn(ldap_conn, user_fields)
+        if existing_dn is not None:
+            if rename_users:
+                actions.append(LDAPAction(action='rename', 
+                    dn=existing_dn, 
+                    data={'distinguishedName': [default_dn]}))
+                user_dn = default_dn
+            else:
+                user_dn = existing_dn
+        else:
+            user_dn = default_dn
+        # now create the user
+        actions.append(LDAPAction(action='upsert', dn=user_dn, data=user_fields))
+        users[user_dn] = user_fields
+        for group_dn in groups_to_join:
+            # TODO add user DN to group property "member"
+            groups_membership.appendlist(group_dn, user_dn)
+    for group_dn, user_list in group_membership.lists():
+        group = {'members': user_list}
+        if empty_groups:
+            # replace the user list
+            actions.append(LDAPAction(action='modify', dn=group_dn, data=group))
+        else:
+            # extend the user list
+            actions.append(LDAPAction(action='add', dn=group_dn, data=group))
+    actionbatch.save()
+    for action in enumerate(actions):
+        action.batch = actionbatch
+        action.order = i
+    LDAPAction.objects.bulk_create(actions)
+    return actionbatch
+
 
 class LDAPActionBatch(models.Model):
     description = models.CharField(max_length=512, blank=True, default='')
-    actions = models.ManyToManyField('LDAPAction')
     def apply(self):
         ldap_conn = ldap.initialize(SETTINGS.LDAP_SERVER_URI)
         # ldap_conn.set_option(ldap.OPT_X_TLS_CACERTFILE, '/path/to/ca.pem')
@@ -708,24 +749,66 @@ class LDAPActionBatch(models.Model):
         # ldap_conn.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
         # ldap_conn.start_tls_s()
         ldap_conn.simple_bind_s(settings.LDAP_BIND_DN, settings.LDAP_BIND_PASSWORD)
-        ux = ud0.by_rules()
-        dn = "test"
-        l.add_s("CN=Marko Toplak,CN=Users,DC=test,DC=nodomain", [tuple(i) for i in ux])
+        for i in self.actions:
+            apply = i.apply(ldap_conn)
+        #dn = "test"
+        #ux = ud0.by_rules()
+        #l.add_s("CN=Marko Toplak,CN=Users,DC=test,DC=nodomain", [tuple(i) for i in ux])
         pass
+
 
 class LDAPAction(models.Model):
     ACTION_CHOICES = [
-        ('user_upsert', 'Upsert user data'),
-        ('group_upsert', 'Upsert group data'),
+        ('upsert', 'Upsert (add or modify)'),
         ('add', 'Add'),
         ('modify', 'Modify'),
+        ('rename', 'Rename'),
         ('delete', 'Delete')]
+    batch = models.ForeignKey('LDAPActionBatch', related_name='actions', on_delete=models.CASCADE)
     sources = models.ManyToManyField('DataSet')
     action = models.CharField(max_length=16, choices=ACTION_CHOICES)
     dn = models.TextField()
     data = models.JSONField()
-    def apply(self, ldap_conn, user_data):
-        pass
+
+    def _upsert(self, ldap_conn):
+        try:
+            exists = len(ldap_conn.compare_s(self.dn.decode('utf-8'),
+                                        'distinguishedName', self.dn)) > 0
+        except:
+            exists = False
+        if exists:
+            return self._modify(ldap_conn)
+        return self._add(ldap_conn)
+
+    def _add(self, ldap_conn):
+        ul = []
+        for k, l in self.data.items():
+            ul.append((k, [i.encode('utf-8') for i in l]))
+        ldap_conn.add_s(self.dn, ul)
+
+    def _modify(self, ldap_conn):
+        ul = []
+        for k, l in self.data.items():
+            ul.append((ldap.MOD_REPLACE, k, [i.encode('utf-8') for i in l]))
+        ldap_conn.modify_s(self.dn, ul)
+
+    def _rename(self, ldap_conn):
+        new_dn = self.data['distinguishedName']
+        ldap_conn.rename_s(self.dn, new_dn.decode('utf-8'))
+
+    def _delete(self, ldap_conn):
+        ldap_conn.delete_s(self.dn)
+
+    def apply(self, ldap_conn):
+        apply_fns = {
+            'upsert': self._upsert,
+            'add': self._add,
+            'modify': self._modify,
+            'rename': self._modify,
+            'delete': self._delete,
+        }
+        return(apply_fns[self.action](ldap_conn))
+ 
 
 class LDAPApply(models.Model):
     batch = models.ForeignKey('LDAPActionBatch', on_delete=models.RESTRICT)

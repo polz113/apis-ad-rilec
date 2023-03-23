@@ -171,7 +171,7 @@
         ]
     },
     "USER_RULES": {
-        "objectClass": "top;person;organizationalPerson;user",
+        "objectClass": ["top","person","organizationalPerson","user"],
         "co": "Slovenia",
         "objectCategory": "CN=Person,CN=Schema,CN=Configuration,DC=uni-lj,DC=si",
         "cn": "${ime} ${priimek}",
@@ -187,7 +187,7 @@
         "c": "SI",
         "l": "Ljubljana",
         "title": "${job_title}",
-        "description": "${job_title}, {izobrazba_prefix}",
+        "description": "${job_title}, ${izobrazba_prefix}",
         "postalCode": "1000",
         "physicalDeliveryOfficeName": "${ad_lokacija}",
         "telephoneNumber": "${telefon}",
@@ -212,7 +212,7 @@
     "GROUP_RULES": [
         [
             {
-                "objectClass": "top; organizationalUnit",
+                "objectClass": ["top", "organizationalUnit"],
                 "distinguishedName": "${clanica_domena},OU=${clanica_prefix},OU=Users",
                 "groupType": "${group_type}"
             }, {
@@ -230,7 +230,7 @@
         ],
         [
             {
-                "objectClass": "top; group",
+                "objectClass": ["top", "group"],
                 "distinguishedName": "${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=oddelki,${apis_ous},${vrsta_zaposlitve}",
                 "groupType": "${group_type}",
                 "name": "${vrsta_zaposlitve}"
@@ -262,7 +262,7 @@
         ],
         [
             {
-                "objectClass": "top; group",
+                "objectClass": ["top", "group"],
                 "distinguishedName": "${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=zaposlitev,OU=${vrsta_zaposlitve}",
                 "groupType": "${group_type}",
                 "name": "${vrsta_zaposlitve}"
@@ -282,7 +282,7 @@
         ],
         [
             {
-                "objectClass": "top; group",
+                "objectClass": ["top", "group"],
                 "distinguishedName": "${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=habilitacija,OU=${habilitacija}", 
                 "groupType": "${group_type}",
                 "name": "${habilitacija}"
