@@ -270,10 +270,13 @@ class DataSource(models.Model):
             for k, l in user.items():
                 if type(l) != list:
                     l = [l]
-                for i in l:
+                    set_fieldgroup = False
+                else:
+                    set_fieldgroup = True
+                for i, value in enumerate(l):
                     fields = []      
-                    if type(i) == dict:
-                        for fkey, fval in i.items():
+                    if type(value) == dict:
+                        for fkey, fval in value.items():
                             fields.append({
                                 "field": "{}__{}".format(k, fkey),
                                 "value": fval,
@@ -281,12 +284,17 @@ class DataSource(models.Model):
                     else:
                         fields.append({
                             "field": k,
-                            "value": i,
+                            "value": value,
                         })
                     for field in fields:
                         if field['value'] is None:
                             continue
+                        if set_fieldgroup:
+                            fieldgroup = i
+                        else:
+                            fieldgroup = None
                         uf = UserDataField(userdata=ud,
+                                           fieldgroup = fieldgroup,
                                            valid_from=self.timestamp,
                                            valid_to=self.timestamp + timezone.timedelta(days=365000),
                                            **field)
@@ -461,6 +469,7 @@ class UserData(models.Model):
                 if d is not None:
                     dicts.append(d)
                 prev_fieldgroup = i.fieldgroup
+                # print(d)
                 d = common_d.copy()
             d.appendlist(i.field, i.value)
         if d is not None:
@@ -496,11 +505,8 @@ class UserData(models.Model):
             for d in datadicts:
                 try:
                     template = fields['distinguishedName']
-                    print(template)
                     t = string.Template(template)
                     identifiers = t.get_identifiers()
-                    for i in identifiers:
-                        print("    ",i,":", d.get(i))
                     data = t.substitute(d)
                     result.add(data.encode('utf-8'))
                 except KeyError:
