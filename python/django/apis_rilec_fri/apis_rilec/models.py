@@ -51,6 +51,11 @@ def _get_rules(name=None, timestamp=None):
         "apis_ou__name": ou_names,
         "apis_ou_parts": ou_parts,
     }
+    for tt in TranslationTable.objects.all():
+        l = []
+        for i in tt.rules.all().values_list('pattern', 'replacement'):
+            l.append(list(i) + [{}])
+        translations[tt.name] = l
     d['TRANSLATIONS'].update(translations)
     if name is None:
         return d
@@ -226,8 +231,11 @@ class DataSource(models.Model):
         except KeyError:
             timestamp = self.timestamp
         user_dicts = defaultdict(list)
-        ds = DataSet(timestamp=timestamp, source=self)
-        ds.save()
+        ds, created = DataSet.objects.get_or_create(timestamp=timestamp, source=self)
+        if not created:
+            ds.oudata_set.all().delete()
+            ds.ourelation_set.all().delete()
+            ds.translationtable_set.all().delete()
         ou_data = list()
         ou_relations = list()
         for k, v in in_data.items():
@@ -246,8 +254,9 @@ class DataSource(models.Model):
         user_fields = list()
         # Create UserData and fields from user_dicts
         for uid, fieldlist in user_dicts.items():
-            ud = UserData(dataset=ds, uid=uid)
-            ud.save()
+            ud, created = UserData.objects.get_or_create(dataset=ds, uid=uid)
+            if not created:
+                ud.fields.all().delete()
             for fields in fieldlist:
                 uf = UserDataField(userdata=ud, **fields)
                 user_fields.append(uf)
@@ -259,12 +268,16 @@ class DataSource(models.Model):
 
     def _studis_to_userdata(self, dataset, parsed):
         user_fields = list()
+        dataset.userdata_set.all().delete()
         for user in parsed:
             uid = user.get('ul_id_predavatelja', None)
             if uid is None:
                 uid = get_uid_by_upn(user['upn'])
                 if uid is None:
                     uid='?'
+            # ud, created = UserData.objects.get_or_create(dataset=dataset, uid=uid)
+            # if not created:
+            #     ud.fields.all().delete()
             ud = UserData(dataset=dataset, uid=uid)
             ud.save()
             for k, l in user.items():
@@ -294,7 +307,7 @@ class DataSource(models.Model):
                         else:
                             fieldgroup = None
                         uf = UserDataField(userdata=ud,
-                                           fieldgroup = fieldgroup,
+                                           fieldgroup=fieldgroup,
                                            valid_from=self.timestamp,
                                            valid_to=self.timestamp + timezone.timedelta(days=365000),
                                            **field)
@@ -317,12 +330,14 @@ class DataSource(models.Model):
                     for sub_k, sub_v in v.items():
                         if sub_v is None:
                             continue
-                        table_name = table_name + '__' + sub_k
-                        rules[table_name].append(TranslationRule(pattern = pattern, replacement = sub_v))
+                        rtable_name = table_name + '__' + sub_k
+                        rules[rtable_name].append(TranslationRule(pattern = pattern, replacement = sub_v))
                 else:
                     rules[table_name].append(TranslationRule(pattern = pattern, replacement = v))
         for table_name, rule_list in rules.items():
             t, created = TranslationTable.objects.get_or_create(name=table_name, dataset=dataset)
+            if not created:
+                t.rules.all().delete()
             for i, r in enumerate(rule_list):
                 r.table = t
                 r.order = i

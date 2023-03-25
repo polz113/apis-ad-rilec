@@ -94,6 +94,18 @@
                 "${OrgDodelitev__0001__0__glavnaOrganizacijskaEnota_Id}",
                 ["apis_ou_parts"]
             ]
+        ],
+        "studavtomatika_skupina": [
+            [
+                "${oddelek_funkcija__funkcija_v_oddelku_id}",
+                ["funkcijavoddelku_grrepl"]
+            ]
+        ],
+        "studisavtomatika_lab":[
+            [
+                "${oddelek_funkcija__oddelek_id}",
+                ["studis__oddelek__abbreviation"]
+            ]
         ]
     },
     "TRANSLATIONS": {
@@ -119,6 +131,20 @@
             [ "1.11", "Redni", {}],
             [ "1.00", "Izredni", {}],
             [ "", "Zunanji", {"default": true} ]
+        ],
+        "vrstadelovnegamesta_grrepl":[
+            [ "1", "FRI-Pedagogi", {}],
+            [ "3", "FRI-Raziskovalci", {}],
+            [ "2", "FRI-StrokovniSodelavci", {}]
+        ],
+        "funkcijavoddelku_grrepl":[
+            [ "5", "FRI-clanikateder", {}],
+            [ "4", "FRI-clanilaboratorija", {}],
+            [ "6", "FRI-clansluzbe", {}],
+            [ "41", "FRI-pooblascencikateder", {}],
+            [ "2", "FRI-predstojnikikateder", {}],
+            [ "1", "FRI-predstojnikilaboratorijev", {}],
+            [ "3", "FRI-vodjesluzb", {}]
         ],
         "habilitacija_repl":[
             [ "001.00", "Test1", {}],
@@ -299,6 +325,49 @@
                     "group_type": ["constant", ["global security"]]
                 }
             }
+        ],
+        [
+            {
+                "objectClass": ["top", "group"],
+                "distinguishedName": "CN=FRI-Pedagogi,OU=StudisAvtomatika,OU=Organizacija,${clanica_prefix},${clanica_domena}",
+                "groupType": "${group_type}"
+            }, {
+                "create_fields": {
+                    "clanica_domena": [["${clanica_id}", ["clanica_domena_repl"]]],
+                    "clanica_prefix": [["${clanica_id}", ["clanica_prefix_repl"]]],
+                    "habilitacija": [["${habilitacija}", []]],
+                    "group_type": [["${group_type}", ["group_types"]]]
+                },
+                "create_sources": {
+                    "clanica_id": ["translate_keys", ["clanica_domena_repl"]],
+                    "habilitacija": ["translate_values", ["habilitacija_repl"]],
+                    "group_type": ["constant", ["global security"]]
+                }
+            }
+        ],
+        [
+            {
+                "objectClass": ["top", "group"],
+                "distinguishedName": "CN=FRI-Raziskovalci,OU=StudisAvtomatika,OU=Organizacija,${clanica_prefix},${clanica_domena}",
+                "distinguishedName": "CN=FRI-PredstojnikiKateder,OU=StudisAvtomatika,OU=Organizacija,${clanica_prefix},${clanica_domena}",
+                "distinguishedName": "CN=FRI-StrokovniSodelavci,OU=StudisAvtomatika,OU=Organizacija,${clanica_prefix},${clanica_domena}",
+                "distinguishedName": "CN=FRI-PredstojnikiLaboratorijev,OU=StudisAvtomatika,OU=Organizacija,${clanica_prefix},${clanica_domena}",
+                "groupType": "${group_type}",
+                "name": "${habilitacija}"
+            }, {
+                "create_fields": {
+                    "clanica_domena": [["${clanica_id}", ["clanica_domena_repl"]]],
+                    "clanica_prefix": [["${clanica_id}", ["clanica_prefix_repl"]]],
+                    "habilitacija": [["${habilitacija}", []]],
+                    "group_type": [["${group_type}", ["group_types"]]]
+                },
+                "create_sources": {
+                    "clanica_id": ["translate_keys", ["clanica_domena_repl"]],
+                    "habilitacija": ["translate_values", ["habilitacija_repl"]],
+                    "group_type": ["constant", ["global security"]]
+                }
+            }
         ]
+
     ]
 }
