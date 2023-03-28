@@ -1,73 +1,73 @@
 
 
 {
-    "EXTRA_FIELDS": {
-        "ime": [
+    "EXTRA_FIELDS": [
+        ["ime", [
             ["${OsebniPodatki__0002__0__ime}", []]
-        ],
-        "priimek": [
+        ]],
+        ["priimek", [
             ["${OsebniPodatki__0002__0__priimek}", []]
-        ],
-        "default_username": [
+        ]],
+        ["default_username", [
             ["${OsebniPodatki__0002__0__ime} ${OsebniPodatki__0002__0__priimek}", ["default_username_fn"]],
             ["${ime} ${priimek}", ["default_username_fn"]]
-        ],
-        "celoime": [
+        ]],
+        ["celoime", [
             ["${OsebniPodatki__0002__0__ime} ${OsebniPodatki__0002__0__priimek}", []],
             ["${ime} ${priimek}", []]
-        ],
-        "email": [
+        ]],
+        ["email", [
             ["${Komunikacija__0105__0010__vrednostNaziv}", []]
-        ],
-        "ad_lokacija": [
+        ]],
+        ["ad_lokacija", [
             ["${lokacija}", ["studis_sifrant_lokacije"]],
             ["${Komunikacija__0105__9005__vrednostNaziv}", []]
-        ],
-        "userPrincipalName": [
+        ]],
+        ["userPrincipalName", [
             ["${Komunikacija__0105__9007__vrednostNaziv}", []],
             ["${upn}", []]
-        ],
-        "telefon": [
+        ]],
+        ["telefon", [
             ["${Komunikacija__0105__0020__vrednostNaziv}", []]
-        ],
-        "job_title": [
+        ]],
+        ["job_title", [
             ["${OsebniPodatki__0002__0__nazivPredImenom}", []]
-        ],
-        "ip_telefon": [
-        ],
-        "domaci_telefon": [
-        ],
-        "mobilni_telefon": [
-        ],
-        "fax": [
-        ],
-        "oddelek": [
-        ],
-        "streetAddress": [
-        ],
-        "homepage": [
-        ],
-        "izobrazba_prefix": [
-        ],
-        "izobrazba_suffix": [
-        ],
-        "personal_position": [
-        ],
-        "manager_dn": [
-        ],
-        "ou_name": [
-        ],
-        "clanica_domena": [
+        ]],
+        ["ip_telefon", [
+        ]],
+        ["domaci_telefon", [
+        ]],
+        ["mobilni_telefon", [
+        ]],
+        ["fax", [
+        ]],
+        ["oddelek", [
+        ]],
+        ["streetAddress", [
+        ]],
+        ["homepage", [
+        ]],
+        ["izobrazba_prefix", [
+        ]],
+        ["izobrazba_suffix", [
+        ]],
+        ["personal_position", [
+        ]],
+        ["manager_dn", [
+        ]],
+        ["ou_name", [
+        ]],
+        ["clanica_domena", [
             ["${Ukrep__clanica_Id}",
                 ["clanica_domena_repl"]],
             ["${zavod}",
                 ["zavod_domena_repl"]]
-        ],
-        "clanica_prefix": [
+        ]],
+        ["clanica_prefix", [
             ["${Ukrep__clanica_Id}", ["clanica_prefix_repl"]],
             ["${zavod}", ["zavod_prefix_repl"]]
-        ],
-        "clanica_ime": [
+        ]],
+        ["clanica_ime", [
             [
                 "${Ukrep__clanica_Id}", 
                 ["clanica_ime_repl"]
@@ -76,38 +76,45 @@
                 "${zavod}", 
                 ["zavod_ime_repl"]
             ]
-        ],
-        "habilitacija": [
+        ]],
+        ["habilitacija_txt", [
             [
                 "${Habilitacija__9004__0__habilizacijskiNaziv}",
                 ["habilitacija_repl"]
+            ],
+            [
+                "${habilitacija}",
+                ["studis__nazivdelavca__full_title__sl"]
             ]
-        ],
-        "vrsta_zaposlitve": [
+        ]],
+        ["vrsta_zaposlitve", [
             [
                 "${OrgDodelitev__0001__0__skupinaZaposlenih}.${OrgDodelitev__0001__0__podskupinaZaposlenih}",
                 ["vrsta_zaposlitve_repl"]
             ]
-        ],
-        "apis_oupart": [
+        ]],
+        ["apis_oupart", [
             [
                 "${OrgDodelitev__0001__0__glavnaOrganizacijskaEnota_Id}",
                 ["apis_ou_parts"]
             ]
-        ],
-        "studavtomatika_skupina": [
+        ]],
+        ["studisavtomatika_skupina", [
             [
                 "${oddelek_funkcija__funkcija_v_oddelku_id}",
                 ["funkcijavoddelku_grrepl"]
             ]
-        ],
-        "studisavtomatika_lab":[
+        ]],
+        ["studisavtomatika_lab",[
             [
                 "${oddelek_funkcija__oddelek_id}",
                 ["studis__oddelek__abbreviation"]
             ]
-        ]
-    },
+        ]],
+        ["studisvrstamesta", [
+
+        ]]
+    ],
     "TRANSLATIONS": {
         "clanica_domena_repl": [
             [ "2300", "DC=test,DC=fri,DC=uni-lj,DC=si", {}]
@@ -138,13 +145,13 @@
             [ "2", "FRI-StrokovniSodelavci", {}]
         ],
         "funkcijavoddelku_grrepl":[
-            [ "5", "FRI-clanikateder", {}],
-            [ "4", "FRI-clanilaboratorija", {}],
-            [ "6", "FRI-clansluzbe", {}],
-            [ "41", "FRI-pooblascencikateder", {}],
-            [ "2", "FRI-predstojnikikateder", {}],
-            [ "1", "FRI-predstojnikilaboratorijev", {}],
-            [ "3", "FRI-vodjesluzb", {}]
+            [ "5", "FRI-ClaniKateder", {}],
+            [ "4", "FRI-ClaniLaboratorijev", {}],
+            [ "6", "FRI-ClaniSluzb", {}],
+            [ "41", "FRI-PooblascenciKateder", {}],
+            [ "2", "FRI-PredstojnikiKateder", {}],
+            [ "1", "FRI-PredstojnikiLaboratorijev", {}],
+            [ "3", "FRI-VodjeSluzb", {}]
         ],
         "habilitacija_repl":[
             [ "001.00", "Test1", {}],
@@ -329,7 +336,7 @@
         [
             {
                 "objectClass": ["top", "group"],
-                "distinguishedName": "CN=FRI-Pedagogi,OU=StudisAvtomatika,OU=Organizacija,${clanica_prefix},${clanica_domena}",
+                "distinguishedName": "CN=FRI-${studisavtomatika_skupina},OU=StudisAvtomatika,OU=Organizacija,${clanica_prefix},${clanica_domena}",
                 "groupType": "${group_type}"
             }, {
                 "create_fields": {
@@ -348,10 +355,7 @@
         [
             {
                 "objectClass": ["top", "group"],
-                "distinguishedName": "CN=FRI-Raziskovalci,OU=StudisAvtomatika,OU=Organizacija,${clanica_prefix},${clanica_domena}",
-                "distinguishedName": "CN=FRI-PredstojnikiKateder,OU=StudisAvtomatika,OU=Organizacija,${clanica_prefix},${clanica_domena}",
-                "distinguishedName": "CN=FRI-StrokovniSodelavci,OU=StudisAvtomatika,OU=Organizacija,${clanica_prefix},${clanica_domena}",
-                "distinguishedName": "CN=FRI-PredstojnikiLaboratorijev,OU=StudisAvtomatika,OU=Organizacija,${clanica_prefix},${clanica_domena}",
+                "distinguishedName": "CN=FRI-${studisavtomatika_lab},OU=StudisAvtomatika,OU=Organizacija,${clanica_prefix},${clanica_domena}",
                 "groupType": "${group_type}",
                 "name": "${habilitacija}"
             }, {

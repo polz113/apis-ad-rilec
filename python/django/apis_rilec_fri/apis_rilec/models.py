@@ -9,6 +9,8 @@ import json
 import os
 import string
 import itertools
+import ldap
+
 from urllib.request import Request, urlopen, quote
 
 # Create your models here.
@@ -20,43 +22,14 @@ def _get_rules(name=None, timestamp=None):
     dirname = os.path.dirname(__file__)
     with open(os.path.join(dirname, 'translation_rules.json')) as f:
         d = json.load(f)
-    oud, relationsd, outree_source_ids = oudicts_at(timestamp)
-    ou_shortnames = list()
-    ou_names = list()
-    ou_parts = list()
-    relations = relationsd.get('1001__A002', {})
-    for ou_id, ou_data in oud.items():
-        shortname = ou_data['shortname']
-        ouname = ou_data['name']
-        # build a list of parent ids for each ou
-        parent = ou_id
-        parent_ids = []
-        while parent is not None:
-            parent_ids.append(parent)
-            parent = relations.get(parent, None)
-        # turn the list of ids into OUs
-        t = string.Template("OU=${shortname}")
-        parent_strs = []
-        for i in reversed(parent_ids):
-            try:
-                parent_strs.append(t.substitute(oud[i]))
-            except KeyError as e:
-                pass
-        # now store the names, shortnames and ou_parts
-        ou_shortnames.append([ou_id, shortname, {}])
-        ou_names.append([ou_id, ouname, {}])
-        ou_parts.append([ou_id, ",".join(parent_strs), {}])
-    translations = {
-        "apis_ou__shortname": ou_shortnames,
-        "apis_ou__name": ou_names,
-        "apis_ou_parts": ou_parts,
-    }
-    for tt in TranslationTable.objects.all():
-        l = []
-        for i in tt.rules.all().values_list('pattern', 'replacement'):
-            l.append(list(i) + [{}])
-        translations[tt.name] = l
-    d['TRANSLATIONS'].update(translations)
+    if name is None or name == 'TRANSLATIONS':
+        translations = dict()
+        for tt in TranslationTable.objects.all():
+            l = []
+            for i in tt.rules.all().values_list('pattern', 'replacement'):
+                l.append(list(i) + [{}])
+            translations[tt.name] = l
+        d['TRANSLATIONS'].update(translations)
     if name is None:
         return d
     return d[name]
@@ -126,15 +99,19 @@ def _fill_template(datadict, template, trans_names, translations):
     return data
 
 def _field_adder(datadict, extra_fields, translations, update_datadict=True):
-    new_fields = MultiValueDict()
-    for fieldname, rulelist in extra_fields.items():
-        for (template, trans_names) in rulelist:
-            new_data = _fill_template(datadict, template, trans_names, translations)
-            if new_data is not None:
-                new_fields[fieldname] = new_data
     if update_datadict:
-        datadict.update(new_fields)
-        return datadict
+        d = datadict
+        new_fields = datadict
+    else:
+        d = datadict.copy()
+        new_fields = MultiValueDict()
+    for fieldname, rulelist in extra_fields:
+        for (template, trans_names) in rulelist:
+            new_data = _fill_template(d, template, trans_names, translations)
+            if new_data is not None:
+                d[fieldname] = new_data
+                if d is not new_fields:
+                    new_fields[fieldname] = new_data
     return new_fields
 
 
@@ -376,6 +353,8 @@ class DataSource(models.Model):
         return handlers[self.source]()
 
 
+
+
 class Studis:
     def __init__(self, cached=True):
         token = settings.STUDIS_API_TOKEN
@@ -523,20 +502,21 @@ class UserData(models.Model):
                     t = string.Template(template)
                     identifiers = t.get_identifiers()
                     data = t.substitute(d)
-                    result.add(data.encode('utf-8'))
-                except KeyError:
+                    result.add(data)
+                except KeyError as e:
+                    print("  fail:", e)
                     pass
             if flags.get('main_ou', False):
                 default_dn = data
         return default_dn, list(result)
 
-    def by_rules(self, user_rules=None, timestamp=None, extra_fields=None, translations=None):
+    def by_rules(self, timestamp=None, user_rules=None, extra_fields=None, translations=None):
         if user_rules is None:
             user_rules = _get_rules('USER_RULES')
         if translations is None:
             translations = _get_rules('TRANSLATIONS')
         datadicts = self.with_extra(timestamp=timestamp, extra_fields=extra_fields, translations=translations)
-        result = []
+        result = dict()
         for fieldname, templates in user_rules.items():
             if type(templates) != list:
                 templates = [templates]
@@ -546,15 +526,15 @@ class UserData(models.Model):
                 for d in datadicts:
                     try:
                         data = t.substitute(d)
-                        values.add(data.encode('utf-8'))
+                        values.add(data)
                     except KeyError:
                         pass
             if len(values) > 0:
-                result.append([fieldname, list(values)])
+                result[fieldname] = list(values)
         return result
                 
 
-def create_groups(timestamp=None, group_rules=None, translations=None):
+def get_groups(timestamp=None, group_rules=None, translations=None):
     if group_rules is None:
         group_rules = _get_rules('GROUP_RULES')
     if translations is None:
@@ -608,6 +588,8 @@ class UserDataField(models.Model):
 
 
 def get_uid_by_upn(upn):
+    if upn is None:
+        return None
     possible=set(UserDataField.objects.filter(field='Komunikacija__0105__9007__vrednostNaziv', value__iexact=upn).values_list('userdata__uid', flat=True))
     if len(possible) == 1:
         return possible.pop()
@@ -684,6 +666,52 @@ def outrees_at(timestamp=None):
     return outree, source_ids
 
 
+def apis_oudata_to_translations(timestamp=None):
+    if timestamp is None:
+        timestamp = timezone.now()
+    oud, relationsd, outree_source_ids = oudicts_at(timestamp)
+    ou_shortnames = list()
+    ou_names = list()
+    ou_parts = list()
+    relations = relationsd.get('1001__A002', {})
+    for order, (ou_id, ou_data) in enumerate(oud.items()):
+        shortname = ou_data['shortname']
+        ouname = ou_data['name']
+        # build a list of parent ids for each ou
+        parent = ou_id
+        parent_ids = []
+        while parent is not None:
+            parent_ids.append(parent)
+            parent = relations.get(parent, None)
+        # turn the list of ids into OUs
+        t = string.Template("OU=${shortname}")
+        parent_strs = []
+        for i in reversed(parent_ids):
+            try:
+                parent_strs.append(t.substitute(oud[i]))
+            except KeyError as e:
+                pass
+        # now store the names, shortnames and ou_parts
+        ou_shortnames.append([ou_id, shortname, order])
+        ou_names.append([ou_id, ouname, order])
+        ou_parts.append([ou_id, ",".join(parent_strs), order])
+    translations = {
+        "apis_ou__shortname": ou_shortnames,
+        "apis_ou__name": ou_names,
+        "apis_ou_parts": ou_parts,
+    }
+    for k, v in translations.items():
+        tt, created = TranslationTable.objects.get_or_create(name=k)
+        if not created:
+            tt.rules.all().delete()
+        rules = []
+        for pattern, replacement, order in v:
+            rules.append(TranslationRule(table=tt, order=order,
+                                         pattern=pattern,
+                                         replacement=replacement))
+        TranslationRule.objects.bulk_create(rules)        
+
+
 def latest_userdata(source=None):
     latest_userdata = dict()
     users = UserData.objects.all()
@@ -709,7 +737,7 @@ def get_ad_user_dn(ldap_conn, user_fields):
     return user_fields.get('distinguishedName', None)
 
 
-def user_ldapactionbatch_at(timestamp=None, rename_users=False, empty_groups=True):
+def group_ldapactionbatch(timestamp=None):
     if timestamp is None:
         timestamp = timezone.now()
     actionbatch = LDAPActionBatch(description=timestamp.isoformat())
@@ -722,39 +750,45 @@ def user_ldapactionbatch_at(timestamp=None, rename_users=False, empty_groups=Tru
         dn = group.pop('distinguishedName')
         action = LDAPAction(action='upsert', dn=dn, data=group)
         actions.append(action)
+
+
+def user_ldapactionbatch(userdata_set, timestamp=None,
+                         rename_users=False, empty_groups=True):
+    if timestamp is None:
+        timestamp = timezone.now()
+    extra_fields = _get_rules('EXTRA_FIELDS')
+    translations = _get_rules('TRANSLATIONS')
+    group_rules = _get_rules('GROUP_RULES')
+    actionbatch = LDAPActionBatch(description=timestamp.isoformat())
     groups_membership = MultiValueDict()
-    for uid, userdata in latest_userdata(source=source).items():
-        groups_to_join = userdata.groups_at(timestamp)
-        user_fields = userdata.by_rules(timestamp)
-        default_dn = user_fields.pop('distinguishedName')
-        # determine the DN of this user, renaming if neccessarry
-        existing_dn = get_ad_user_dn(ldap_conn, user_fields)
-        if existing_dn is not None:
-            if rename_users:
-                actions.append(LDAPAction(action='rename', 
-                    dn=existing_dn, 
-                    data={'distinguishedName': [default_dn]}))
-                user_dn = default_dn
-            else:
-                user_dn = existing_dn
-        else:
-            user_dn = default_dn
+    actions = list()
+    users = dict()
+    for userdata in userdata_set:
+        uid = userdata.uid
+        default_dn, groups_to_join = userdata.groups_at(timestamp, translations=translations, group_rules=group_rules)
+        # default_dn, groups_to_join = "heheh", ["hohohoho"]
+        user_fields = userdata.by_rules(timestamp, translations=translations, extra_fields=extra_fields)
+        # print(user_fields)
+        # print("    ", (default_dn, groups_to_join))
+        # default_dn = user_fields.pop('distinguishedName', None)
         # now create the user
-        actions.append(LDAPAction(action='upsert', dn=user_dn, data=user_fields))
-        users[user_dn] = user_fields
+        actions.append(LDAPAction(action='user_upsert', 
+                                  dn=default_dn, data=user_fields,
+                                  flags = {'rename': rename_users}))
+        users[default_dn] = user_fields
         for group_dn in groups_to_join:
             # TODO add user DN to group property "member"
-            groups_membership.appendlist(group_dn, user_dn)
-    for group_dn, user_list in group_membership.lists():
-        group = {'members': user_list}
+            groups_membership.appendlist(group_dn, default_dn)
+    for group_dn, user_list in groups_membership.lists():
+        membership = {'members': user_list}
         if empty_groups:
             # replace the user list
-            actions.append(LDAPAction(action='modify', dn=group_dn, data=group))
+            actions.append(LDAPAction(action='modify', dn=group_dn, data=membership))
         else:
             # extend the user list
-            actions.append(LDAPAction(action='add', dn=group_dn, data=group))
+            actions.append(LDAPAction(action='add', dn=group_dn, data=membership))
     actionbatch.save()
-    for action in enumerate(actions):
+    for i, action in enumerate(actions):
         action.batch = actionbatch
         action.order = i
     LDAPAction.objects.bulk_create(actions)
@@ -764,13 +798,13 @@ def user_ldapactionbatch_at(timestamp=None, rename_users=False, empty_groups=Tru
 class LDAPActionBatch(models.Model):
     description = models.CharField(max_length=512, blank=True, default='')
     def apply(self):
-        ldap_conn = ldap.initialize(SETTINGS.LDAP_SERVER_URI)
+        ldap_conn = ldap.initialize(settings.LDAP_SERVER_URI)
         # ldap_conn.set_option(ldap.OPT_X_TLS_CACERTFILE, '/path/to/ca.pem')
         # ldap_conn.set_option(ldap.OPT_X_TLS_NEWCTX, 0)
         # ldap_conn.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
         # ldap_conn.start_tls_s()
         ldap_conn.simple_bind_s(settings.LDAP_BIND_DN, settings.LDAP_BIND_PASSWORD)
-        for i in self.actions:
+        for i in self.actions.all():
             apply = i.apply(ldap_conn)
         #dn = "test"
         #ux = ud0.by_rules()
@@ -781,19 +815,32 @@ class LDAPActionBatch(models.Model):
 class LDAPAction(models.Model):
     ACTION_CHOICES = [
         ('upsert', 'Upsert (add or modify)'),
+        ('user_upsert', 'Upsert/rename/move user'),
         ('add', 'Add'),
         ('modify', 'Modify'),
         ('rename', 'Rename'),
         ('delete', 'Delete')]
+    order = models.IntegerField(default=0)
     batch = models.ForeignKey('LDAPActionBatch', related_name='actions', on_delete=models.CASCADE)
     sources = models.ManyToManyField('DataSet')
     action = models.CharField(max_length=16, choices=ACTION_CHOICES)
     dn = models.TextField()
     data = models.JSONField()
+    flags = models.JSONField(blank=True, default=dict)
+
+    def _user_upsert(self, ldap_conn):
+        existing_dn = get_ad_user_dn(ldap_conn, self.data)
+        if existing_dn is not None:
+            old_dn = self.dn
+            self.dn = existing_dn
+            if self.flags.get("rename", True):
+                self.data['distinguishedName'] = old_dn
+                self._rename(ldap_conn)
+        return self._upsert(ldap_conn)
 
     def _upsert(self, ldap_conn):
         try:
-            exists = len(ldap_conn.compare_s(self.dn.decode('utf-8'),
+            exists = len(ldap_conn.compare_s(self.dn,
                                         'distinguishedName', self.dn)) > 0
         except:
             exists = False
@@ -815,7 +862,7 @@ class LDAPAction(models.Model):
 
     def _rename(self, ldap_conn):
         new_dn = self.data['distinguishedName']
-        ldap_conn.rename_s(self.dn, new_dn.decode('utf-8'))
+        ldap_conn.rename_s(self.dn, new_dn)
 
     def _delete(self, ldap_conn):
         ldap_conn.delete_s(self.dn)
@@ -823,6 +870,7 @@ class LDAPAction(models.Model):
     def apply(self, ldap_conn):
         apply_fns = {
             'upsert': self._upsert,
+            'user_upsert': self._user_upsert,
             'add': self._add,
             'modify': self._modify,
             'rename': self._modify,
