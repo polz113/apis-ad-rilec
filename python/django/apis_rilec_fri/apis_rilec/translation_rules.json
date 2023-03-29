@@ -12,6 +12,9 @@
             ["${OsebniPodatki__0002__0__ime} ${OsebniPodatki__0002__0__priimek}", ["default_username_fn"]],
             ["${ime} ${priimek}", ["default_username_fn"]]
         ]],
+        ["default_samaccount", [
+            ["$default_username", ["first_20_chars_fn"]]
+        ]],
         ["celoime", [
             ["${OsebniPodatki__0002__0__priimek}, ${OsebniPodatki__0002__0__ime}", []],
             ["${priimek}, ${ime}", []]
@@ -116,12 +119,18 @@
         ]]
     ],
     "TRANSLATIONS": {
-	"default_username_fn": {
-	    "type": "function",
-	    "rules": [
-	        ["default_username", null]
-	    ]
-	},
+       "default_username_fn": {
+            "type": "function",
+            "rules": [
+                ["default_username", null]
+            ]
+        },
+        "first_20_chars_fn": {
+            "type": "function",
+            "rules": [
+                ["first_20_chars", null]
+            ]
+        },
         "clanica_domena_repl": {
             "type": "dict",
             "rules": [
@@ -190,7 +199,7 @@
             "type": "defaultdict",
             "rules": [
                 [ "001.00", "Test1"],
-                [ "002.00", "Test1"],
+                [ "002.00", "Test2"],
                 [ "019.00", "Test3"],
                 [ "", "Neznana"]
             ]
@@ -246,7 +255,7 @@
                 ["local security", "2147483652"],
                 ["universal security", "2147483656"]
             ]
-	}
+    }
     },
     "USER_RULES": {
         "objectClass": ["top","person","organizationalPerson","user"],
@@ -258,7 +267,7 @@
         "displayName": "${celoime}",
         "company": "${clanica_ime}",
         "name": "${celoime}",
-        "sAMAccountName": "${default_username}",
+        "sAMAccountName": "${default_samaccount}",
         "userPrincipalName": "${userPrincipalName}",
         "mail": "${email}",
         "employeeID": "${uid}",
@@ -291,14 +300,14 @@
             {
                 "objectClass": ["top", "organizationalUnit"],
                 "distinguishedName": "OU=Users,OU=${clanica_prefix},${clanica_domena}",
-                "groupType": "${group_type}"
+                "groupType": ["${group_type}"]
             }, {
                 "main_ou": true,
                 "create_fields": [
-		    ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
-		    ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
-		    ["group_type", [["${group_type}", ["group_types"]]]]
-		],
+                    ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
+                    ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
+                    ["group_type", [["${group_type}", ["group_types"]]]]
+                ],
                 "create_sources": {
                     "clanica_id": ["translate_keys", ["clanica_domena_repl"]],
                     "group_type": ["constant", ["global security"]]
@@ -308,27 +317,27 @@
         [
             {
                 "objectClass": ["top", "group"],
-                "distinguishedName": "CN=${vrsta_zaposlitve},${apis_ous},OU=oddelki,OU=autopravice,OU=${clanica_prefix},${clanica_domena}",
-                "groupType": "${group_type}",
-                "name": "${vrsta_zaposlitve}"
+                "distinguishedName": "CN=${vrsta_zaposlitve},${apis_ous},OU=oddelki,OU=avtopravice,OU=${clanica_prefix},${clanica_domena}",
+                "groupType": ["${group_type}"],
+                "name": ["${vrsta_zaposlitve}"]
             },
             {
                 "parent_templates":[
                     {
                         "objectClass": "top; organizationalUnit",
-                        "distinguishedName": "${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=oddelki,${apis_ous}"
+                        "distinguishedName": "${clanica_domena},OU=${clanica_prefix},OU=avtopravice,OU=oddelki,${apis_ous}"
                     }, {
                         "objectClass": "top; organizationalUnit",
-                        "distinguishedName": "${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=oddelki"
+                        "distinguishedName": "${clanica_domena},OU=${clanica_prefix},OU=avtopravice,OU=oddelki"
                     }
                 ],
                 "create_fields": [
-		    ["apis_ous", [["${group_uid}", ["apis_ou_parts"]]]],
-		    ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
-		    ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
-		    ["vrsta_zaposlitve", [["${vrsta_zaposlitve_id}", ["vrsta_zaposlitve_repl"]]]],
-		    ["group_type", [["${group_type}", ["group_types"]]]]
-		],
+                    ["apis_ous", [["${group_uid}", ["apis_ou_parts"]]]],
+                    ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
+                    ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
+                    ["vrsta_zaposlitve", [["${vrsta_zaposlitve_id}", ["vrsta_zaposlitve_repl"]]]],
+                    ["group_type", [["${group_type}", ["group_types"]]]]
+                ],
                 "create_sources": {
                     "clanica_id": ["translate_keys", ["clanica_domena_repl"]],
                     "vrsta_zaposlitve_id": ["translate_keys", ["vrsta_zaposlitve_repl"]],
@@ -340,16 +349,16 @@
         [
             {
                 "objectClass": ["top", "group"],
-                "distinguishedName": "${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=zaposlitev,OU=${vrsta_zaposlitve}",
+                "distinguishedName": "CN=${vrsta_zaposlitve},OU=zaposlitev,OU=avtopravice,OU=${clanica_prefix},${clanica_domena}",
                 "groupType": "${group_type}",
                 "name": "${vrsta_zaposlitve}"
             }, {
                 "create_fields": [
-		    ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
-		    ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
-		    ["vrsta_zaposlitve", [["${vrsta_zaposlitve_id}", ["vrsta_zaposlitve_repl"]]]],
-		    ["group_type", [["${group_type}", ["group_types"]]]]
-		],
+                    ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
+                    ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
+                    ["vrsta_zaposlitve", [["${vrsta_zaposlitve_id}", ["vrsta_zaposlitve_repl"]]]],
+                    ["group_type", [["${group_type}", ["group_types"]]]]
+                ],
                 "create_sources": {
                     "clanica_id": ["translate_keys", ["clanica_domena_repl"]],
                     "vrsta_zaposlitve_id": ["translate_keys", ["vrsta_zaposlitve_repl"]],
@@ -360,19 +369,19 @@
         [
             {
                 "objectClass": ["top", "group"],
-                "distinguishedName": "${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=habilitacija,OU=${habilitacija}", 
+                "distinguishedName": "CN=${habilitacija},OU=habilitacija,OU=avtopravice,OU=${clanica_prefix},${clanica_domena}", 
                 "groupType": "${group_type}",
                 "name": "${habilitacija}"
             }, {
                 "create_fields": [
-		    ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
-		    ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
-		    ["vrsta_zaposlitve", [["${vrsta_zaposlitve_id}", ["vrsta_zaposlitve_repl"]]]],
-		    ["group_type", [["${group_type}", ["group_types"]]]]
+                    ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
+                    ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
+                    ["habilitacija", [["${habilitacija_id}", ["habilitacija_repl"]]]],
+                    ["group_type", [["${group_type}", ["group_types"]]]]
                 ],
                 "create_sources": {
                     "clanica_id": ["translate_keys", ["clanica_domena_repl"]],
-                    "habilitacija": ["translate_values", ["habilitacija_repl"]],
+                    "habilitacija_id": ["translate_keys", ["habilitacija_repl"]],
                     "group_type": ["constant", ["global security"]]
                 }
             }
@@ -380,18 +389,18 @@
         [
             {
                 "objectClass": ["top", "group"],
-                "distinguishedName": "CN=${studisavtomatika_skupina},OU=studisAvtomatika,OU=${clanica_prefix},${clanica_domena}",
+                "distinguishedName": "CN=${studisavtomatika_skupina},OU=StudisAvtomatika,OU=${clanica_prefix},${clanica_domena}",
                 "groupType": "${group_type}"
             }, {
                 "create_fields": [
-		    ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
-		    ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
-		    ["vrsta_zaposlitve", [["${vrsta_zaposlitve_id}", ["vrsta_zaposlitve_repl"]]]],
-		    ["group_type", [["${group_type}", ["group_types"]]]]
-		],
+                    ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
+                    ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
+                    ["studisavtomatika_skupina", [["${studisavtomatika_skupina}", []]]],
+                    ["group_type", [["${group_type}", ["group_types"]]]]
+                ],
                 "create_sources": {
                     "clanica_id": ["translate_keys", ["clanica_domena_repl"]],
-                    "habilitacija": ["translate_values", ["habilitacija_repl"]],
+                    "studisavtomatika_skupina": ["translate_values", ["funkcijavoddelku_grrepl"]],
                     "group_type": ["constant", ["global security"]]
                 }
             }
@@ -399,19 +408,20 @@
         [
             {
                 "objectClass": ["top", "group"],
-                "distinguishedName": "CN=${studisavtomatika_lab},OU=StudisAvtomatika,OU=Organizacija,OU=${clanica_prefix},${clanica_domena}",
+                "distinguishedName": "CN=${studisavtomatika_lab},OU=Organizacija,OU=StudisAvtomatika,OU=${clanica_prefix},${clanica_domena}",
                 "groupType": "${group_type}",
-                "name": "${habilitacija}"
+                "name": "${studis__oddelek_name}"
             }, {
                 "create_fields": [
-		    ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
-		    ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
-		    ["vrsta_zaposlitve", [["${vrsta_zaposlitve_id}", ["vrsta_zaposlitve_repl"]]]],
-		    ["group_type", [["${group_type}", ["group_types"]]]]
-		],
+                    ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
+                    ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
+                    ["studis__oddelek_name", [["${studis_oddelek_id}", ["studis__oddelek__title__en"]]]],
+                    ["studisavtomatika_lab", [["${studis_oddelek_id}", ["studis__oddelek__abbreviation"]]]],
+                    ["group_type", [["${group_type}", ["group_types"]]]]
+                ],
                 "create_sources": {
                     "clanica_id": ["translate_keys", ["clanica_domena_repl"]],
-                    "habilitacija": ["translate_values", ["habilitacija_repl"]],
+                    "studis_oddelek_id": ["translate_values", ["studis__oddelek__abbreviation"]],
                     "group_type": ["constant", ["global security"]]
                 }
             }

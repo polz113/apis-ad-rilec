@@ -43,10 +43,12 @@ def _name_and_letters_fn(s):
         l = l[0:1] + [i[0] for i in l[1:]]
     return "".join(l)
 
-
+def _first_20_chars(s):
+    return s[:20]
 
 TRANSLATOR_FUNCTIONS = {
     'default_username': _dotty_username_fn,
+    'first_20_chars': _first_20_chars,
 }
 
 
@@ -72,7 +74,7 @@ def _get_rules(name=None, timestamp=None):
                 translator = StrTranslator(trules)
                 pass
             elif ttype == 'function':
-                print(ttype, tname)
+                # print(ttype, tname)
                 translator = FuncTranslator(trules)
             translators[tname] = translator
         d['TRANSLATIONS'] = translators
@@ -102,10 +104,7 @@ class DictTranslator():
             self.d[pattern] = replacement
 
     def keys(self):
-        if self.use_default:
-            return filter(lambda x: x != '', self.d.keys())
-        else:
-            return self.d.keys()
+        return self.d.keys()
 
     def values(self):
         return self.d.values()
@@ -624,10 +623,17 @@ def get_groups(timestamp=None, group_rules=None, translations=None):
             for i, p in enumerate(propnames):
                 d[p] = vals[i]
             group_dict = dict()
-            for fieldname, template in field_dict.items():
-                t1 = string.Template(template)
-                d = _field_adder(d, extra_fields=create_fields, translations=translations)
-                group_dict[fieldname] = t1.substitute(d)
+            for fieldname, templatex in field_dict.items():
+                if type(templatex) is not list:
+                    templatel = [templatex]
+                else:
+                    templatel = templatex
+                value_l = []
+                for template in templatel:
+                    t1 = string.Template(template)
+                    d = _field_adder(d, extra_fields=create_fields, translations=translations)
+                    value_l.append(t1.substitute(d))
+                group_dict[fieldname] = value_l
             groups.append(group_dict)
     return groups
 
@@ -817,11 +823,16 @@ def group_ldapactionbatch(timestamp=None):
     ous, ou_relations, outree_source_ids = oudicts_at(timestamp)
     actions = list()
     # prepare groups
-    for group in get_groups(timestamp=timestamp):
-        dn = group.pop('distinguishedName')
+    for order, group in enumerate(get_groups(timestamp=timestamp)):
+        dn = group.pop('distinguishedName')[0]
         action = LDAPAction(action='upsert', dn=dn, data=group)
         actions.append(action)
-
+    actionbatch.save()
+    for i, action in enumerate(actions):
+        action.batch = actionbatch
+        action.order = i
+    LDAPAction.objects.bulk_create(actions)
+    
 
 def user_ldapactionbatch(userdata_set, timestamp=None, ldap_conn=None,
                          rename_users=False, empty_groups=True):
@@ -864,7 +875,7 @@ def user_ldapactionbatch(userdata_set, timestamp=None, ldap_conn=None,
             # TODO add user DN to group property "member"
             groups_membership.appendlist(group_dn, final_dn)
     for group_dn, user_list in groups_membership.lists():
-        membership = {'members': user_list}
+        membership = {'member': user_list}
         if empty_groups:
             # replace the user list
             actions.append(LDAPAction(action='modify', order=order,
