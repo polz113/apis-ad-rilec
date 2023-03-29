@@ -117,10 +117,10 @@
     ],
     "TRANSLATIONS": {
         "clanica_domena_repl": [
-            [ "2300", "DC=test,DC=nodomain", {}]
+            [ "2300", "DC=test,DC=fri,DC=uni-lj,DC=si", {}]
         ],
         "zavod_domena_repl": [
-            [ "63", "DC=test,DC=nodomain", {}]
+            [ "63", "DC=test,DC=fri,DC=uni-lj,DC=si", {}]
         ],
         "clanica_prefix_repl": [
             [ "2300", "FRI", {}]
@@ -206,8 +206,8 @@
     "USER_RULES": {
         "objectClass": ["top","person","organizationalPerson","user"],
         "co": "Slovenia",
-        "objectCategory": "CN=Person,CN=Schema,CN=Configuration,DC=test,DC=nodomain",
-        "cn": "${priimek}, ${ime}",
+        "objectCategory": "CN=Person,CN=Schema,CN=Configuration,DC=uni-lj,DC=si",
+        "cn": "${ime} ${priimek}",
         "sn": "${priimek}",
         "givenName": "${ime}",
         "displayName": "${celoime}",
@@ -233,6 +233,7 @@
         "homePhone": "${domaci_telefon}",
         "mobile": "${mobilni_telefon}",
         "displayNamePrintable": "${celoime}",
+        "extensionAttribute15": "${clanica_ime}",
         "schacHomeOrganization": "${clanica_dnsdomena}",
         "eduPersonAffiliation": "staff",
         "eduPersonPrimaryAffiliation": "employee",
@@ -245,7 +246,7 @@
         [
             {
                 "objectClass": ["top", "organizationalUnit"],
-                "distinguishedName": "OU=Users,OU=${clanica_prefix},${clanica_domena}",
+                "distinguishedName": "${clanica_domena},OU=${clanica_prefix},OU=Users",
                 "groupType": "${group_type}"
             }, {
                 "main_ou": true,
@@ -263,7 +264,7 @@
         [
             {
                 "objectClass": ["top", "group"],
-                "distinguishedName": "CN=${vrsta_zaposlitve},${apis_ous},OU=oddelki,OU=autopravice,OU=${clanica_prefix},${clanica_domena}",
+                "distinguishedName": "${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=oddelki,${apis_ous},${vrsta_zaposlitve}",
                 "groupType": "${group_type}",
                 "name": "${vrsta_zaposlitve}"
             },
@@ -335,7 +336,7 @@
         [
             {
                 "objectClass": ["top", "group"],
-                "distinguishedName": "CN=FRI-${studisavtomatika_skupina},OU=studisAvtomatika,OU=${clanica_prefix},${clanica_domena}",
+                "distinguishedName": "CN=FRI-${studisavtomatika_skupina},OU=StudisAvtomatika,OU=Organizacija,${clanica_prefix},${clanica_domena}",
                 "groupType": "${group_type}"
             }, {
                 "create_fields": {

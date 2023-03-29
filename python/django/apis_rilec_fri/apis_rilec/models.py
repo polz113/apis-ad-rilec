@@ -765,9 +765,10 @@ def user_ldapactionbatch(userdata_set, timestamp=None,
     users = dict()
     for userdata in userdata_set:
         uid = userdata.uid
-        default_dn, groups_to_join = userdata.groups_at(timestamp, translations=translations, group_rules=group_rules)
+        default_group_dn, groups_to_join = userdata.groups_at(timestamp, translations=translations, group_rules=group_rules)
         # default_dn, groups_to_join = "heheh", ["hohohoho"]
         user_fields = userdata.by_rules(timestamp, translations=translations, extra_fields=extra_fields)
+        default_dn="CN={},{}".format(ldap.dn.escape_dn_chars(user_fields['cn'][0]), default_group_dn)
         # print(user_fields)
         # print("    ", (default_dn, groups_to_join))
         # default_dn = user_fields.pop('distinguishedName', None)
