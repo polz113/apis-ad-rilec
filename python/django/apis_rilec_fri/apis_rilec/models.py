@@ -2,14 +2,20 @@ from django.db import models
 from django.utils import timezone
 from django.utils.datastructures import MultiValueDict
 from django.conf import settings
+from django.utils.text import slugify
+
+import traceback
 
 import codecs
 from collections import defaultdict
 import json
 import os
+import re
 import string
 import itertools
 import ldap
+
+
 
 from urllib.request import Request, urlopen, quote
 
@@ -17,82 +23,134 @@ from urllib.request import Request, urlopen, quote
 
 FIELD_DELIMITER='__'
 
+def _slugify_username_fn(s):
+    return slugify(s)
+
+
+def _dotty_username_fn(s):
+    return ".".join([slugify(i) for i in re.split('[^\w]', s)])
+
+
+def _letter_and_surname_fn(s):
+    l = [slugify(i) for i in re.split('[^\w]', s)]
+    if len(l) > 1:
+        l = [l[0][0]] + l[1:]
+    return "".join(l)
+
+def _name_and_letters_fn(s):
+    l = [slugify(i) for i in re.split('[^\w]', s)]
+    if len(l) > 1:
+        l = l[0:1] + [i[0] for i in l[1:]]
+    return "".join(l)
+
+
+
+TRANSLATOR_FUNCTIONS = {
+    'default_username': _dotty_username_fn,
+}
+
 
 def _get_rules(name=None, timestamp=None):
     dirname = os.path.dirname(__file__)
     with open(os.path.join(dirname, 'translation_rules.json')) as f:
         d = json.load(f)
     if name is None or name == 'TRANSLATIONS':
-        translations = dict()
+        translations = d.get('TRANSLATIONS', dict())
         for tt in TranslationTable.objects.all():
-            l = []
-            for i in tt.rules.all().values_list('pattern', 'replacement'):
-                l.append(list(i) + [{}])
-            translations[tt.name] = l
-        d['TRANSLATIONS'].update(translations)
+            translations[tt.name] = {"type": tt.type,
+                    "rules": list(tt.rules.order_by('order').values_list('pattern', 'replacement'))}
+        translators = dict()
+        for tname, tdata in translations.items():
+            trules = tdata['rules']
+            ttype = tdata['type']
+            if ttype == 'dict':
+                translator = DictTranslator(trules, use_default=False)
+            elif ttype == 'defaultdict':
+                translator = DictTranslator(trules, use_default=True)
+                pass
+            elif ttype == 'substr':
+                translator = StrTranslator(trules)
+                pass
+            elif ttype == 'function':
+                print(ttype, tname)
+                translator = FuncTranslator(trules)
+            translators[tname] = translator
+        d['TRANSLATIONS'] = translators
     if name is None:
         return d
     return d[name]
 
 
-"""rules are typically handled one-by-one.
-However, if all rules but the last are final and apply
-to whole strings, the translation can be reduced to a
-simple dict lookup.
-"""
-def _make_translator(rules):
-    if len(rules) == 0:
-        return lambda x: x
-    default_flags = {
-        "default": False,
-        "substring": False,
-        "finish": True
-    }
-    def _translate_linear(s):
-        for needle, repl, in_flags in rules:
-            flags = default_flags.copy()
-            flags.update(in_flags)
-            if flags['default']:
-                return repl
-            matched = False
-            if flags['substring']:
-                matched = s.find(needle) > -1
-                s.replace(needle, repl)
-            elif s == needle:
-                matched = True
-                s = repl
-            if matched and flags['finish']:
-                return s
+class StrTranslator():
+    def __init__(self, rules):
+        self.rules = rules
+    def keys(self):
+        return list()
+    def values(self):
+        return list()
+    def translate(self, s):
+        for pattern, replacement in self.rules:
+            s = s.replace(pattern, replacement)
         return s
-    trans_dict = dict()
-    for needle, repl, in_flags in rules[:-1]:
-        flags = default_flags.copy()
-        flags.update(in_flags)
-        if flags['substring'] or not flags['finish']:
-            return _translate_linear
-        trans_dict[needle] = repl
-    needle, repl, in_flags = rules[-1]
-    flags = default_flags.copy()
-    flags.update(in_flags)
-    if flags['substring']:
-        return lambda s: trans_dict.get(s, s).replace(needle, repl)
-    elif flags['default']:
-        return lambda s: trans_dict.get(s, repl)
-    else:
-        trans_dict[needle] = repl
-        return lambda s: trans_dict.get(s, s)
+
+
+class DictTranslator():
+    def __init__(self, rules, use_default=False):
+        self.use_default = use_default
+        self.d = dict()
+        for pattern, replacement in rules:
+            self.d[pattern] = replacement
+
+    def keys(self):
+        if self.use_default:
+            return filter(lambda x: x != '', self.d.keys())
+        else:
+            return self.d.keys()
+
+    def values(self):
+        return self.d.values()
+
+    def translate(self, s):
+        if self.use_default:
+            default = self.d.get("", s)
+        else:
+            default = None
+        return self.d.get(s, default)
+
+
+class FuncTranslator():
+    def __init__(self, rules):
+        self.fns = list()
+        for fname, arg in rules:
+            self.fns.append(TRANSLATOR_FUNCTIONS.get(fname, lambda x: x))
+
+    def keys(self):
+        return list()
+
+    def values(self):
+        return list()
+    
+    def translate(self, s):
+        for fn in self.fns:
+            s = fn(s)
+        return s
+
+
+class NoOpTranslator():
+    def translate(self, s):
+        return s
+
+
+NOOP_TRANSLATOR=NoOpTranslator()
+
 
 
 def _fill_template(datadict, template, trans_names, translations):
-    translators = list()
-    for tname in trans_names:
-        rules = translations.get(tname, [])
-        translators.append(_make_translator(rules))
     t = string.Template(template)
     try:
         data = t.substitute(datadict)
-        for translator in translators:
-            data = translator(data)
+        for tname in trans_names:
+            data = translations.get(tname, NOOP_TRANSLATOR).translate(data)
     except KeyError as e:
         # print("Booo, ", template, datadict)
         return None
@@ -312,7 +370,8 @@ class DataSource(models.Model):
                 else:
                     rules[table_name].append(TranslationRule(pattern = pattern, replacement = v))
         for table_name, rule_list in rules.items():
-            t, created = TranslationTable.objects.get_or_create(name=table_name, dataset=dataset)
+            t, created = TranslationTable.objects.get_or_create(name=table_name, dataset=dataset, 
+                    defaults={"type": 'defaultdict'})
             if not created:
                 t.rules.all().delete()
             for i, r in enumerate(rule_list):
@@ -548,11 +607,9 @@ def get_groups(timestamp=None, group_rules=None, translations=None):
         propnames = list()
         for field_name, (mode, args) in create_sources.items():
             if mode == 'translate_keys':
-                trans_list = translations.get(args[0], [])
-                vals = [i[0] for i in trans_list]
+                vals = translations.get(args[0], dict()).keys()
             elif mode == 'translate_values':
-                trans_list = translations.get(args[0], [])
-                vals = [i[1] for i in trans_list]
+                vals = translations.get(args[0], dict()).values()
             elif mode == 'constant':
                 vals = args
             else:
@@ -597,9 +654,16 @@ def get_uid_by_upn(upn):
 
 
 class TranslationTable(models.Model):
+    TRANSLATOR_TYPES = [
+            ('dict', 'Dictionary'),
+            ('defaultdict', 'Dictionary with default value'),
+            ('substr', 'Replace pattern with replacement'),
+            ('function', 'Function from TRANSLATOR_FUNCTIONS')
+        ]
     def __str__(self):
         return "{} ({})".format(self.name, self.dataset)
     name = models.CharField(max_length=256)
+    type = models.CharField(max_length=32, choices=TRANSLATOR_TYPES)
     dataset = models.ForeignKey('DataSet', null=True, on_delete=models.SET_NULL)
     flags = models.JSONField(default=dict)
 
@@ -675,7 +739,7 @@ def apis_oudata_to_translations(timestamp=None):
     ou_parts = list()
     relations = relationsd.get('1001__A002', {})
     for order, (ou_id, ou_data) in enumerate(oud.items()):
-        shortname = ou_data['shortname']
+        shortname = ldap.dn.escape_dn_chars(ou_data['shortname'])
         ouname = ou_data['name']
         # build a list of parent ids for each ou
         parent = ou_id
@@ -695,13 +759,14 @@ def apis_oudata_to_translations(timestamp=None):
         ou_shortnames.append([ou_id, shortname, order])
         ou_names.append([ou_id, ouname, order])
         ou_parts.append([ou_id, ",".join(parent_strs), order])
-    translations = {
+    trans_dict = {
         "apis_ou__shortname": ou_shortnames,
         "apis_ou__name": ou_names,
         "apis_ou_parts": ou_parts,
     }
-    for k, v in translations.items():
-        tt, created = TranslationTable.objects.get_or_create(name=k)
+    for k, v in trans_dict.items():
+        tt, created = TranslationTable.objects.get_or_create(name=k, 
+                            defaults={'type': 'defaultdict'})
         if not created:
             tt.rules.all().delete()
         rules = []
@@ -725,14 +790,20 @@ def latest_userdata(source=None):
 def get_ad_user_dn(ldap_conn, user_fields):
     for i in ['employeeId', 'userPrincipalName']:
         try:
-            ret = ldap_conn.search_s(settings.LDAP_SEARCH_BASE,
+            # TODO: proper escaping
+            filterstr = "{}={}".format(i, user_fields[i][0])
+            # print("search", filterstr)
+            ret = ldap_conn.search_s(settings.LDAP_USER_SEARCH_BASE,
                                      scope=settings.LDAP_USER_SEARCH_SCOPE,
-                                     # TODO: proper escaping
-                                     filterstr="{}={}".format(i, user_fields[i]),
+                                     filterstr=filterstr,
                                      attrlist=['distinguishedName'])
+            # print("returning", ret)
             assert len(ret) == 1
             return(ret[0][0])
-        except:
+        except Exception as e:
+            # print(e)
+            # traceback.print_exception(e)
+            # print(user_fields)
             pass
     return user_fields.get('distinguishedName', None)
 
@@ -746,13 +817,13 @@ def group_ldapactionbatch(timestamp=None):
     ous, ou_relations, outree_source_ids = oudicts_at(timestamp)
     actions = list()
     # prepare groups
-    for group in create_groups(timestamp=timestamp):
+    for group in get_groups(timestamp=timestamp):
         dn = group.pop('distinguishedName')
         action = LDAPAction(action='upsert', dn=dn, data=group)
         actions.append(action)
 
 
-def user_ldapactionbatch(userdata_set, timestamp=None,
+def user_ldapactionbatch(userdata_set, timestamp=None, ldap_conn=None,
                          rename_users=False, empty_groups=True):
     if timestamp is None:
         timestamp = timezone.now()
@@ -763,6 +834,7 @@ def user_ldapactionbatch(userdata_set, timestamp=None,
     groups_membership = MultiValueDict()
     actions = list()
     users = dict()
+    order = 0
     for userdata in userdata_set:
         uid = userdata.uid
         default_group_dn, groups_to_join = userdata.groups_at(timestamp, translations=translations, group_rules=group_rules)
@@ -773,21 +845,36 @@ def user_ldapactionbatch(userdata_set, timestamp=None,
         # print("    ", (default_dn, groups_to_join))
         # default_dn = user_fields.pop('distinguishedName', None)
         # now create the user
-        actions.append(LDAPAction(action='user_upsert', 
-                                  dn=default_dn, data=user_fields,
-                                  flags = {'rename': rename_users}))
-        users[default_dn] = user_fields
+        existing_dn = get_ad_user_dn(ldap_conn, user_fields)
+        if existing_dn is not None:
+            # print("got", existing_dn, "for", default_dn)
+            if rename_users:
+                actions.append(LDAPAction(action='rename', order=order,
+                    dn=existing_dn, data={'distinguishedName': [default_dn]}))
+                final_dn = default_dn
+                order += 1
+            else:
+                final_dn = existing_dn
+        else:
+            final_dn = default_dn
+        actions.append(LDAPAction(action='upsert', order=order,
+                                  dn=final_dn, data=user_fields))
+        order += 1
         for group_dn in groups_to_join:
             # TODO add user DN to group property "member"
-            groups_membership.appendlist(group_dn, default_dn)
+            groups_membership.appendlist(group_dn, final_dn)
     for group_dn, user_list in groups_membership.lists():
         membership = {'members': user_list}
         if empty_groups:
             # replace the user list
-            actions.append(LDAPAction(action='modify', dn=group_dn, data=membership))
+            actions.append(LDAPAction(action='modify', order=order,
+                                      dn=group_dn, data=membership))
+            order += 1
         else:
             # extend the user list
-            actions.append(LDAPAction(action='add', dn=group_dn, data=membership))
+            actions.append(LDAPAction(action='add', order=order,
+                                      dn=group_dn, data=membership))
+            order += 1
     actionbatch.save()
     for i, action in enumerate(actions):
         action.batch = actionbatch
@@ -816,7 +903,6 @@ class LDAPActionBatch(models.Model):
 class LDAPAction(models.Model):
     ACTION_CHOICES = [
         ('upsert', 'Upsert (add or modify)'),
-        ('user_upsert', 'Upsert/rename/move user'),
         ('add', 'Add'),
         ('modify', 'Modify'),
         ('rename', 'Rename'),
@@ -829,16 +915,6 @@ class LDAPAction(models.Model):
     data = models.JSONField()
     flags = models.JSONField(blank=True, default=dict)
 
-    def _user_upsert(self, ldap_conn):
-        existing_dn = get_ad_user_dn(ldap_conn, self.data)
-        if existing_dn is not None:
-            old_dn = self.dn
-            self.dn = existing_dn
-            if self.flags.get("rename", True):
-                self.data['distinguishedName'] = old_dn
-                self._rename(ldap_conn)
-        return self._upsert(ldap_conn)
-
     def _upsert(self, ldap_conn):
         try:
             exists = len(ldap_conn.compare_s(self.dn,
@@ -847,7 +923,8 @@ class LDAPAction(models.Model):
             exists = False
         if exists:
             return self._modify(ldap_conn)
-        return self._add(ldap_conn)
+        else:
+            return self._add(ldap_conn)
 
     def _add(self, ldap_conn):
         ul = []
@@ -871,7 +948,6 @@ class LDAPAction(models.Model):
     def apply(self, ldap_conn):
         apply_fns = {
             'upsert': self._upsert,
-            'user_upsert': self._user_upsert,
             'add': self._add,
             'modify': self._modify,
             'rename': self._modify,

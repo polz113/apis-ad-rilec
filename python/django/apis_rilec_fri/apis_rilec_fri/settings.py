@@ -44,6 +44,10 @@ LDAP_BIND_PASSWORD = env.str("LDAP_BIND_PASSWORD")
 # LDAP_START_TLS = True
 LDAP_START_TLS = env.bool('LDAP_START_TLS')
 
+LDAP_USER_SEARCH_BASE = env.str("LDAP_USER_SEARCH_BASE")
+LDAP_USER_SEARCH_SCOPE = ldap_scope_dict[env.str("LDAP_USER_SEARCH_SCOPE", default="SUBTREE")]
+LDAP_GROUP_SEARCH_BASE = env.str("LDAP_GROUP_SEARCH_BASE")
+LDAP_GROUP_SEARCH_SCOPE = ldap_scope_dict[env.str("LDAP_GROUP_SEARCH_SCOPE", default="SUBTREE")]
 #AUTH_LDAP_USER_SEARCH = LDAPSearch(
 #        env.str( "LDAP_USER_SEARCH_BASE"),
 #        ldap_scope_dict[env.str("LDAP_USER_SEARCH_SCOPE", default="SUBTREE")], 

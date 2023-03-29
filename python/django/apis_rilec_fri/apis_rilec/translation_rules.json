@@ -13,8 +13,8 @@
             ["${ime} ${priimek}", ["default_username_fn"]]
         ]],
         ["celoime", [
-            ["${OsebniPodatki__0002__0__ime} ${OsebniPodatki__0002__0__priimek}", []],
-            ["${ime} ${priimek}", []]
+            ["${OsebniPodatki__0002__0__priimek}, ${OsebniPodatki__0002__0__ime}", []],
+            ["${priimek}, ${ime}", []]
         ]],
         ["email", [
             ["${Komunikacija__0105__0010__vrednostNaziv}", []]
@@ -116,92 +116,137 @@
         ]]
     ],
     "TRANSLATIONS": {
-        "clanica_domena_repl": [
-            [ "2300", "DC=test,DC=nodomain", {}]
-        ],
-        "zavod_domena_repl": [
-            [ "63", "DC=test,DC=nodomain", {}]
-        ],
-        "clanica_prefix_repl": [
-            [ "2300", "FRI", {}]
-        ],
-        "zavod_prefix_repl": [
-            [ "63", "FRI", {}]
-        ],
-        "clanica_ime_repl": [
-            [ "2300", "Fakulteta za računalništvo in informatiko", {}]
-        ],
-        "zavod_ime_repl": [
-            [ "63", "Fakulteta za računalništvo in informatiko", {}]
-        ],
-        "vrsta_zaposlitve_repl":[
-            [ "1.11", "Redni", {}],
-            [ "1.00", "Izredni", {}],
-            [ "", "Zunanji", {"default": true} ]
-        ],
-        "vrstadelovnegamesta_grrepl":[
-            [ "1", "FRI-Pedagogi", {}],
-            [ "3", "FRI-Raziskovalci", {}],
-            [ "2", "FRI-StrokovniSodelavci", {}]
-        ],
-        "funkcijavoddelku_grrepl":[
-            [ "5", "FRI-ClaniKateder", {}],
-            [ "4", "FRI-ClaniLaboratorijev", {}],
-            [ "6", "FRI-ClaniSluzb", {}],
-            [ "41", "FRI-PooblascenciKateder", {}],
-            [ "2", "FRI-PredstojnikiKateder", {}],
-            [ "1", "FRI-PredstojnikiLaboratorijev", {}],
-            [ "3", "FRI-VodjeSluzb", {}]
-        ],
-        "habilitacija_repl":[
-            [ "001.00", "Test1", {}],
-            [ "002.00", "Test1", {}],
-            [ "019.00", "Test3", {}],
-            [ "", "Neznana", {"default": true}]
-        ],
-        "sap_ou_shortnames": [
-            ["OU=BIOLAB-2.7", "OU=BIOLAB", {"substring": true}],
-            ["OU=LEM-2.9", "OU=LEM", {"substring": true}],
-            ["OU=LA-2.16", "OU=LA", {"substring": true}],
-            ["OU=LASP-2.12", "OU=LASP", {"substring": true}],
-            ["OU=LGM-2.1", "OU=LGM", {"substring": true}],
-            ["OU=LKM-2.5", "OU=LKM", {"substring": true}],
-            ["OU=LPT-2.10", "OU=LPT", {"substring": true}],
-            ["OU=LIIS-2.11", "OU=LIIS", {"substring": true}],
-            ["OU=LKRV-2.18", "OU=LKRV", {"substring": true}],
-            ["OU=LMMRI-2.17", "OU=LMMRI", {"substring": true}],
-            ["OU=LRV-2.6", "OU=LRV", {"substring": true}],
-            ["OU=LUI-2.4", "OU=LUI", {"substring": true}],
-            ["OU=LVS-2.15", "OU=LVS", {"substring": true}],
-            ["OU=LUVSS-2.3", "OU=LUVSS", {"substring": true}],
-            ["OU=LRSS-2.13", "OU=LUI", {"substring": true}],
-            ["OU=LRK-2.19", "OU=LRK", {"substring": true}],
-            ["OU=LTPO-2.14", "OU=LTPO", {"substring": true}],
-            ["OU=LBRSO-2.2", "OU=LBRSO", {"substring": true}]
-        ],
-        "sap_ou_names": [
-            ["UL Fakulteta za računalništvo in informa", "UL Fakulteta za računalništvo in informatiko", {}],
-            ["Laboratorij za adaptivne sisteme in proc", "Laboratorij za adaptivne sisteme in procesiranje", {}],
-            ["Laboratorij za računalniško grafiko in m", "Laboratorij za računalniško grafiko in multimedije", {}],
-            ["Laboratorij za biomedicinske računalnišk", "Laboratorij za biomedicinske računalniške sisteme in oslikave", {}],
-            ["Laboratorij za integracijo informacijski", "Laboratorij za integracijo informacijskih sistemov", {}],
-            ["Laboratorij za kriptografijo in računaln", "Laboratorij za kriptografijo in računalniško varnost", {}],
-            ["Laboratorij za matematične metode v raču", "Laboratorij za matematične metode v računalništvu", {}],
-            ["Laboratorij za umetne vizualne spoznavne", "Laboratorij za umetne vizualne spoznavne sisteme", {}],
-            ["Laboratorij za računalniške strukture in", "Laboratorij za računalniške strukture in sisteme", {}],
-            ["Laboratorij za tehnologijo programske op", "Laboratorij za tehnologijo programske opreme", {}],
-            ["Katedra za informacijske sisteme in tehn", "Katedra za informacijske sisteme in tehnologije", {}]
-        ],
-        "group_types": [
-            ["global distribution", "2", {}],
-            ["distribution", "2", {}],
-            ["local distribution", "4", {}],
-            ["universal distribution", "8", {}],
-            ["global security", "2147483650", {}],
-            ["security", "2147483650", {}],
-            ["local security", "2147483652", {}],
-            ["universal security", "2147483656", {}]
-        ]
+	"default_username_fn": {
+	    "type": "function",
+	    "rules": [
+	        ["default_username", null]
+	    ]
+	},
+        "clanica_domena_repl": {
+            "type": "dict",
+            "rules": [
+                [ "2300", "DC=test,DC=nodomain"]
+            ]
+        },
+        "zavod_domena_repl": {
+            "type": "dict",
+            "rules": [
+                [ "63", "DC=test,DC=nodomain"]
+            ]
+        },
+        "clanica_prefix_repl": {
+            "type": "dict",
+            "rules": [
+                [ "2300", "FRI"]
+            ]
+        },
+        "zavod_prefix_repl": {
+            "type": "dict",
+            "rules": [
+                [ "63", "FRI"]
+            ]
+        },
+        "clanica_ime_repl": {
+            "type": "dict",
+            "rules": [
+                [ "2300", "Fakulteta za računalništvo in informatiko"]
+            ]
+        },
+        "zavod_ime_repl": {
+            "type": "dict",
+            "rules": [
+                [ "63", "Fakulteta za računalništvo in informatiko"]
+            ]
+        },
+        "vrsta_zaposlitve_repl": {
+            "type": "defaultdict",
+            "rules": [
+                [ "1.11", "Redni"],
+                [ "1.00", "Izredni"],
+                [ "", "Zunanji"]
+            ]
+        },
+        "vrstadelovnegamesta_grrepl": {
+            "type": "defaultdict",
+            "rules": [
+                [ "1", "FRI-Pedagogi"],
+                [ "3", "FRI-Raziskovalci"],
+                [ "2", "FRI-StrokovniSodelavci"]
+            ]
+        },
+        "funkcijavoddelku_grrepl": {
+            "type": "dict",
+            "rules": [
+                [ "5", "FRI-ClaniKateder"],
+                [ "4", "FRI-ClaniLaboratorijev"],
+                [ "6", "FRI-ClaniSluzb"],
+                [ "41", "FRI-PooblascenciKateder"],
+                [ "2", "FRI-PredstojnikiKateder"],
+                [ "1", "FRI-PredstojnikiLaboratorijev"],
+                [ "3", "FRI-VodjeSluzb"]
+            ]
+        },
+        "habilitacija_repl": {
+            "type": "defaultdict",
+            "rules": [
+                [ "001.00", "Test1"],
+                [ "002.00", "Test1"],
+                [ "019.00", "Test3"],
+                [ "", "Neznana"]
+            ]
+        },
+        "sap_ou_shortnames": {
+            "type": "substr",
+            "rules": [
+                ["OU=BIOLAB-2.7", "OU=BIOLAB"],
+                ["OU=LEM-2.9", "OU=LEM"],
+                ["OU=LA-2.16", "OU=LA"],
+                ["OU=LASP-2.12", "OU=LASP"],
+                ["OU=LGM-2.1", "OU=LGM"],
+                ["OU=LKM-2.5", "OU=LKM"],
+                ["OU=LPT-2.10", "OU=LPT"],
+                ["OU=LIIS-2.11", "OU=LIIS"],
+                ["OU=LKRV-2.18", "OU=LKRV"],
+                ["OU=LMMRI-2.17", "OU=LMMRI"],
+                ["OU=LRV-2.6", "OU=LRV"],
+                ["OU=LUI-2.4", "OU=LUI"],
+                ["OU=LVS-2.15", "OU=LVS"],
+                ["OU=LUVSS-2.3", "OU=LUVSS"],
+                ["OU=LRSS-2.13", "OU=LUI"],
+                ["OU=LRK-2.19", "OU=LRK"],
+                ["OU=LTPO-2.14", "OU=LTPO"],
+                ["OU=LBRSO-2.2", "OU=LBRSO"]
+            ]
+        },
+        "sap_ou_names": {
+            "type": "substr",
+            "rules": [
+                ["UL Fakulteta za računalništvo in informa", "UL Fakulteta za računalništvo in informatiko"],
+                ["Laboratorij za adaptivne sisteme in proc", "Laboratorij za adaptivne sisteme in procesiranje"],
+                ["Laboratorij za računalniško grafiko in m", "Laboratorij za računalniško grafiko in multimedije"],
+                ["Laboratorij za biomedicinske računalnišk", "Laboratorij za biomedicinske računalniške sisteme in oslikave"],
+                ["Laboratorij za integracijo informacijski", "Laboratorij za integracijo informacijskih sistemov"],
+                ["Laboratorij za kriptografijo in računaln", "Laboratorij za kriptografijo in računalniško varnost"],
+                ["Laboratorij za matematične metode v raču", "Laboratorij za matematične metode v računalništvu"],
+                ["Laboratorij za umetne vizualne spoznavne", "Laboratorij za umetne vizualne spoznavne sisteme"],
+                ["Laboratorij za računalniške strukture in", "Laboratorij za računalniške strukture in sisteme"],
+                ["Laboratorij za tehnologijo programske op", "Laboratorij za tehnologijo programske opreme"],
+                ["Katedra za informacijske sisteme in tehn", "Katedra za informacijske sisteme in tehnologije"]
+            ]
+        },
+        "group_types": {
+            "type": "dict",
+            "rules": [
+                ["global distribution", "2"],
+                ["distribution", "2"],
+                ["local distribution", "4"],
+                ["universal distribution", "8"],
+                ["global security", "2147483650"],
+                ["security", "2147483650"],
+                ["local security", "2147483652"],
+                ["universal security", "2147483656"]
+            ]
+	}
     },
     "USER_RULES": {
         "objectClass": ["top","person","organizationalPerson","user"],
@@ -249,11 +294,11 @@
                 "groupType": "${group_type}"
             }, {
                 "main_ou": true,
-                "create_fields": {
-                    "clanica_domena": [["${clanica_id}", ["clanica_domena_repl"]]],
-                    "clanica_prefix": [["${clanica_id}", ["clanica_prefix_repl"]]],
-                    "group_type": [["${group_type}", ["group_types"]]]
-                },
+                "create_fields": [
+		    ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
+		    ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
+		    ["group_type", [["${group_type}", ["group_types"]]]]
+		],
                 "create_sources": {
                     "clanica_id": ["translate_keys", ["clanica_domena_repl"]],
                     "group_type": ["constant", ["global security"]]
@@ -277,13 +322,13 @@
                         "distinguishedName": "${clanica_domena},OU=${clanica_prefix},OU=autopravice,OU=oddelki"
                     }
                 ],
-                "create_fields": {
-                    "apis_ous": [["${group_uid}", ["apis_ou_parts"]]],
-                    "clanica_domena": [["${clanica_id}", ["clanica_domena_repl"]]],
-                    "clanica_prefix": [["${clanica_id}", ["clanica_prefix_repl"]]],
-                    "vrsta_zaposlitve": [["${vrsta_zaposlitve_id}", ["vrsta_zaposlitve_repl"]]],
-                    "group_type": [["${group_type}", ["group_types"]]]
-                },
+                "create_fields": [
+		    ["apis_ous", [["${group_uid}", ["apis_ou_parts"]]]],
+		    ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
+		    ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
+		    ["vrsta_zaposlitve", [["${vrsta_zaposlitve_id}", ["vrsta_zaposlitve_repl"]]]],
+		    ["group_type", [["${group_type}", ["group_types"]]]]
+		],
                 "create_sources": {
                     "clanica_id": ["translate_keys", ["clanica_domena_repl"]],
                     "vrsta_zaposlitve_id": ["translate_keys", ["vrsta_zaposlitve_repl"]],
@@ -299,12 +344,12 @@
                 "groupType": "${group_type}",
                 "name": "${vrsta_zaposlitve}"
             }, {
-                "create_fields": {
-                    "clanica_domena": [["${clanica_id}", ["clanica_domena_repl"]]],
-                    "clanica_prefix": [["${clanica_id}", ["clanica_prefix_repl"]]],
-                    "vrsta_zaposlitve": [["${vrsta_zaposlitve_id}", ["vrsta_zaposlitve_repl"]]],
-                    "group_type": [["${group_type}", ["group_types"]]]
-                },
+                "create_fields": [
+		    ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
+		    ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
+		    ["vrsta_zaposlitve", [["${vrsta_zaposlitve_id}", ["vrsta_zaposlitve_repl"]]]],
+		    ["group_type", [["${group_type}", ["group_types"]]]]
+		],
                 "create_sources": {
                     "clanica_id": ["translate_keys", ["clanica_domena_repl"]],
                     "vrsta_zaposlitve_id": ["translate_keys", ["vrsta_zaposlitve_repl"]],
@@ -319,12 +364,12 @@
                 "groupType": "${group_type}",
                 "name": "${habilitacija}"
             }, {
-                "create_fields": {
-                    "clanica_domena": [["${clanica_id}", ["clanica_domena_repl"]]],
-                    "clanica_prefix": [["${clanica_id}", ["clanica_prefix_repl"]]],
-                    "habilitacija": [["${habilitacija}", []]],
-                    "group_type": [["${group_type}", ["group_types"]]]
-                },
+                "create_fields": [
+		    ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
+		    ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
+		    ["vrsta_zaposlitve", [["${vrsta_zaposlitve_id}", ["vrsta_zaposlitve_repl"]]]],
+		    ["group_type", [["${group_type}", ["group_types"]]]]
+                ],
                 "create_sources": {
                     "clanica_id": ["translate_keys", ["clanica_domena_repl"]],
                     "habilitacija": ["translate_values", ["habilitacija_repl"]],
@@ -335,15 +380,15 @@
         [
             {
                 "objectClass": ["top", "group"],
-                "distinguishedName": "CN=FRI-${studisavtomatika_skupina},OU=studisAvtomatika,OU=${clanica_prefix},${clanica_domena}",
+                "distinguishedName": "CN=${studisavtomatika_skupina},OU=studisAvtomatika,OU=${clanica_prefix},${clanica_domena}",
                 "groupType": "${group_type}"
             }, {
-                "create_fields": {
-                    "clanica_domena": [["${clanica_id}", ["clanica_domena_repl"]]],
-                    "clanica_prefix": [["${clanica_id}", ["clanica_prefix_repl"]]],
-                    "habilitacija": [["${habilitacija}", []]],
-                    "group_type": [["${group_type}", ["group_types"]]]
-                },
+                "create_fields": [
+		    ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
+		    ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
+		    ["vrsta_zaposlitve", [["${vrsta_zaposlitve_id}", ["vrsta_zaposlitve_repl"]]]],
+		    ["group_type", [["${group_type}", ["group_types"]]]]
+		],
                 "create_sources": {
                     "clanica_id": ["translate_keys", ["clanica_domena_repl"]],
                     "habilitacija": ["translate_values", ["habilitacija_repl"]],
@@ -354,16 +399,16 @@
         [
             {
                 "objectClass": ["top", "group"],
-                "distinguishedName": "CN=FRI-${studisavtomatika_lab},OU=StudisAvtomatika,OU=Organizacija,${clanica_prefix},${clanica_domena}",
+                "distinguishedName": "CN=${studisavtomatika_lab},OU=StudisAvtomatika,OU=Organizacija,OU=${clanica_prefix},${clanica_domena}",
                 "groupType": "${group_type}",
                 "name": "${habilitacija}"
             }, {
-                "create_fields": {
-                    "clanica_domena": [["${clanica_id}", ["clanica_domena_repl"]]],
-                    "clanica_prefix": [["${clanica_id}", ["clanica_prefix_repl"]]],
-                    "habilitacija": [["${habilitacija}", []]],
-                    "group_type": [["${group_type}", ["group_types"]]]
-                },
+                "create_fields": [
+		    ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
+		    ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
+		    ["vrsta_zaposlitve", [["${vrsta_zaposlitve_id}", ["vrsta_zaposlitve_repl"]]]],
+		    ["group_type", [["${group_type}", ["group_types"]]]]
+		],
                 "create_sources": {
                     "clanica_id": ["translate_keys", ["clanica_domena_repl"]],
                     "habilitacija": ["translate_values", ["habilitacija_repl"]],
