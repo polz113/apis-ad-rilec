@@ -3,17 +3,23 @@ from django.conf import settings
 from django.http import HttpResponse, JsonResponse, StreamingHttpResponse
 from django.utils import timezone
 from itertools import chain
-# Create your views here
+
+import logging
+
 from .models import DataSource
+
+# Create your views here
+
+logger = logging.getLogger(__name__)
 
 def index(request):
     return render(request, 'apis_rilec/index.html')
 
 def hrmaster_replicate(request):
     if request.headers['X-Api-Key'] != settings.X_API_KEY:
-        print(request.headers)
         response = JsonResponse({'result': 'Unauthorized'})
         response.status_code=401
+        logger.error('failed replicate:{}'.format(request.headers))
         return response
     if request.method == 'PUT' or request.method == 'POST':
         hrmaster = DataSource(source='apis', timestamp=timezone.now(), data=request.body)
@@ -35,6 +41,8 @@ def hrmaster_replicate(request):
 def userprofile_list(request, date_str):
     return render(request, 'apis_rilec/userprofile_list.html')
 
+def userproperty_list(request):
+    return render(request, 'apis_rilec/userproperty_list.html')
 
 def userprofile_detail(request, date_str, user_id):
     return render(request, 'apis_rilec/userprofile_detail.html')
