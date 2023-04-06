@@ -57,6 +57,10 @@
         ["personal_position", [
         ]],
         ["manager_dn", [
+            [
+                "${OrgDodelitev__0001__0__glavnaOrganizacijskaEnota_Id}",
+                ["apis_ou_managers"]
+            ]
         ]],
         ["ou_name", [
         ]],

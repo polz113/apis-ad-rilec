@@ -670,8 +670,8 @@ class TranslationTable(models.Model):
         return "{} ({})".format(self.name, self.dataset)
     name = models.CharField(max_length=256)
     type = models.CharField(max_length=32, choices=TRANSLATOR_TYPES)
-    dataset = models.ForeignKey('DataSet', null=True, on_delete=models.SET_NULL)
-    flags = models.JSONField(default=dict)
+    dataset = models.ForeignKey('DataSet', null=True, blank=True, on_delete=models.SET_NULL)
+    flags = models.JSONField(default=dict, blank=True)
 
 
 class TranslationRule(models.Model):
@@ -679,7 +679,7 @@ class TranslationRule(models.Model):
         return "{} -> {}".format(self.pattern, self.replacement)
     table = models.ForeignKey('TranslationTable', on_delete=models.CASCADE, related_name='rules')
     order = models.IntegerField(default=0)
-    pattern = models.TextField()
+    pattern = models.TextField(blank=True)
     replacement = models.TextField()
     
 
@@ -691,17 +691,17 @@ def oudicts_at(timestamp=None):
     ours = OURelation.objects.filter(valid_to__gte=timestamp,
                                  valid_from__lte=timestamp)
     ous = dict()
-    id_relations = defaultdict(dict)
+    id_relations = defaultdict(lambda: defaultdict(set))
     oud_sources = dict()
     our_sources = dict()
     for oud in ouds:
         source_id = oud.dataset.source_id
         oud_sources[oud.uid] = source_id
         ous[oud.uid] = {"shortname": oud.shortname, "name": oud.name, "source": source_id}
-    for our in ours: 
+    for our in ours:
         source_id = our.dataset.source_id
         our_sources[(our.relation, our.ou1_id)] = source_id
-        id_relations[our.relation][our.ou1_id] = our.ou2_id
+        id_relations[our.relation][our.ou1_id].add(our.ou2_id)
         #if our.ou2_id not in ous:
         #    ous[our.ou2_id] = {"uid": our.ou2_id, "shortname": None, "name": None, "source": source_id}
         # add missing parents
@@ -723,7 +723,8 @@ def outrees_at(timestamp=None):
             rel_ous[uid] = d
             toplevel.add(uid)
         # remove OUs with parents from toplevel, build children lists
-        for child_id, parent_id in v.items():
+        for child_id, parent_ids in v.items():
+            parent_id = parent_ids.pop()
             rel_ous[child_id]["parent"] = parent_id
             if parent_id in rel_ous:
                 toplevel.discard(child_id)
@@ -736,23 +737,37 @@ def outrees_at(timestamp=None):
     return outree, source_ids
 
 
-def apis_oudata_to_translations(timestamp=None):
-    if timestamp is None:
-        timestamp = timezone.now()
-    oud, relationsd, outree_source_ids = oudicts_at(timestamp)
-    ou_shortnames = list()
-    ou_names = list()
+def __dict_to_translations(name, rules, type='defaultdict', 
+                           add_only=False, keep_default=True):
+    tt, created = TranslationTable.objects.get_or_create(name=name, 
+                        defaults={'type': type})
+    if not created and not add_only:
+        if keep_default:
+            tt.rules.exclude(pattern='').delete()
+        else:
+            tt.rules.all().delete()
+    tt_rules = []
+    for order, (pattern, replacement) in enumerate(rules):
+        tt_rules.append(TranslationRule(table=tt, order=order,
+                                        pattern=pattern,
+                                        replacement=replacement))
+    TranslationRule.objects.bulk_create(tt_rules)
+
+
+def _apis_relations_to_outree(oud, relations):
     ou_parts = list()
-    relations = relationsd.get('1001__A002', {})
-    for order, (ou_id, ou_data) in enumerate(oud.items()):
+    for ou_id, ou_data in oud.items():
         shortname = ldap.dn.escape_dn_chars(ou_data['shortname'])
-        ouname = ou_data['name']
         # build a list of parent ids for each ou
         parent = ou_id
         parent_ids = []
         while parent is not None:
             parent_ids.append(parent)
-            parent = relations.get(parent, None)
+            parents = relations.get(parent, set())
+            if len(parents) > 0:
+                parent = list(parents)[0]
+            else:
+                break
         # turn the list of ids into OUs
         t = string.Template("OU=${shortname}")
         parent_strs = []
@@ -762,26 +777,59 @@ def apis_oudata_to_translations(timestamp=None):
             except KeyError as e:
                 pass
         # now store the names, shortnames and ou_parts
-        ou_shortnames.append([ou_id, shortname, order])
-        ou_names.append([ou_id, ouname, order])
-        ou_parts.append([ou_id, ",".join(parent_strs), order])
+        ou_parts.append([ou_id, ",".join(parent_strs)])
+    return ou_parts
+
+
+def _apis_relations_to_managers(ldap_conn, oud, relations, timestamp = None):
+    if timestamp is None:
+        timestamp = timezone.now()
+    ou_managers = list()
+    for ou_id, ou_data in oud.items():
+        supervisor_uids = set()
+        for supervisor_position in relations.get(ou_id, set()):
+            supervisor_fields = UserDataField.objects.filter(
+                field = "Razporeditev__1001__B008__sistemiziranoMesto_Id",
+                value = supervisor_position,
+                valid_from__lte = timestamp,
+                valid_to__gte = timestamp,
+            )
+            supervisor_dn = None
+            for f in supervisor_fields:
+                supervisor = f.userdata
+                supervisor_uids.add(supervisor.uid)
+        if len(supervisor_uids) != 1:
+            continue
+        for supervisor_uid in supervisor_uids:
+            supervisor_dn = get_ad_user_dn(ldap_conn, {'employeeId': [supervisor_uid]})
+            if supervisor_dn is not None:
+                ou_managers.append([ou_id, supervisor_dn])
+            else:
+                print("supervisor", supervisor.uid, " not found in AD")
+    return ou_managers
+
+
+def apis_oudata_to_translations(ldap_conn=None, timestamp=None,
+                                add_only=False, keep_default=True):
+    if timestamp is None:
+        timestamp = timezone.now()
+    oud, relationsd, outree_source_ids = oudicts_at(timestamp)
+    ou_shortnames = list()
+    ou_names = list()
+    for ou_id, ou_data in oud.items():
+        ou_shortnames.append([ou_id, ou_data['shortname']])
+        ou_names.append([ou_id, ou_data['name']])
+    relations = relationsd.get('1001__A002', {})
+    managers = relationsd.get('1001__B012', {})
     trans_dict = {
         "apis_ou__shortname": ou_shortnames,
         "apis_ou__name": ou_names,
-        "apis_ou_parts": ou_parts,
+        "apis_ou_parts": _apis_relations_to_outree(oud, relations),
+        "apis_ou_managers": _apis_relations_to_managers(ldap_conn, oud, managers),
     }
     for k, v in trans_dict.items():
-        tt, created = TranslationTable.objects.get_or_create(name=k, 
-                            defaults={'type': 'defaultdict'})
-        if not created:
-            tt.rules.all().delete()
-        rules = []
-        for pattern, replacement, order in v:
-            rules.append(TranslationRule(table=tt, order=order,
-                                         pattern=pattern,
-                                         replacement=replacement))
-        TranslationRule.objects.bulk_create(rules)        
-
+        __dict_to_translations(k, v, type='defaultdict',
+                               add_only=add_only, keep_default=keep_default)
 
 def latest_userdata(source=None):
     latest_userdata = dict()
