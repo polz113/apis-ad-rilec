@@ -59,7 +59,7 @@
         ["manager_dn", [
             [
                 "${OrgDodelitev__0001__0__glavnaOrganizacijskaEnota_Id}",
-                ["apis_ou_managers"]
+                ["apis_ou_managers", "uid_to_dn"]
             ]
         ]],
         ["ou_name", [
@@ -303,7 +303,8 @@
         [
             {
                 "objectClass": ["top", "organizationalUnit"],
-                "distinguishedName": "OU=Users,OU=${clanica_prefix},${clanica_domena}",
+                "sAMAccountName": "users",
+                "distinguishedName": "OU=Users,OU=${clanica_prefix},OU=${clanica_domena}",
                 "groupType": ["${group_type}"]
             }, {
                 "main_ou": true,
@@ -322,6 +323,7 @@
             {
                 "objectClass": ["top", "group"],
                 "distinguishedName": "CN=${vrsta_zaposlitve},${apis_ous},OU=oddelki,OU=avtopravice,OU=${clanica_prefix},${clanica_domena}",
+                "sAMAccountName": "${vrsta_zaposlitve}",
                 "groupType": ["${group_type}"],
                 "name": ["${vrsta_zaposlitve}"]
             },
@@ -355,6 +357,7 @@
                 "objectClass": ["top", "group"],
                 "distinguishedName": "CN=${vrsta_zaposlitve},OU=zaposlitev,OU=avtopravice,OU=${clanica_prefix},${clanica_domena}",
                 "groupType": "${group_type}",
+                "sAMAccountName": "${vrsta_zaposlitve}",
                 "name": "${vrsta_zaposlitve}"
             }, {
                 "create_fields": [
@@ -375,6 +378,7 @@
                 "objectClass": ["top", "group"],
                 "distinguishedName": "CN=${habilitacija},OU=habilitacija,OU=avtopravice,OU=${clanica_prefix},${clanica_domena}", 
                 "groupType": "${group_type}",
+                "sAMAccountName": "${habilitacija}",
                 "name": "${habilitacija}"
             }, {
                 "create_fields": [
@@ -394,6 +398,7 @@
             {
                 "objectClass": ["top", "group"],
                 "distinguishedName": "CN=${studisavtomatika_skupina},OU=StudisAvtomatika,OU=${clanica_prefix},${clanica_domena}",
+                "sAMAccountName": "${studisavtomatika_skupina}",
                 "groupType": "${group_type}"
             }, {
                 "create_fields": [
@@ -413,6 +418,7 @@
             {
                 "objectClass": ["top", "group"],
                 "distinguishedName": "CN=${studisavtomatika_lab},OU=Organizacija,OU=StudisAvtomatika,OU=${clanica_prefix},${clanica_domena}",
+                "sAMAccountName": "${studisavtomatika_lab}",
                 "groupType": "${group_type}",
                 "name": "${studis__oddelek_name}"
             }, {

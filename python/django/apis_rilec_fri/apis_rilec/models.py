@@ -37,19 +37,45 @@ def _letter_and_surname_fn(s):
         l = [l[0][0]] + l[1:]
     return "".join(l)
 
+
 def _name_and_letters_fn(s):
     l = [slugify(i) for i in re.split('[^\w]', s)]
     if len(l) > 1:
         l = l[0:1] + [i[0] for i in l[1:]]
     return "".join(l)
 
+
 def _first_20_chars(s):
     return s[:20]
+
+
+def uid_to_dn(uid, ldap_conn):
+    try:
+        ret = ldap_conn.search_s(settings.LDAP_USER_SEARCH_BASE,
+                                     scope=settings.LDAP_USER_SEARCH_SCOPE,
+                                     filterstr='employeeId={}'.format(uid),
+                                     attrlist=['distinguishedName'])
+            # print("returning", ret)
+        assert len(ret) == 1
+        dn = ret[0][0]
+    except Exception as e:
+        dn = None
+    return dn
+
 
 TRANSLATOR_FUNCTIONS = {
     'default_username': _dotty_username_fn,
     'first_20_chars': _first_20_chars,
+    'uid_to_dn': uid_to_dn,
 }
+
+
+def _tzdate(date):
+    if type(date) == str:
+        t = timezone.datetime.fromisoformat(date)
+    else:
+        t = date
+    return timezone.make_aware(t)
 
 
 def _get_rules(name=None, timestamp=None):
@@ -86,11 +112,14 @@ def _get_rules(name=None, timestamp=None):
 class StrTranslator():
     def __init__(self, rules):
         self.rules = rules
+
     def keys(self):
         return list()
+
     def values(self):
         return list()
-    def translate(self, s):
+    
+    def translate(self, s, **kwargs):
         for pattern, replacement in self.rules:
             s = s.replace(pattern, replacement)
         return s
@@ -109,7 +138,7 @@ class DictTranslator():
     def values(self):
         return self.d.values()
 
-    def translate(self, s):
+    def translate(self, s, **kwargs):
         if self.use_default:
             default = self.d.get("", s)
         else:
@@ -121,7 +150,7 @@ class FuncTranslator():
     def __init__(self, rules):
         self.fns = list()
         for fname, arg in rules:
-            self.fns.append(TRANSLATOR_FUNCTIONS.get(fname, lambda x: x))
+            self.fns.append(TRANSLATOR_FUNCTIONS.get(fname, lambda x, **kwargs: x))
 
     def keys(self):
         return list()
@@ -129,33 +158,34 @@ class FuncTranslator():
     def values(self):
         return list()
     
-    def translate(self, s):
+    def translate(self, s, **kwargs):
         for fn in self.fns:
-            s = fn(s)
+            s = fn(s, **kwargs)
         return s
 
 
 class NoOpTranslator():
-    def translate(self, s):
+    def translate(self, s, **kwargs):
         return s
 
 
 NOOP_TRANSLATOR=NoOpTranslator()
 
 
-
-def _fill_template(datadict, template, trans_names, translations):
+def _fill_template(datadict, template, trans_names, translations, ldap_conn=None):
     t = string.Template(template)
     try:
         data = t.substitute(datadict)
         for tname in trans_names:
-            data = translations.get(tname, NOOP_TRANSLATOR).translate(data)
+            data = translations.get(tname, NOOP_TRANSLATOR).translate(data, ldap_conn=ldap_conn)
     except KeyError as e:
         # print("Booo, ", template, datadict)
         return None
     return data
 
-def _field_adder(datadict, extra_fields, translations, update_datadict=True):
+
+def _field_adder(datadict, extra_fields, translations, update_datadict=True,
+                 ldap_conn=None):
     if update_datadict:
         d = datadict
         new_fields = datadict
@@ -164,15 +194,13 @@ def _field_adder(datadict, extra_fields, translations, update_datadict=True):
         new_fields = MultiValueDict()
     for fieldname, rulelist in extra_fields:
         for (template, trans_names) in rulelist:
-            new_data = _fill_template(d, template, trans_names, translations)
+            new_data = _fill_template(d, template, trans_names, translations,
+                                      ldap_conn=ldap_conn)
             if new_data is not None:
                 d[fieldname] = new_data
                 if d is not new_fields:
                     new_fields[fieldname] = new_data
     return new_fields
-
-
-DEFAULT_USER_FIELD_ADDER = _field_adder
 
 
 class DataSource(models.Model):
@@ -198,8 +226,8 @@ class DataSource(models.Model):
             d = { 'field': FIELD_DELIMITER.join([prefix, extraf]),
                   'value': val,
                   'changed_t': timestamp,
-                  'valid_from': valid_from_d,
-                  'valid_to': valid_to_d }
+                  'valid_from': _tzdate(valid_from_d),
+                  'valid_to': _tzdate(valid_to_d) }
             # print(d)
             datadicts.append(d)
         for fieldgroup, subitem in enumerate(dataitem.get('data', [])):
@@ -214,10 +242,10 @@ class DataSource(models.Model):
                 # Generate property name
                 d = { 'field': FIELD_DELIMITER.join([subprefix, prop]),
                       'value': val,
-                      'changed_t': changed_t,
+                      'changed_t': _tzdate(changed_t),
                       'fieldgroup': fieldgroup,
-                      'valid_from': valid_from,
-                      'valid_to': valid_to }
+                      'valid_from': _tzdate(valid_from),
+                      'valid_to': _tzdate(valid_to) }
                 datadicts.append(d)
         return datadicts
 
@@ -232,12 +260,31 @@ class DataSource(models.Model):
                 uid=uid,
                 name=subitem['organizacijskaEnota'],
                 shortname=subitem['organizacijskaEnota_kn'],
-                valid_from=subitem.get('veljaOd', valid_from_d),
-                valid_to=subitem.get('veljaDo', valid_to_d),
-                changed_t=subitem.get('datumSpremembe', dataset.timestamp),
+                valid_from=_tzdate(subitem.get('veljaOd', valid_from_d)),
+                valid_to=_tzdate(subitem.get('veljaDo', valid_to_d)),
+                changed_t=_tzdate(subitem.get('datumSpremembe', dataset.timestamp)),
             )
             ou_data_sets.append(oud)
         return ou_data_sets
+
+    def _apis_nadomescanje_to_ourelations(self, dataset, dataitem):
+        ou_relations = list()
+        valid_from_d = dataitem.get('veljaOd')
+        valid_to_d = dataitem.get('veljaDo')
+        relation = FIELD_DELIMITER.join(['N', dataitem.get('infotip', '0000'),
+                                         dataitem.get('podtip', '0000')])
+        uid = dataitem['sistemiziranoMesto_Id']
+        for subitem in dataitem['data']:
+            our = OURelation(
+                dataset=dataset,
+                valid_from=_tzdate(subitem.get('veljaOd', valid_from_d)),
+                valid_to=_tzdate(subitem.get('veljaDo', valid_to_d)),
+                relation=relation,
+                ou1_id=uid,
+                ou2_id=subitem['id'],
+            )
+            ou_relations.append(our)
+        return ou_relations
 
     def _apis_to_ourelations(self, dataset, dataitem):
         ou_relations = list()
@@ -249,8 +296,8 @@ class DataSource(models.Model):
         for subitem in dataitem['data']:
             our = OURelation(
                 dataset=dataset,
-                valid_from=subitem.get('veljaOd', valid_from_d),
-                valid_to=subitem.get('veljaDo', valid_to_d),
+                valid_from=_tzdate(subitem.get('veljaOd', valid_from_d)),
+                valid_to=_tzdate(subitem.get('veljaDo', valid_to_d)),
                 relation=relation,
                 ou1_id=uid,
                 ou2_id=subitem['id'],
@@ -279,6 +326,8 @@ class DataSource(models.Model):
                         ou_data += self._apis_to_oudata(ds, dataitem)
                     elif k == 'NadrejenaOE':
                         ou_relations += self._apis_to_ourelations(ds, dataitem)
+                    elif k == 'Nadomescanje':
+                        ou_relations += self._apis_nadomescanje_to_ourelations(ds, dataitem)
                     else:
                         uid = dataitem.get('UL_Id', None)
                         if uid is None:
@@ -411,8 +460,6 @@ class DataSource(models.Model):
         return handlers[self.source]()
 
 
-
-
 class Studis:
     def __init__(self, cached=True):
         token = settings.STUDIS_API_TOKEN
@@ -528,7 +575,8 @@ class UserData(models.Model):
             dicts.append(d)
         return dicts
 
-    def with_extra(self, timestamp=None, extra_fields=None, translations=None):
+    def with_extra(self, timestamp=None, extra_fields=None, translations=None,
+                   ldap_conn=None):
         translated_dicts = list()
         if extra_fields is None:
             extra_fields = _get_rules('EXTRA_FIELDS')
@@ -541,16 +589,19 @@ class UserData(models.Model):
             translated_dicts.append(_field_adder(datadict,
                                                  extra_fields=extra_fields, 
                                                  translations=translations,
-                                                 update_datadict=True))
+                                                 update_datadict=True,
+                                                 ldap_conn=ldap_conn))
             # translated_dicts.append(datadict)
         return translated_dicts
 
-    def groups_at(self, timestamp=None, group_rules=None, translations=None):
+    def groups_at(self, timestamp=None, group_rules=None, translations=None,
+                  ldap_conn=None):
         if group_rules is None:
             group_rules = _get_rules('GROUP_RULES')
         if translations is None:
             translations = _get_rules('TRANSLATIONS')
-        datadicts = self.with_extra(timestamp=timestamp, translations=translations)
+        datadicts = self.with_extra(timestamp=timestamp, translations=translations,
+                                    ldap_conn=ldap_conn)
         result = set()
         default_dn = None
         for fields, flags in group_rules:
@@ -568,12 +619,15 @@ class UserData(models.Model):
                 default_dn = data
         return default_dn, list(result)
 
-    def by_rules(self, timestamp=None, user_rules=None, extra_fields=None, translations=None):
+    def by_rules(self, timestamp=None, user_rules=None, extra_fields=None, translations=None,
+                 ldap_conn=None):
         if user_rules is None:
             user_rules = _get_rules('USER_RULES')
         if translations is None:
             translations = _get_rules('TRANSLATIONS')
-        datadicts = self.with_extra(timestamp=timestamp, extra_fields=extra_fields, translations=translations)
+        datadicts = self.with_extra(timestamp=timestamp, extra_fields=extra_fields, 
+                                    translations=translations,
+                                    ldap_conn=ldap_conn)
         result = dict()
         for fieldname, templates in user_rules.items():
             if type(templates) != list:
@@ -592,7 +646,7 @@ class UserData(models.Model):
         return result
                 
 
-def get_groups(timestamp=None, group_rules=None, translations=None):
+def get_groups(timestamp=None, group_rules=None, translations=None, ldap_conn=None):
     if group_rules is None:
         group_rules = _get_rules('GROUP_RULES')
     if translations is None:
@@ -631,7 +685,8 @@ def get_groups(timestamp=None, group_rules=None, translations=None):
                 value_l = []
                 for template in templatel:
                     t1 = string.Template(template)
-                    d = _field_adder(d, extra_fields=create_fields, translations=translations)
+                    d = _field_adder(d, extra_fields=create_fields, translations=translations,
+                                     ldap_conn=ldap_conn)
                     value_l.append(t1.substitute(d))
                 group_dict[fieldname] = value_l
             groups.append(group_dict)
@@ -756,8 +811,12 @@ def __dict_to_translations(name, rules, type='defaultdict',
 
 def _apis_relations_to_outree(oud, relations):
     ou_parts = list()
+    escaped_oud = dict()
     for ou_id, ou_data in oud.items():
-        shortname = ldap.dn.escape_dn_chars(ou_data['shortname'])
+        escaped_oud[ou_id] = dict()
+        for k, v in ou_data.items():
+            escaped_oud[ou_id][k] = ldap.dn.escape_dn_chars(str(v))
+    for ou_id, ou_data in oud.items():
         # build a list of parent ids for each ou
         parent = ou_id
         parent_ids = []
@@ -773,7 +832,7 @@ def _apis_relations_to_outree(oud, relations):
         parent_strs = []
         for i in reversed(parent_ids):
             try:
-                parent_strs.append(t.substitute(oud[i]))
+                parent_strs.append(t.substitute(escaped_oud[i]))
             except KeyError as e:
                 pass
         # now store the names, shortnames and ou_parts
@@ -781,35 +840,54 @@ def _apis_relations_to_outree(oud, relations):
     return ou_parts
 
 
-def _apis_relations_to_managers(ldap_conn, oud, relations, timestamp = None):
+def _apis_field_uid_map(timestamp, field):
+    pos_map = defaultdict(set)
+    position_fields = UserDataField.objects.filter(
+        field = field,
+        valid_from__lte = timestamp,
+        valid_to__gte = timestamp,
+    )
+    for f in position_fields:
+        # percentage_f = f.userdata.fields.filter()
+        pos_map[f.value].add(f.userdata.uid)
+    return pos_map
+
+
+def _apis_relations_to_managers(ldap_conn, oud, relations, timestamp=None):
     if timestamp is None:
         timestamp = timezone.now()
     ou_managers = list()
+    position_uid_map = _apis_position_uid_map(timestamp)
     for ou_id, ou_data in oud.items():
-        supervisor_uids = set()
         for supervisor_position in relations.get(ou_id, set()):
-            supervisor_fields = UserDataField.objects.filter(
-                field = "Razporeditev__1001__B008__sistemiziranoMesto_Id",
-                value = supervisor_position,
-                valid_from__lte = timestamp,
-                valid_to__gte = timestamp,
-            )
-            supervisor_dn = None
-            for f in supervisor_fields:
-                supervisor = f.userdata
-                supervisor_uids.add(supervisor.uid)
+            supervisor_uids = position_uid_map[supervisor_position]
         if len(supervisor_uids) != 1:
             continue
         for supervisor_uid in supervisor_uids:
-            supervisor_dn = get_ad_user_dn(ldap_conn, {'employeeId': [supervisor_uid]})
-            if supervisor_dn is not None:
-                ou_managers.append([ou_id, supervisor_dn])
-            else:
-                print("supervisor", supervisor.uid, " not found in AD")
+            ou_managers.append([ou_id, supervisor_uid])
     return ou_managers
 
 
-def apis_oudata_to_translations(ldap_conn=None, timestamp=None,
+def _apis_relations_to_uid_managers(ldap_conn, uids, oud, relationsd, timestamp=None):
+    if timestamp is None:
+        timestamp = timezone.now()
+    position_uid_dict = _apis_field_uid_map(timestamp, "Razporeditev__1001__B008__sistemiziranoMesto_Id")
+    # TODO: fill this with OUs ('glavnaOrganizacijskaEnota_Id')
+    ou_uid_dict = position_uid_map = _apis_field_uid_map(timestamp, "OrgDodelitev__0001__0000__glavnaOrganizacijskaEnota_Id")
+    ou_manager_relations = relationsd.get('1001__B012', {})
+    ou_managers = dict(_apis_relations_to_managers(ldap_conn, oud, ou_manager_relations, timestamp))
+    # TODO: fill this from nadomescanja (N__1001__AR01?)
+    explicit_managers = dict(_apis_relations_to_managers(ldap_conn, oud,
+            relationsd.get('N__1001__A002', {}), timestamp))
+    explicit_managers = dict()
+    # TODO: set managers
+    # TODO: if a person manages themselves, set the manager according to OU until all is OK
+    managers = []
+
+    return list(managers.items())
+
+
+def apis_to_translations(ldap_conn=None, timestamp=None,
                                 add_only=False, keep_default=True):
     if timestamp is None:
         timestamp = timezone.now()
@@ -819,17 +897,22 @@ def apis_oudata_to_translations(ldap_conn=None, timestamp=None,
     for ou_id, ou_data in oud.items():
         ou_shortnames.append([ou_id, ou_data['shortname']])
         ou_names.append([ou_id, ou_data['name']])
-    relations = relationsd.get('1001__A002', {})
-    managers = relationsd.get('1001__B012', {})
+    ou_relations = relationsd.get('1001__A002', {})
+    ou_manager_relations = relationsd.get('1001__B012', {})
+    uids = []
     trans_dict = {
         "apis_ou__shortname": ou_shortnames,
         "apis_ou__name": ou_names,
-        "apis_ou_parts": _apis_relations_to_outree(oud, relations),
-        "apis_ou_managers": _apis_relations_to_managers(ldap_conn, oud, managers),
+        "apis_ou_parts": _apis_relations_to_outree(oud, ou_relations),
+        "apis_ou_managers": _apis_relations_to_ou_managers(ldap_conn, oud, 
+                ou_manager_relations, timestamp),
+        "apis_uid_managers": _apis_relations_to_uid_managers(ldap_conn, uids, oud,
+                relationsd, timestamp),
     }
     for k, v in trans_dict.items():
         __dict_to_translations(k, v, type='defaultdict',
                                add_only=add_only, keep_default=keep_default)
+
 
 def latest_userdata(source=None):
     latest_userdata = dict()
@@ -898,7 +981,8 @@ def user_ldapactionbatch(userdata_set, timestamp=None, ldap_conn=None,
         uid = userdata.uid
         default_group_dn, groups_to_join = userdata.groups_at(timestamp, translations=translations, group_rules=group_rules)
         # default_dn, groups_to_join = "heheh", ["hohohoho"]
-        user_fields = userdata.by_rules(timestamp, translations=translations, extra_fields=extra_fields)
+        user_fields = userdata.by_rules(timestamp, translations=translations, extra_fields=extra_fields,
+                                        ldap_conn=ldap_conn)
         default_dn="CN={},{}".format(ldap.dn.escape_dn_chars(user_fields['cn'][0]), default_group_dn)
         # print(user_fields)
         # print("    ", (default_dn, groups_to_join))
