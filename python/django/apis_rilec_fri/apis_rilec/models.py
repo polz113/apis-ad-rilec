@@ -27,35 +27,34 @@ def _slugify_username_fn(s):
     return slugify(s)
 
 
-def _dotty_username_fn(s):
+def _dotty_username_fn(s, **kwargs):
     return ".".join([slugify(i) for i in re.split('[^\w]', s)])
 
 
-def _letter_and_surname_fn(s):
+def _letter_and_surname_fn(s, **kwargs):
     l = [slugify(i) for i in re.split('[^\w]', s)]
     if len(l) > 1:
         l = [l[0][0]] + l[1:]
     return "".join(l)
 
 
-def _name_and_letters_fn(s):
+def _name_and_letters_fn(s, **kwargs):
     l = [slugify(i) for i in re.split('[^\w]', s)]
     if len(l) > 1:
         l = l[0:1] + [i[0] for i in l[1:]]
     return "".join(l)
 
 
-def _first_20_chars(s):
+def _first_20_chars(s, **kwargs):
     return s[:20]
 
 
-def uid_to_dn(uid, ldap_conn):
+def uid_to_dn(uid, ldap_conn, **kwargs):
     try:
         ret = ldap_conn.search_s(settings.LDAP_USER_SEARCH_BASE,
                                      scope=settings.LDAP_USER_SEARCH_SCOPE,
                                      filterstr='employeeId={}'.format(uid),
                                      attrlist=['distinguishedName'])
-            # print("returning", ret)
         assert len(ret) == 1
         dn = ret[0][0]
     except Exception as e:
