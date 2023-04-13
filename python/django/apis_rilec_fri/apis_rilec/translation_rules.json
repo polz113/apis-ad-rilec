@@ -58,8 +58,8 @@
         ]],
         ["manager_dn", [
             [
-                "${OrgDodelitev__0001__0__glavnaOrganizacijskaEnota_Id}",
-                ["apis_ou_managers", "uid_to_dn"]
+                "${uid}",
+                ["apis_uid_managers", "uid_to_dn"]
             ]
         ]],
         ["ou_name", [
@@ -133,6 +133,12 @@
             "type": "function",
             "rules": [
                 ["first_20_chars", null]
+            ]
+        },
+        "uid_to_dn": {
+            "type": "function",
+            "rules": [
+                ["uid_to_dn", null]
             ]
         },
         "clanica_domena_repl": {
