@@ -857,7 +857,7 @@ def _apis_relations_to_ou_managers(oud, relations, timestamp=None):
     if timestamp is None:
         timestamp = timezone.now()
     ou_managers = list()
-    position_uid_map = _apis_field_uid_map(timestamp, "OrgDodelitev__0001__0000__glavnaOrganizacijskaEnota_Id")
+    position_uid_map = _apis_field_uid_map(timestamp, "OrgDodelitev__0001__0__glavnaOrganizacijskaEnota_Id")
     for ou_id, ou_data in oud.items():
         for supervisor_position in relations.get(ou_id, set()):
             supervisor_uids = position_uid_map[supervisor_position]
@@ -877,31 +877,42 @@ def _apis_relations_to_uid_managers(oud, relationsd, timestamp=None):
     position_uid_dict = dict()
     for position, uids in position_uids_dict.items():
         position_uid_dict[position] = list(uids)[0]
-    ou_uid_dict = _apis_field_uid_map(timestamp, "OrgDodelitev__0001__0000__glavnaOrganizacijskaEnota_Id")
+    ou_uid_dict = _apis_field_uid_map(timestamp, "OrgDodelitev__0001__0__glavnaOrganizacijskaEnota_Id")
     uid_ou_dict = dict()
     for ouid, uids in ou_uid_dict.items():
         for uid in uids:
             uid_ou_dict[uid] = ouid
     ou_manager_relations = relationsd.get('1001__B012', dict())
+    ou_managers = defaultdict(set)
+    for ouid, manager_positions in ou_manager_relations.items():
+        for pos in manager_positions:
+            ou_managers[ouid].add(position_uid_dict.get(pos, None))
+            ou_managers[ouid].discard(None)
     explicit_managers = relationsd.get('N__1001__A002', dict())
     # TODO: set managers
     managers = dict()
     for position, uid in position_uid_dict.items():
-        # N__1001__AR01 je dejansko nadomescanje, N__1001__A002
+        # N__1001__AR01 je dejansko nadomescanje, N__1001__A002 je eksplicitni nadrejeni
         explicit_manager = explicit_managers.get(position, None)
         if explicit_manager is not None:
             managers[uid] = position_uid_dict[list(explicit_manager)[0]]
             continue
         ouid = uid_ou_dict.get(uid, None)
-        ou_manager = ou_manager_relations.get(ouid, None)
-        while ou_manager == uid:
-            ouid = relationsd.get('1001__A002', None)
-            ou_manager = position_uid_dict.get(ou_manager_relations.get(ouid, None), None)
-        managers[uid] = ou_manager
+        cur_managers = ou_managers.get(ouid, None)
+        # print("uid:", uid, "ou:", ouid, "managers:", cur_managers)
+        while cur_managers is not None and\
+                uid in cur_managers:
+            parent_ouids = relationsd.get('1001__A002', dict()).get(ouid, {None})
+            parent_ouid = list(parent_ouids)[0]
+            # print("parent ou:", parent_ouid)
+            cur_managers = ou_managers.get(parent_ouid, None)
+            ouid = parent_ouid
+        if cur_managers is not None and len(cur_managers) == 1:
+            managers[uid] = list(cur_managers)[0]
     return list(managers.items())
 
 
-def apis_to_translations(ldap_conn=None, timestamp=None,
+def apis_to_translations(timestamp=None,
                                 add_only=False, keep_default=True):
     if timestamp is None:
         timestamp = timezone.now()
@@ -917,9 +928,9 @@ def apis_to_translations(ldap_conn=None, timestamp=None,
         "apis_ou__shortname": ou_shortnames,
         "apis_ou__name": ou_names,
         "apis_ou_parts": _apis_relations_to_outree(oud, ou_relations),
-        "apis_ou_managers": _apis_relations_to_ou_managers(ldap_conn, oud, 
+        "apis_ou_managers": _apis_relations_to_ou_managers(oud, 
                 ou_manager_relations, timestamp),
-        "apis_uid_managers": _apis_relations_to_uid_managers(ldap_conn, oud,
+        "apis_uid_managers": _apis_relations_to_uid_managers(oud,
                 relationsd, timestamp),
     }
     for k, v in trans_dict.items():
