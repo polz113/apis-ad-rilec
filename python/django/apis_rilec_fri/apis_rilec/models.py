@@ -853,37 +853,51 @@ def _apis_field_uid_map(timestamp, field):
     return pos_map
 
 
-def _apis_relations_to_managers(ldap_conn, oud, relations, timestamp=None):
+def _apis_relations_to_ou_managers(oud, relations, timestamp=None):
     if timestamp is None:
         timestamp = timezone.now()
     ou_managers = list()
-    position_uid_map = _apis_position_uid_map(timestamp)
+    position_uid_map = _apis_field_uid_map(timestamp, "OrgDodelitev__0001__0000__glavnaOrganizacijskaEnota_Id")
     for ou_id, ou_data in oud.items():
         for supervisor_position in relations.get(ou_id, set()):
             supervisor_uids = position_uid_map[supervisor_position]
         if len(supervisor_uids) != 1:
             continue
+        else:
+            supervisor_uids = list(supervisor_uids)[0]
         for supervisor_uid in supervisor_uids:
             ou_managers.append([ou_id, supervisor_uid])
     return ou_managers
 
 
-def _apis_relations_to_uid_managers(ldap_conn, uids, oud, relationsd, timestamp=None):
+def _apis_relations_to_uid_managers(oud, relationsd, timestamp=None):
     if timestamp is None:
         timestamp = timezone.now()
-    position_uid_dict = _apis_field_uid_map(timestamp, "Razporeditev__1001__B008__sistemiziranoMesto_Id")
-    # TODO: fill this with OUs ('glavnaOrganizacijskaEnota_Id')
-    ou_uid_dict = position_uid_map = _apis_field_uid_map(timestamp, "OrgDodelitev__0001__0000__glavnaOrganizacijskaEnota_Id")
-    ou_manager_relations = relationsd.get('1001__B012', {})
-    ou_managers = dict(_apis_relations_to_managers(ldap_conn, oud, ou_manager_relations, timestamp))
-    # TODO: fill this from nadomescanja (N__1001__AR01?)
-    explicit_managers = dict(_apis_relations_to_managers(ldap_conn, oud,
-            relationsd.get('N__1001__A002', {}), timestamp))
-    explicit_managers = dict()
+    position_uids_dict = _apis_field_uid_map(timestamp, "Razporeditev__1001__B008__sistemiziranoMesto_Id")
+    position_uid_dict = dict()
+    for position, uids in position_uids_dict.items():
+        position_uid_dict[position] = list(uids)[0]
+    ou_uid_dict = _apis_field_uid_map(timestamp, "OrgDodelitev__0001__0000__glavnaOrganizacijskaEnota_Id")
+    uid_ou_dict = dict()
+    for ouid, uids in ou_uid_dict.items():
+        for uid in uids:
+            uid_ou_dict[uid] = ouid
+    ou_manager_relations = relationsd.get('1001__B012', dict())
+    explicit_managers = relationsd.get('N__1001__A002', dict())
     # TODO: set managers
-    # TODO: if a person manages themselves, set the manager according to OU until all is OK
-    managers = []
-
+    managers = dict()
+    for position, uid in position_uid_dict.items():
+        # N__1001__AR01 je dejansko nadomescanje, N__1001__A002
+        explicit_manager = explicit_managers.get(position, None)
+        if explicit_manager is not None:
+            managers[uid] = position_uid_dict[list(explicit_manager)[0]]
+            continue
+        ouid = uid_ou_dict.get(uid, None)
+        ou_manager = ou_manager_relations.get(ouid, None)
+        while ou_manager == uid:
+            ouid = relationsd.get('1001__A002', None)
+            ou_manager = position_uid_dict.get(ou_manager_relations.get(ouid, None), None)
+        managers[uid] = ou_manager
     return list(managers.items())
 
 
@@ -899,14 +913,13 @@ def apis_to_translations(ldap_conn=None, timestamp=None,
         ou_names.append([ou_id, ou_data['name']])
     ou_relations = relationsd.get('1001__A002', {})
     ou_manager_relations = relationsd.get('1001__B012', {})
-    uids = []
     trans_dict = {
         "apis_ou__shortname": ou_shortnames,
         "apis_ou__name": ou_names,
         "apis_ou_parts": _apis_relations_to_outree(oud, ou_relations),
         "apis_ou_managers": _apis_relations_to_ou_managers(ldap_conn, oud, 
                 ou_manager_relations, timestamp),
-        "apis_uid_managers": _apis_relations_to_uid_managers(ldap_conn, uids, oud,
+        "apis_uid_managers": _apis_relations_to_uid_managers(ldap_conn, oud,
                 relationsd, timestamp),
     }
     for k, v in trans_dict.items():
