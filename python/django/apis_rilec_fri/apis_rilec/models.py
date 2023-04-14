@@ -62,10 +62,20 @@ def uid_to_dn(uid, ldap_conn, **kwargs):
     return dn
 
 
+def upn_to_uid(upn, **kwargs):
+    if upn is None:
+        return None
+    possible=set(UserDataField.objects.filter(field='Komunikacija__0105__9007__vrednostNaziv', value__iexact=upn).values_list('userdata__uid', flat=True))
+    if len(possible) == 1:
+        return possible.pop()
+    return None
+
+
 TRANSLATOR_FUNCTIONS = {
     'default_username': _dotty_username_fn,
     'first_20_chars': _first_20_chars,
     'uid_to_dn': uid_to_dn,
+    'upn_to_uid': upn_to_uid,
 }
 
 
@@ -354,7 +364,7 @@ class DataSource(models.Model):
         for user in parsed:
             uid = user.get('ul_id_predavatelja', None)
             if uid is None:
-                uid = get_uid_by_upn(user['upn'])
+                uid = upn_to_uid(user['upn'])
                 if uid is None:
                     uid='?'
             # ud, created = UserData.objects.get_or_create(dataset=dataset, uid=uid)
@@ -704,15 +714,6 @@ class UserDataField(models.Model):
     value = models.CharField(max_length=512)
 
 
-def get_uid_by_upn(upn):
-    if upn is None:
-        return None
-    possible=set(UserDataField.objects.filter(field='Komunikacija__0105__9007__vrednostNaziv', value__iexact=upn).values_list('userdata__uid', flat=True))
-    if len(possible) == 1:
-        return possible.pop()
-    return None
-
-
 class TranslationTable(models.Model):
     TRANSLATOR_TYPES = [
             ('dict', 'Dictionary'),
@@ -912,7 +913,7 @@ def _apis_relations_to_uid_managers(oud, relationsd, timestamp=None):
 
 
 def apis_to_translations(timestamp=None,
-                                add_only=False, keep_default=True):
+                         add_only=False, keep_default=True):
     if timestamp is None:
         timestamp = timezone.now()
     oud, relationsd, outree_source_ids = oudicts_at(timestamp)
@@ -986,6 +987,7 @@ def group_ldapactionbatch(timestamp=None):
         action.batch = actionbatch
         action.order = i
     LDAPAction.objects.bulk_create(actions)
+    return actionbatch
     
 
 def user_ldapactionbatch(userdata_set, timestamp=None, ldap_conn=None,
@@ -1083,9 +1085,10 @@ class LDAPAction(models.Model):
 
     def _upsert(self, ldap_conn):
         try:
-            exists = len(ldap_conn.compare_s(self.dn,
-                                        'distinguishedName', self.dn)) > 0
-        except:
+            exists = ldap_conn.compare_s(self.dn,
+                                         'distinguishedName', self.dn)
+        except Exception as e:
+            print(e)
             exists = False
         if exists:
             return self._modify(ldap_conn)

@@ -310,7 +310,7 @@
             {
                 "objectClass": ["top", "organizationalUnit"],
                 "sAMAccountName": "users",
-                "distinguishedName": "OU=Users,OU=${clanica_prefix},OU=${clanica_domena}",
+                "distinguishedName": "OU=Users,OU=${clanica_prefix},${clanica_domena}",
                 "groupType": ["${group_type}"]
             }, {
                 "main_ou": true,
@@ -380,17 +380,18 @@
             }
         ],
         [
+
             {
                 "objectClass": ["top", "group"],
-                "distinguishedName": "CN=${habilitacija},OU=habilitacija,OU=avtopravice,OU=${clanica_prefix},${clanica_domena}", 
+                "distinguishedName": "CN=${habilitacija_txt},OU=habilitacija,OU=avtopravice,OU=${clanica_prefix},${clanica_domena}", 
                 "groupType": "${group_type}",
-                "sAMAccountName": "${habilitacija}",
-                "name": "${habilitacija}"
+                "sAMAccountName": "${habilitacija_txt}",
+                "name": "${habilitacija_txt}"
             }, {
                 "create_fields": [
                     ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
                     ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
-                    ["habilitacija", [["${habilitacija_id}", ["habilitacija_repl"]]]],
+                    ["habilitacija_txt", [["${habilitacija_id}", ["habilitacija_repl"]]]],
                     ["group_type", [["${group_type}", ["group_types"]]]]
                 ],
                 "create_sources": {
@@ -400,6 +401,28 @@
                 }
             }
         ],
+        [
+            {
+                "objectClass": ["top", "group"],
+                "distinguishedName": "CN=${habilitacija_txt},OU=habilitacija,OU=avtopravice,OU=${clanica_prefix},${clanica_domena}", 
+                "groupType": "${group_type}",
+                "sAMAccountName": "${habilitacija_txt}",
+                "name": "${habilitacija_txt}"
+            }, {
+                "create_fields": [
+                    ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
+                    ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
+                    ["habilitacija_txt", [["${habilitacija}", []]]],
+                    ["group_type", [["${group_type}", ["group_types"]]]]
+                ],
+                "create_sources": {
+                    "clanica_id": ["translate_keys", ["clanica_domena_repl"]],
+                    "habilitacija": ["translate_values", ["studis__nazivdelavca__full_title__sl"]],
+                    "group_type": ["constant", ["global security"]]
+                }
+            }
+        ],
+
         [
             {
                 "objectClass": ["top", "group"],
