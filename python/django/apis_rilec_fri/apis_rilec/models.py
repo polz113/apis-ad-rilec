@@ -23,6 +23,8 @@ from urllib.request import Request, urlopen, quote
 
 FIELD_DELIMITER='__'
 
+RDN_FIELDS = {'cn', 'name', 'objectCategory'}
+
 def _slugify_username_fn(s):
     return slugify(s)
 
@@ -618,14 +620,14 @@ class UserData(models.Model):
                 try:
                     template = fields['distinguishedName']
                     t = string.Template(template)
-                    identifiers = t.get_identifiers()
-                    data = t.substitute(d)
-                    result.add(data)
+                    group_dn = t.substitute(d)
+                    if flags.get('main_ou', False):
+                        default_dn = group_dn
+                    else:
+                        result.add(group_dn)
                 except KeyError as e:
                     print("  fail:", e)
                     pass
-            if flags.get('main_ou', False):
-                default_dn = data
         return default_dn, list(result)
 
     def by_rules(self, timestamp=None, user_rules=None, extra_fields=None, translations=None,
@@ -635,7 +637,7 @@ class UserData(models.Model):
         if translations is None:
             translations = _get_rules('TRANSLATIONS')
         datadicts = self.with_extra(timestamp=timestamp, extra_fields=extra_fields, 
-                                    translations=translations,
+                translations=translations,
                                     ldap_conn=ldap_conn)
         result = dict()
         for fieldname, templates in user_rules.items():
@@ -1001,33 +1003,27 @@ def user_ldapactionbatch(userdata_set, timestamp=None, ldap_conn=None,
     groups_membership = MultiValueDict()
     actions = list()
     users = dict()
-    order = 0
     for userdata in userdata_set:
         uid = userdata.uid
         default_group_dn, groups_to_join = userdata.groups_at(timestamp, translations=translations, group_rules=group_rules)
-        # default_dn, groups_to_join = "heheh", ["hohohoho"]
         user_fields = userdata.by_rules(timestamp, translations=translations, extra_fields=extra_fields,
                                         ldap_conn=ldap_conn)
         default_dn="CN={},{}".format(ldap.dn.escape_dn_chars(user_fields['cn'][0]), default_group_dn)
-        # print(user_fields)
-        # print("    ", (default_dn, groups_to_join))
-        # default_dn = user_fields.pop('distinguishedName', None)
-        # now create the user
         existing_dn = get_ad_user_dn(ldap_conn, user_fields)
         if existing_dn is not None:
-            # print("got", existing_dn, "for", default_dn)
+            for rdn_field in RDN_FIELDS:
+                user_fields.pop(rdn_field)
             if rename_users:
-                actions.append(LDAPAction(action='rename', order=order,
+                actions.append(LDAPAction(action='rename',
                     dn=existing_dn, data={'distinguishedName': [default_dn]}))
                 final_dn = default_dn
-                order += 1
             else:
+
                 final_dn = existing_dn
         else:
             final_dn = default_dn
-        actions.append(LDAPAction(action='upsert', order=order,
-                                  dn=final_dn, data=user_fields))
-        order += 1
+        actions.append(LDAPAction(action='upsert', dn=final_dn, 
+                                  data=user_fields))
         for group_dn in groups_to_join:
             # TODO add user DN to group property "member"
             groups_membership.appendlist(group_dn, final_dn)
@@ -1035,14 +1031,12 @@ def user_ldapactionbatch(userdata_set, timestamp=None, ldap_conn=None,
         membership = {'member': user_list}
         if empty_groups:
             # replace the user list
-            actions.append(LDAPAction(action='modify', order=order,
-                                      dn=group_dn, data=membership))
-            order += 1
+            actions.append(LDAPAction(action='modify', dn=group_dn,
+                                      data=membership))
         else:
             # extend the user list
-            actions.append(LDAPAction(action='add', order=order,
-                                      dn=group_dn, data=membership))
-            order += 1
+            actions.append(LDAPAction(action='add', dn=group_dn, 
+                                      data=membership))
     actionbatch.save()
     for i, action in enumerate(actions):
         action.batch = actionbatch
@@ -1091,6 +1085,8 @@ class LDAPAction(models.Model):
             print(e)
             exists = False
         if exists:
+            for k in RDN_FIELDS:
+                self.data.pop(k, None)
             return self._modify(ldap_conn)
         else:
             return self._add(ldap_conn)
@@ -1104,8 +1100,13 @@ class LDAPAction(models.Model):
     def _modify(self, ldap_conn):
         ul = []
         for k, l in self.data.items():
-            ul.append((ldap.MOD_REPLACE, k, [i.encode('utf-8') for i in l]))
-        ldap_conn.modify_s(self.dn, ul)
+            ul = []
+            try:
+                ul.append((ldap.MOD_REPLACE, k, [i.encode('utf-8') for i in l]))
+                ldap_conn.modify_s(self.dn, ul)
+            except Exception as e:
+                print("failed:", k)
+                print(e)
 
     def _rename(self, ldap_conn):
         new_dn = self.data['distinguishedName']

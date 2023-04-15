@@ -86,7 +86,7 @@
         ]],
         ["habilitacija_txt", [
             [
-                "${Habilitacija__9004__0__habilizacijskiNaziv}",
+                "${Habilitacija__9004__0__habilitacijskiNaziv}",
                 ["habilitacija_repl"]
             ],
             [
@@ -208,9 +208,16 @@
         "habilitacija_repl": {
             "type": "defaultdict",
             "rules": [
-                [ "001.00", "Test1"],
-                [ "002.00", "Test2"],
-                [ "019.00", "Test3"],
+                [ "11", "redni profesor"],
+                [ "12", "izredni profesor"],
+                [ "13", "docent"],
+                [ "15", "višji predavatelj"],
+                [ "22", "višji znanstveni sodelavec"],
+                [ "23", "znanstveni sodelavec"],
+                [ "31", "asistent"],
+                [ "35", "strokovni sodelavec"],
+                [ "41", "asistent-raziskovalec"],
+                [ "63", "gostujoči raziskovalec"],
                 [ "", "Neznana"]
             ]
         },
