@@ -144,13 +144,13 @@
         "clanica_domena_repl": {
             "type": "dict",
             "rules": [
-                [ "2300", "DC=fri1,DC=uni-lj,DC=si"]
+                [ "2300", "DC=test,DC=nodomain"]
             ]
         },
         "zavod_domena_repl": {
             "type": "dict",
             "rules": [
-                [ "63", "DC=fri1,DC=uni-lj,DC=si"]
+                [ "63", "DC=test,DC=nodomain"]
             ]
         },
         "clanica_prefix_repl": {
@@ -277,7 +277,7 @@
     "USER_RULES": {
         "objectClass": ["top","person","organizationalPerson","user"],
         "co": "Slovenia",
-        "objectCategory": "CN=Person,CN=Schema,CN=Configuration,DC=uni-lj,DC=si",
+        "objectCategory": "CN=Person,CN=Schema,CN=Configuration,DC=test,DC=nodomain",
         "cn": "${priimek}, ${ime}",
         "sn": "${priimek}",
         "givenName": "${ime}",
@@ -292,7 +292,7 @@
         "l": "Ljubljana",
         "title": "${job_title}",
         "description": "${job_title}, ${izobrazba_prefix}",
-        "postalCode": "SI 1000",
+        "postalCode": "1000",
         "physicalDeliveryOfficeName": "${ad_lokacija}",
         "telephoneNumber": "${telefon}",
         "department": "${oddelek}",

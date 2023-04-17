@@ -951,11 +951,10 @@ def latest_userdata(source=None):
 
 
 def get_ad_user_dn(ldap_conn, user_fields):
-    for i in ['employeeId', 'userPrincipalName']:
+    for i in ['employeeID', 'userPrincipalName']:
         try:
-            # TODO: proper escaping
-            filterstr = "{}={}".format(i, user_fields[i][0])
-            # print("search", filterstr)
+            filterstr = "{}={}".format(i, ldap.dn.escape_dn_chars(user_fields[i][0]))
+            print("search", filterstr, settings.LDAP_USER_SEARCH_BASE)
             ret = ldap_conn.search_s(settings.LDAP_USER_SEARCH_BASE,
                                      scope=settings.LDAP_USER_SEARCH_SCOPE,
                                      filterstr=filterstr,
@@ -965,8 +964,8 @@ def get_ad_user_dn(ldap_conn, user_fields):
             return(ret[0][0])
         except Exception as e:
             # print(e)
-            # traceback.print_exception(e)
-            # print(user_fields)
+            traceback.print_exception(e)
+            print(user_fields, ret)
             pass
     return user_fields.get('distinguishedName', None)
 
@@ -1047,19 +1046,66 @@ def user_ldapactionbatch(userdata_set, timestamp=None, ldap_conn=None,
 
 class LDAPActionBatch(models.Model):
     description = models.CharField(max_length=512, blank=True, default='')
-    def apply(self):
-        ldap_conn = ldap.initialize(settings.LDAP_SERVER_URI)
-        # ldap_conn.set_option(ldap.OPT_X_TLS_CACERTFILE, '/path/to/ca.pem')
-        # ldap_conn.set_option(ldap.OPT_X_TLS_NEWCTX, 0)
-        # ldap_conn.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
-        # ldap_conn.start_tls_s()
-        ldap_conn.simple_bind_s(settings.LDAP_BIND_DN, settings.LDAP_BIND_PASSWORD)
-        for i in self.actions.all():
-            apply = i.apply(ldap_conn)
-        #dn = "test"
-        #ux = ud0.by_rules()
-        #l.add_s("CN=Marko Toplak,CN=Users,DC=test,DC=nodomain", [tuple(i) for i in ux])
-        pass
+    def apply(self, ldap_conn=None):
+        if ldap_conn is None:
+            ldap_conn = ldap.initialize(settings.LDAP_SERVER_URI)
+            ldap_conn.simple_bind_s(settings.LDAP_BIND_DN, settings.LDAP_BIND_PASSWORD)
+        for a in self.actions.order_by('order'):
+            try:
+                apply = a.apply(ldap_conn)
+            except Exception as e:
+                print(e)
+
+    def analyze(self, ldap_conn=None):
+        if ldap_conn is None:
+            ldap_conn = ldap.initialize(settings.LDAP_SERVER_URI)
+            ldap_conn.simple_bind_s(settings.LDAP_BIND_DN, settings.LDAP_BIND_PASSWORD)
+        changes = []
+        for a in self.actions.order_by('order'):
+            try:
+                ldap_data = ldap_conn.search_s(a.dn, scope=ldap.SCOPE_BASE)
+            except:
+                ldap_data = []
+            try:
+                if a.action == 'upsert':
+                    if len(ldap_data) < 1:
+                        ldap_data = {}
+                        changes.append({'action': 'create', 'dn': a.dn})
+                    else:
+                        assert len(ldap_data) == 1
+                        ldap_data = ldap_data[0][1]
+                elif a.action == 'add':
+                    changes.append({'action': 'create', 'dn': a.dn})
+                    ldap_data = {}
+                elif a.action == 'modify':
+                    assert len(ldap_data) == 1
+                    ldap_data = ldap_data[0][1]    
+                elif a.action == 'rename':
+                    assert len(ldap_data) == 1
+                    changes.append({'action': 'rename', 'dn': a.dn, 'to': a.data})
+                elif a.action == 'delete':
+                    assert len(ldap_data) == 1
+                    changes.append({'action': 'delete', 'dn': a.dn})
+                # determine differences between LDAP and action data
+                for k, v in a.data.items():
+                    if k not in ldap_data:
+                        changes.append({'action': 'set', 'dn': a.dn, 'key': k, 'value': v})
+                    else:
+                        a_data = v
+                        if type(a_data) != list:
+                            a_data = [a_data]
+                        a_data = set([i.encode('utf-8') for i in a_data])
+                        l_data = set(ldap_data[k])
+                        if set(l_data) != set(a_data):
+                            to_add = list(a_data.difference(l_data))
+                            to_remove = list(l_data.difference(a_data))
+                            if len(to_remove):
+                                changes.append({'action': 'unset', 'dn': a.dn, 'key': k, 'value': to_remove})
+                            if len(to_add):
+                                changes.append({'action': 'set', 'dn': a.dn, 'key': k, 'value': to_add})
+            except Exception as e:
+                print(e)
+        return changes
 
 
 class LDAPAction(models.Model):
