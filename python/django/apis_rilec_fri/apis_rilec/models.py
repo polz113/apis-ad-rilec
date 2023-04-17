@@ -23,7 +23,7 @@ from urllib.request import Request, urlopen, quote
 
 FIELD_DELIMITER='__'
 
-RDN_FIELDS = {'cn', 'name', 'objectCategory'}
+KEEP_FIELDS = {'CN', 'NAME', 'OBJECTCATEGORY', 'SAMACCOUNTNAME'}
 
 def _slugify_username_fn(s):
     return slugify(s)
@@ -115,6 +115,7 @@ def _get_rules(name=None, timestamp=None):
                 translator = FuncTranslator(trules)
             translators[tname] = translator
         d['TRANSLATIONS'] = translators
+    
     if name is None:
         return d
     return d[name]
@@ -616,9 +617,10 @@ class UserData(models.Model):
         result = set()
         default_dn = None
         for fields, flags in group_rules:
+            fields = dict([(k.upper(), v) for k, v in fields.items()])
             for d in datadicts:
                 try:
-                    template = fields['distinguishedName']
+                    template = fields['DISTINGUISHEDNAME']
                     t = string.Template(template)
                     group_dn = t.substitute(d)
                     if flags.get('main_ou', False):
@@ -653,7 +655,7 @@ class UserData(models.Model):
                     except KeyError:
                         pass
             if len(values) > 0:
-                result[fieldname] = list(values)
+                result[fieldname.upper()] = list(values)
         return result
                 
 
@@ -951,14 +953,16 @@ def latest_userdata(source=None):
 
 
 def get_ad_user_dn(ldap_conn, user_fields):
-    for i in ['employeeID', 'userPrincipalName']:
+    for i in ['employeeId', 'userPrincipalName']:
+        i = i.upper()
+        ret = None
         try:
-            filterstr = "{}={}".format(i, ldap.dn.escape_dn_chars(user_fields[i][0]))
+            filterstr = "{}={}".format(i.upper(), ldap.dn.escape_dn_chars(user_fields[i][0]))
             print("search", filterstr, settings.LDAP_USER_SEARCH_BASE)
             ret = ldap_conn.search_s(settings.LDAP_USER_SEARCH_BASE,
                                      scope=settings.LDAP_USER_SEARCH_SCOPE,
                                      filterstr=filterstr,
-                                     attrlist=['distinguishedName'])
+                                     attrlist=['DISTINGUISHEDNAME'])
             # print("returning", ret)
             assert len(ret) == 1
             return(ret[0][0])
@@ -967,7 +971,7 @@ def get_ad_user_dn(ldap_conn, user_fields):
             traceback.print_exception(e)
             print(user_fields, ret)
             pass
-    return user_fields.get('distinguishedName', None)
+    return user_fields.get('DISTINGUISHEDNAME', None)
 
 
 def group_ldapactionbatch(timestamp=None):
@@ -980,7 +984,7 @@ def group_ldapactionbatch(timestamp=None):
     actions = list()
     # prepare groups
     for order, group in enumerate(get_groups(timestamp=timestamp)):
-        dn = group.pop('distinguishedName')[0]
+        dn = group.pop('DISTINGUISHEDNAME')[0]
         action = LDAPAction(action='upsert', dn=dn, data=group)
         actions.append(action)
     actionbatch.save()
@@ -1007,14 +1011,14 @@ def user_ldapactionbatch(userdata_set, timestamp=None, ldap_conn=None,
         default_group_dn, groups_to_join = userdata.groups_at(timestamp, translations=translations, group_rules=group_rules)
         user_fields = userdata.by_rules(timestamp, translations=translations, extra_fields=extra_fields,
                                         ldap_conn=ldap_conn)
-        default_dn="CN={},{}".format(ldap.dn.escape_dn_chars(user_fields['cn'][0]), default_group_dn)
+        default_dn="CN={},{}".format(ldap.dn.escape_dn_chars(user_fields['CN'][0]), default_group_dn)
         existing_dn = get_ad_user_dn(ldap_conn, user_fields)
         if existing_dn is not None:
-            for rdn_field in RDN_FIELDS:
+            for rdn_field in KEEP_FIELDS:
                 user_fields.pop(rdn_field)
             if rename_users:
                 actions.append(LDAPAction(action='rename',
-                    dn=existing_dn, data={'distinguishedName': [default_dn]}))
+                    dn=existing_dn, data={'DISTINGUISHEDNAME': [default_dn]}))
                 final_dn = default_dn
             else:
 
@@ -1075,7 +1079,7 @@ class LDAPActionBatch(models.Model):
                         assert len(ldap_data) == 1
                         ldap_data = ldap_data[0][1]
                 elif a.action == 'add':
-                    changes.append({'action': 'create', 'dn': a.dn})
+                    changes.append({'action': 'add', 'dn': a.dn})
                     ldap_data = {}
                 elif a.action == 'modify':
                     assert len(ldap_data) == 1
@@ -1086,6 +1090,7 @@ class LDAPActionBatch(models.Model):
                 elif a.action == 'delete':
                     assert len(ldap_data) == 1
                     changes.append({'action': 'delete', 'dn': a.dn})
+                ldap_data = dict([(k.upper(), v) for k, v in ldap_data.items()])
                 # determine differences between LDAP and action data
                 for k, v in a.data.items():
                     if k not in ldap_data:
@@ -1126,12 +1131,12 @@ class LDAPAction(models.Model):
     def _upsert(self, ldap_conn):
         try:
             exists = ldap_conn.compare_s(self.dn,
-                                         'distinguishedName', self.dn)
+                                         'DISTINGUISHEDNAME', self.dn)
         except Exception as e:
             print(e)
             exists = False
         if exists:
-            for k in RDN_FIELDS:
+            for k in KEEP_FIELDS:
                 self.data.pop(k, None)
             return self._modify(ldap_conn)
         else:
@@ -1155,7 +1160,7 @@ class LDAPAction(models.Model):
                 print(e)
 
     def _rename(self, ldap_conn):
-        new_dn = self.data['distinguishedName']
+        new_dn = self.data['DISTINGUISHEDNAME']
         ldap_conn.rename_s(self.dn, new_dn)
 
     def _delete(self, ldap_conn):
