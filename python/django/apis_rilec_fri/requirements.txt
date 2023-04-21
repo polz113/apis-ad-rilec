@@ -1,0 +1,4 @@
+django
+djangorestframework-api-key
+unidecode
+ldap
