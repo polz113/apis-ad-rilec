@@ -4,6 +4,8 @@ from django.utils.datastructures import MultiValueDict
 from django.conf import settings
 from django.utils.text import slugify
 
+from unidecode import unidecode
+
 import traceback
 
 import codecs
@@ -23,15 +25,14 @@ from urllib.request import Request, urlopen, quote
 
 FIELD_DELIMITER='__'
 
-KEEP_FIELDS = {'CN', 'NAME', 'OBJECTCATEGORY', 'SAMACCOUNTNAME'}
-
 def _slugify_username_fn(s):
     return slugify(s)
-
 
 def _dotty_username_fn(s, **kwargs):
     return ".".join([slugify(i) for i in re.split('[^\w]', s)])
 
+def _unidecode_merged_fn(s, **kwargs):
+    return re.sub(r'\s', '', unidecode(s))
 
 def _letter_and_surname_fn(s, **kwargs):
     l = [slugify(i) for i in re.split('[^\w]', s)]
@@ -50,6 +51,24 @@ def _name_and_letters_fn(s, **kwargs):
 def _first_20_chars(s, **kwargs):
     return s[:20]
 
+def _capitalize_mail(s, **kwargs):
+    try:
+        p = s.find('@')
+        if p == -1:
+            upart = s
+            dpart = ''
+        else:
+            upart = s[:p]
+            dpart = s[p:].lower()
+        return ".".join([i[:1].upper() + i[1:].lower() for i in upart.split('.')]) + dpart
+    except:
+        return s
+
+def _upper(s, **kwargs):
+    return s.upper() 
+
+def _lower(s, **kwargs):
+    return s.lower()
 
 def uid_to_dn(uid, ldap_conn, **kwargs):
     try:
@@ -75,7 +94,11 @@ def upn_to_uid(upn, **kwargs):
 
 TRANSLATOR_FUNCTIONS = {
     'default_username': _dotty_username_fn,
+    'unidecode_merged': _unidecode_merged_fn,
     'first_20_chars': _first_20_chars,
+    'capitalize_mail': _capitalize_mail,
+    'upper': _upper,
+    'lower': _lower,
     'uid_to_dn': uid_to_dn,
     'upn_to_uid': upn_to_uid,
 }
@@ -115,7 +138,10 @@ def _get_rules(name=None, timestamp=None):
                 translator = FuncTranslator(trules)
             translators[tname] = translator
         d['TRANSLATIONS'] = translators
-    
+    if name is None or name == 'KEEP_FIELDS':
+        fields = d.get('KEEP_FIELDS', [])
+        fields = set([i.upper() for i in fields])
+        d['KEEP_FIELDS'] = fields
     if name is None:
         return d
     return d[name]
@@ -342,14 +368,15 @@ class DataSource(models.Model):
                         ou_relations += self._apis_nadomescanje_to_ourelations(ds, dataitem)
                     else:
                         uid = dataitem.get('UL_Id', None)
+                        sub_uid = dataitem.get('kadrovskaSt', None)
                         if uid is None:
                             continue
                         else:
-                            user_dicts[uid] += self._apis_to_userdatadicts(timestamp, k, dataitem)
+                            user_dicts[(uid, sub_uid)] += self._apis_to_userdatadicts(timestamp, k, dataitem)
         user_fields = list()
         # Create UserData and fields from user_dicts
-        for uid, fieldlist in user_dicts.items():
-            ud, created = UserData.objects.get_or_create(dataset=ds, uid=uid)
+        for (uid, sub_uid), fieldlist in user_dicts.items():
+            ud, created = UserData.objects.get_or_create(dataset=ds, uid=uid, sub_uid=sub_uid)
             if not created:
                 ud.fields.all().delete()
             for fields in fieldlist:
@@ -366,6 +393,7 @@ class DataSource(models.Model):
         dataset.userdata_set.all().delete()
         for user in parsed:
             uid = user.get('ul_id_predavatelja', None)
+            sub_id = user['upn']
             if uid is None:
                 uid = upn_to_uid(user['upn'])
                 if uid is None:
@@ -373,7 +401,7 @@ class DataSource(models.Model):
             # ud, created = UserData.objects.get_or_create(dataset=dataset, uid=uid)
             # if not created:
             #     ud.fields.all().delete()
-            ud = UserData(dataset=dataset, uid=uid)
+            ud = UserData(dataset=dataset, uid=uid, sub_id=sub_id)
             ud.save()
             for k, l in user.items():
                 if type(l) != list:
@@ -559,6 +587,7 @@ class UserData(models.Model):
         return("{} ({})".format(self.uid, self.dataset))
     dataset = models.ForeignKey('DataSet', on_delete=models.CASCADE)
     uid = models.CharField(max_length=64)
+    sub_id = models.CharField(max_length=512)
 
     def as_dicts(self, timestamp=None):
         if timestamp is None:
@@ -606,6 +635,58 @@ class UserData(models.Model):
             # translated_dicts.append(datadict)
         return translated_dicts
 
+
+class MergedUserData(models.Model):
+    def __str__(self):
+        return("{}".format(self.uid))
+    uid = models.CharField(max_length=64)
+    latest = models.BooleanField(default=False)
+    data = models.ManyToManyField(UserData)
+
+    def with_extra(self, timestamp=None, user_rules=None, extra_fields=None, translations=None,
+                 ldap_conn=None, sources=None):
+        l = []
+        if extra_fields is None:
+            extra_fields = _get_rules('EXTRA_FIELDS')
+        if translations is None:
+            translations = _get_rules('TRANSLATIONS')
+        if sources is not None:
+            filtered_data = self.data.filter(dataset__source__source__in=sources)
+        else:
+            filtered_data = self.data.all()
+        for data in filtered_data:
+            l += data.with_extra(timestamp=timestamp, user_rules=user_rules,
+                                 extra_fields=extra_fields,
+                                 translations=translations, 
+                                 ldap_conn=ldap_conn)
+        return l
+
+    def by_rules(self, timestamp=None, user_rules=None, extra_fields=None, translations=None,
+                 ldap_conn=None, sources=None):
+        if user_rules is None:
+            user_rules = _get_rules('USER_RULES')
+        if translations is None:
+            translations = _get_rules('TRANSLATIONS')
+        datadicts = self.with_extra(timestamp=timestamp, extra_fields=extra_fields, 
+                                    translations=translations,
+                                    ldap_conn=ldap_conn)
+        result = dict()
+        for fieldname, templates in user_rules.items():
+            if type(templates) != list:
+                templates = [templates]
+            values = set()
+            for template in templates:
+                t = string.Template(template)
+                for d in datadicts:
+                    try:
+                        data = t.substitute(d)
+                        values.add(data)
+                    except KeyError:
+                        pass
+            if len(values) > 0:
+                result[fieldname.upper()] = list(values)
+        return result
+
     def groups_at(self, timestamp=None, group_rules=None, translations=None,
                   ldap_conn=None):
         if group_rules is None:
@@ -628,36 +709,15 @@ class UserData(models.Model):
                     else:
                         result.add(group_dn)
                 except KeyError as e:
-                    print("  fail:", e)
+                    # print("  fail:", e)
                     pass
         return default_dn, list(result)
 
-    def by_rules(self, timestamp=None, user_rules=None, extra_fields=None, translations=None,
-                 ldap_conn=None):
-        if user_rules is None:
-            user_rules = _get_rules('USER_RULES')
-        if translations is None:
-            translations = _get_rules('TRANSLATIONS')
-        datadicts = self.with_extra(timestamp=timestamp, extra_fields=extra_fields, 
-                translations=translations,
-                                    ldap_conn=ldap_conn)
-        result = dict()
-        for fieldname, templates in user_rules.items():
-            if type(templates) != list:
-                templates = [templates]
-            values = set()
-            for template in templates:
-                t = string.Template(template)
-                for d in datadicts:
-                    try:
-                        data = t.substitute(d)
-                        values.add(data)
-                    except KeyError:
-                        pass
-            if len(values) > 0:
-                result[fieldname.upper()] = list(values)
-        return result
-                
+
+
+
+
+
 
 def get_groups(timestamp=None, group_rules=None, translations=None, ldap_conn=None):
     if group_rules is None:
@@ -1002,6 +1062,7 @@ def user_ldapactionbatch(userdata_set, timestamp=None, ldap_conn=None,
     extra_fields = _get_rules('EXTRA_FIELDS')
     translations = _get_rules('TRANSLATIONS')
     group_rules = _get_rules('GROUP_RULES')
+    keep_fields = _get_rules('KEEP_FIELDS')
     actionbatch = LDAPActionBatch(description=timestamp.isoformat())
     groups_membership = MultiValueDict()
     actions = list()
@@ -1014,8 +1075,8 @@ def user_ldapactionbatch(userdata_set, timestamp=None, ldap_conn=None,
         default_dn="CN={},{}".format(ldap.dn.escape_dn_chars(user_fields['CN'][0]), default_group_dn)
         existing_dn = get_ad_user_dn(ldap_conn, user_fields)
         if existing_dn is not None:
-            for rdn_field in KEEP_FIELDS:
-                user_fields.pop(rdn_field)
+            for rdn_field in keep_fields:
+                user_fields.pop(rdn_field, None)
             if rename_users:
                 actions.append(LDAPAction(action='rename',
                     dn=existing_dn, data={'DISTINGUISHEDNAME': [default_dn]}))
@@ -1136,7 +1197,8 @@ class LDAPAction(models.Model):
             print(e)
             exists = False
         if exists:
-            for k in KEEP_FIELDS:
+            keep_fields = _get_rules('KEEP_FIELDS')
+            for k in keep_fields:
                 self.data.pop(k, None)
             return self._modify(ldap_conn)
         else:

@@ -20,7 +20,7 @@
             ["${priimek}, ${ime}", []]
         ]],
         ["email", [
-            ["${Komunikacija__0105__0010__vrednostNaziv}", []]
+            ["${Komunikacija__0105__0010__vrednostNaziv}", ["capitalize_fn"]]
         ]],
         ["ad_lokacija", [
             ["${lokacija}", ["studis_sifrant_lokacije"]],
@@ -272,8 +272,11 @@
                 ["local security", "2147483652"],
                 ["universal security", "2147483656"]
             ]
-    }
+        }
     },
+    "KEEP_FIELDS": [
+        "CN", "NAME", "OBJECTCATEGORY", "SAMACCOUNTNAME", "USERPRINCIPALNAME"
+    ],
     "USER_RULES": {
         "objectClass": ["top","person","organizationalPerson","user"],
         "co": "Slovenia",
