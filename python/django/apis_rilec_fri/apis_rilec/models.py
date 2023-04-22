@@ -214,10 +214,13 @@ def _fill_template(datadict, template, trans_names, translations, ldap_conn=None
     t = string.Template(template)
     try:
         data = t.substitute(datadict)
+        # print("  ", data)
         for tname in trans_names:
             data = translations.get(tname, NOOP_TRANSLATOR).translate(data, ldap_conn=ldap_conn)
     except KeyError as e:
-        # print("Booo, ", template, datadict)
+        # print("  Booo", template)
+        # if template.find('abilitacija') > -1:
+        #     print(datadict)
         return None
     return data
 
@@ -234,6 +237,7 @@ def _field_adder(datadict, extra_fields, translations, update_datadict=True,
         for (template, trans_names) in rulelist:
             new_data = _fill_template(d, template, trans_names, translations,
                                       ldap_conn=ldap_conn)
+            # print(template, fieldname, new_data)
             if new_data is not None:
                 d[fieldname] = new_data
                 if d is not new_fields:
@@ -375,10 +379,20 @@ class DataSource(models.Model):
                             user_dicts[(uid, sub_uid)] += self._apis_to_userdatadicts(timestamp, k, dataitem)
         user_fields = list()
         # Create UserData and fields from user_dicts
-        for (uid, sub_uid), fieldlist in user_dicts.items():
-            ud, created = UserData.objects.get_or_create(dataset=ds, uid=uid, sub_uid=sub_uid)
-            if not created:
-                ud.fields.all().delete()
+        for (uid, sub_id), fieldlist in user_dicts.items():
+            mud, mud_created = MergedUserData.objects.get_or_create(uid=uid)
+            ud, ud_created = mud.data.get_or_create(uid=uid, sub_id=sub_id,
+                                                    defaults={'dataset': ds})
+            if not ud_created:
+                if ud.dataset == ds:
+                    ud.fields.all().delete()
+                else:
+                    mud.data.remove(ud)
+                    ud = UserData(uid=uid, sub_id=sub_uid, dataset=ds)
+                    ud.save()
+                    mud.data.add(ud)
+            else:
+                mud.data.add(ud)
             for fields in fieldlist:
                 uf = UserDataField(userdata=ud, **fields)
                 user_fields.append(uf)
@@ -393,6 +407,7 @@ class DataSource(models.Model):
         dataset.userdata_set.all().delete()
         for user in parsed:
             uid = user.get('ul_id_predavatelja', None)
+            mud, mud_created = MergedUserData.objects.get_or_create(uid=uid)
             sub_id = user['upn']
             if uid is None:
                 uid = upn_to_uid(user['upn'])
@@ -401,8 +416,18 @@ class DataSource(models.Model):
             # ud, created = UserData.objects.get_or_create(dataset=dataset, uid=uid)
             # if not created:
             #     ud.fields.all().delete()
-            ud = UserData(dataset=dataset, uid=uid, sub_id=sub_id)
-            ud.save()
+            ud, ud_created = mud.data.get_or_create(uid=uid, sub_id=sub_id,
+                                                    defaults={'dataset': dataset})
+            if not ud_created:
+                if ud.dataset == dataset:
+                    ud.fields.all().delete()
+                else:
+                    mud.data.remove(ud)
+                    ud = UserData(uid=uid, sub_id=sub_id, dataset=dataset)
+                    ud.save()
+                    mud.data.add(ud)
+            else:
+                mud.data.add(ud)
             for k, l in user.items():
                 if type(l) != list:
                     l = [l]
@@ -640,7 +665,7 @@ class MergedUserData(models.Model):
     def __str__(self):
         return("{}".format(self.uid))
     uid = models.CharField(max_length=64)
-    latest = models.BooleanField(default=False)
+    # latest = models.BooleanField(default=False)
     data = models.ManyToManyField(UserData)
 
     def with_extra(self, timestamp=None, user_rules=None, extra_fields=None, translations=None,
@@ -655,7 +680,7 @@ class MergedUserData(models.Model):
         else:
             filtered_data = self.data.all()
         for data in filtered_data:
-            l += data.with_extra(timestamp=timestamp, user_rules=user_rules,
+            l += data.with_extra(timestamp=timestamp,
                                  extra_fields=extra_fields,
                                  translations=translations, 
                                  ldap_conn=ldap_conn)
@@ -699,10 +724,10 @@ class MergedUserData(models.Model):
         default_dn = None
         for fields, flags in group_rules:
             fields = dict([(k.upper(), v) for k, v in fields.items()])
+            template = fields['DISTINGUISHEDNAME']
+            t = string.Template(template)
             for d in datadicts:
                 try:
-                    template = fields['DISTINGUISHEDNAME']
-                    t = string.Template(template)
                     group_dn = t.substitute(d)
                     if flags.get('main_ou', False):
                         default_dn = group_dn
@@ -712,11 +737,6 @@ class MergedUserData(models.Model):
                     # print("  fail:", e)
                     pass
         return default_dn, list(result)
-
-
-
-
-
 
 
 def get_groups(timestamp=None, group_rules=None, translations=None, ldap_conn=None):

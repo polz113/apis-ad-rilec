@@ -6,16 +6,16 @@
             ["${OsebniPodatki__0002__0__ime}", []]
         ]],
         ["sluggy_ime", [
-            ["${ime}", ["unidecode_merge_fn"]]
+            ["${ime}", ["unidecode_merged_fn"]]
         ]],
         ["priimek", [
             ["${OsebniPodatki__0002__0__priimek}", []]
         ]],
         ["sluggy_priimek", [
-            ["${ime}", ["unidecode_merge_fn"]]
+            ["${priimek}", ["unidecode_merged_fn"]]
         ]],
         ["default_username", [
-            ["s{sluggy_ime}.${sluggy_priimek}"]
+            ["${sluggy_ime}.${sluggy_priimek}", []]
         ]],
         ["default_samaccount", [
             ["$default_username", ["first_20_chars_fn"]]
@@ -23,6 +23,10 @@
         ["celoime", [
             ["${OsebniPodatki__0002__0__priimek}, ${OsebniPodatki__0002__0__ime}", []],
             ["${priimek}, ${ime}", []]
+        ]],
+        ["display_name_printable", [
+            ["${OsebniPodatki__0002__0__ime} ${OsebniPodatki__0002__0__priimek}", ["unidecode_fn"]],
+            ["${ime}, ${priimek}", ["unidecode_fn"]]
         ]],
         ["email", [
             ["${Komunikacija__0105__0010__vrednostNaziv}", ["capitalize_mail_fn"]]
@@ -92,7 +96,7 @@
         ]],
         ["habilitacija_txt", [
             [
-                "${Habilitacija__9004__0__habilitacijskiNaziv}",
+                "${Habilitacija__9004__0__habilizacijskiNaziv}",
                 ["habilitacija_repl"]
             ],
             [
@@ -118,11 +122,21 @@
                 ["funkcijavoddelku_grrepl"]
             ]
         ]],
+        ["apis_lab", [
+            [
+                "${OrgDodelitev__0001__0__glavnaOrganizacijskaEnota_Id}",
+                ["apis_ou__shortname", "sap_ou_shortnames"]
+            ]
+        ]],
         ["studisavtomatika_lab",[
             [
                 "${oddelek_funkcija__oddelek_id}",
                 ["studis__oddelek__abbreviation"]
             ]
+        ]],
+        ["avtomatika_lab", [
+            [ "${apis_lab}", []],
+            [ "${studisavtomatika_lab}", []]
         ]],
         ["studisvrstamesta", [
 
@@ -135,10 +149,16 @@
                 ["default_username", null]
             ]
         },
-        "unidecode_merge_fn": {
+        "unidecode_merged_fn": {
             "type": "function",
             "rules": [
-                ["unidecode_merge", null]
+                ["unidecode_merged", null]
+            ]
+        },
+        "unidecode_fn": {
+            "type": "function",
+            "rules": [
+                ["unidecode", null]
             ]
         },
         "capitalize_mail_fn": {
@@ -261,24 +281,24 @@
         "sap_ou_shortnames": {
             "type": "substr",
             "rules": [
-                ["OU=BIOLAB-2.7", "OU=BIOLAB"],
-                ["OU=LEM-2.9", "OU=LEM"],
-                ["OU=LA-2.16", "OU=LA"],
-                ["OU=LASP-2.12", "OU=LASP"],
-                ["OU=LGM-2.1", "OU=LGM"],
-                ["OU=LKM-2.5", "OU=LKM"],
-                ["OU=LPT-2.10", "OU=LPT"],
-                ["OU=LIIS-2.11", "OU=LIIS"],
-                ["OU=LKRV-2.18", "OU=LKRV"],
-                ["OU=LMMRI-2.17", "OU=LMMRI"],
-                ["OU=LRV-2.6", "OU=LRV"],
-                ["OU=LUI-2.4", "OU=LUI"],
-                ["OU=LVS-2.15", "OU=LVS"],
-                ["OU=LUVSS-2.3", "OU=LUVSS"],
-                ["OU=LRSS-2.13", "OU=LUI"],
-                ["OU=LRK-2.19", "OU=LRK"],
-                ["OU=LTPO-2.14", "OU=LTPO"],
-                ["OU=LBRSO-2.2", "OU=LBRSO"]
+                ["BIOLAB-2.7", "BIOLAB"],
+                ["LEM-2.9", "LEM"],
+                ["LA-2.16", "LA"],
+                ["LASP-2.12", "LASP"],
+                ["LGM-2.1", "LGM"],
+                ["LKM-2.5", "LKM"],
+                ["LPT-2.10", "LPT"],
+                ["LIIS-2.11", "LIIS"],
+                ["LKRV-2.18", "LKRV"],
+                ["LMMRI-2.17", "LMMRI"],
+                ["LRV-2.6", "LRV"],
+                ["LUI-2.4", "LUI"],
+                ["LVS-2.15", "LVS"],
+                ["LUVSS-2.3", "LUVSS"],
+                ["LRSS-2.13", "LUI"],
+                ["LRK-2.19", "LRK"],
+                ["LTPO-2.14", "LTPO"],
+                ["LBRSO-2.2", "LBRSO"]
             ]
         },
         "sap_ou_names": {
@@ -375,7 +395,7 @@
         [
             {
                 "objectClass": ["top", "group"],
-                "distinguishedName": "CN=${vrsta_zaposlitve},${apis_ous},OU=oddelki,OU=avtopravice,OU=${clanica_prefix},${clanica_domena}",
+                "distinguishedName": "CN=${vrsta_zaposlitve},${apis_oupart},OU=oddelki,OU=avtopravice,OU=${clanica_prefix},${clanica_domena}",
                 "sAMAccountName": "${vrsta_zaposlitve}",
                 "groupType": ["${group_type}"],
                 "name": ["${vrsta_zaposlitve}"]
@@ -384,14 +404,14 @@
                 "parent_templates":[
                     {
                         "objectClass": "top; organizationalUnit",
-                        "distinguishedName": "${clanica_domena},OU=${clanica_prefix},OU=avtopravice,OU=oddelki,${apis_ous}"
+                        "distinguishedName": "${clanica_domena},OU=${clanica_prefix},OU=avtopravice,OU=oddelki,${apis_oupart}"
                     }, {
                         "objectClass": "top; organizationalUnit",
                         "distinguishedName": "${clanica_domena},OU=${clanica_prefix},OU=avtopravice,OU=oddelki"
                     }
                 ],
                 "create_fields": [
-                    ["apis_ous", [["${group_uid}", ["apis_ou_parts"]]]],
+                    ["apis_oupart", [["${group_uid}", ["apis_ou_parts"]]]],
                     ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
                     ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
                     ["vrsta_zaposlitve", [["${vrsta_zaposlitve_id}", ["vrsta_zaposlitve_repl"]]]],
@@ -493,8 +513,8 @@
         [
             {
                 "objectClass": ["top", "group"],
-                "distinguishedName": "CN=${studisavtomatika_lab},OU=Organizacija,OU=StudisAvtomatika,OU=${clanica_prefix},${clanica_domena}",
-                "sAMAccountName": "${studisavtomatika_lab}",
+                "distinguishedName": "CN=${avtomatika_lab},OU=Organizacija,OU=StudisAvtomatika,OU=${clanica_prefix},${clanica_domena}",
+                "sAMAccountName": "${avtomatika_lab}",
                 "groupType": "${group_type}",
                 "name": "${studis__oddelek_name}"
             }, {
@@ -502,7 +522,7 @@
                     ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
                     ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
                     ["studis__oddelek_name", [["${studis_oddelek_id}", ["studis__oddelek__title__en"]]]],
-                    ["studisavtomatika_lab", [["${studis_oddelek_id}", ["studis__oddelek__abbreviation"]]]],
+                    ["avtomatika_lab", [["${studis_oddelek_id}", ["studis__oddelek__abbreviation"]]]],
                     ["group_type", [["${group_type}", ["group_types"]]]]
                 ],
                 "create_sources": {

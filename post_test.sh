@@ -10,5 +10,4 @@ shift
 for i in $@; do
     echo $i;
     curl -d "@$i" -H "X-Api-Key: ${XAPIKEY}" -H "Accept: application/json" -H "Content-Type: application/json" -X PUT "${URL}";
-    sleep 1;
 done
