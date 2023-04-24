@@ -31,8 +31,11 @@ def _slugify_username_fn(s):
 def _dotty_username_fn(s, **kwargs):
     return ".".join([slugify(i) for i in re.split('[^\w]', s)])
 
-def _unidecode_merged_fn(s, **kwargs):
-    return re.sub(r'\s', '', unidecode(s))
+def _remove_whitespace(s, **kwargs):
+    return re.sub(r'\s', '', s)
+
+def _unidecode_fn(s, **kwargs):
+    return unidecode(s)
 
 def _letter_and_surname_fn(s, **kwargs):
     l = [slugify(i) for i in re.split('[^\w]', s)]
@@ -94,7 +97,8 @@ def upn_to_uid(upn, **kwargs):
 
 TRANSLATOR_FUNCTIONS = {
     'default_username': _dotty_username_fn,
-    'unidecode_merged': _unidecode_merged_fn,
+    'remove_whitespace': _remove_whitespace,
+    'unidecode': _unidecode_fn,
     'first_20_chars': _first_20_chars,
     'capitalize_mail': _capitalize_mail,
     'upper': _upper,
@@ -121,6 +125,9 @@ def _get_rules(name=None, timestamp=None):
         for tt in TranslationTable.objects.all():
             translations[tt.name] = {"type": tt.type,
                     "rules": list(tt.rules.order_by('order').values_list('pattern', 'replacement'))}
+        for fname, fn in TRANSLATOR_FUNCTIONS.items():
+            if fname not in translations:
+                translations[fname] = {"type": "function", "rules": [[fname, None]]}
         translators = dict()
         for tname, tdata in translations.items():
             trules = tdata['rules']
@@ -1102,7 +1109,6 @@ def user_ldapactionbatch(userdata_set, timestamp=None, ldap_conn=None,
                     dn=existing_dn, data={'DISTINGUISHEDNAME': [default_dn]}))
                 final_dn = default_dn
             else:
-
                 final_dn = existing_dn
         else:
             final_dn = default_dn
@@ -1146,6 +1152,7 @@ class LDAPActionBatch(models.Model):
             ldap_conn = ldap.initialize(settings.LDAP_SERVER_URI)
             ldap_conn.simple_bind_s(settings.LDAP_BIND_DN, settings.LDAP_BIND_PASSWORD)
         changes = []
+        removed_data = defaultdict(list)
         for a in self.actions.order_by('order'):
             try:
                 ldap_data = ldap_conn.search_s(a.dn, scope=ldap.SCOPE_BASE)
@@ -1155,44 +1162,83 @@ class LDAPActionBatch(models.Model):
                 if a.action == 'upsert':
                     if len(ldap_data) < 1:
                         ldap_data = {}
-                        changes.append({'action': 'create', 'dn': a.dn})
+                        # changes.append({'action': 'create', 'dn': a.dn})
                     else:
                         assert len(ldap_data) == 1
                         ldap_data = ldap_data[0][1]
                 elif a.action == 'add':
-                    changes.append({'action': 'add', 'dn': a.dn})
-                    ldap_data = {}
+                    ldap_data = a.data
                 elif a.action == 'modify':
                     assert len(ldap_data) == 1
                     ldap_data = ldap_data[0][1]    
                 elif a.action == 'rename':
                     assert len(ldap_data) == 1
-                    changes.append({'action': 'rename', 'dn': a.dn, 'to': a.data})
+                    changes.append({'action': 'rename', 'dn': a.dn, 'data': a.data})
                 elif a.action == 'delete':
                     assert len(ldap_data) == 1
                     changes.append({'action': 'delete', 'dn': a.dn})
                 ldap_data = dict([(k.upper(), v) for k, v in ldap_data.items()])
                 # determine differences between LDAP and action data
-                for k, v in a.data.items():
+                replace_data = dict()
+                add_data = dict()
+                for k, a_data in a.data.items():
                     if k not in ldap_data:
-                        changes.append({'action': 'set', 'dn': a.dn, 'key': k, 'value': v})
+                        add_data[k] = a_data
                     else:
-                        a_data = v
                         if type(a_data) != list:
                             a_data = [a_data]
                         a_data = set([i.encode('utf-8') for i in a_data])
                         l_data = set(ldap_data[k])
+                        # (mod_op,mod_type,mod_vals)
                         if set(l_data) != set(a_data):
                             to_add = list(a_data.difference(l_data))
                             to_remove = list(l_data.difference(a_data))
-                            if len(to_remove):
-                                changes.append({'action': 'unset', 'dn': a.dn, 'key': k, 'value': to_remove})
-                            if len(to_add):
-                                changes.append({'action': 'set', 'dn': a.dn, 'key': k, 'value': to_add})
+                        else:
+                            to_add = to_remove = []
+                        if len(to_remove) > 0:
+                            replace_data[k] = a_data
+                            removed_data[a.dn].append((k, to_remove))
+                        elif len(to_add) > 0:
+                            add_data[k] = to_add
+                if len(replace_data) > 0:
+                    changes.append({'action': 'modify', 'dn': a.dn, 'data': replace_data})
+                elif len(add_data) > 0:
+                    changes.append({'action': 'add', 'dn': a.dn, 'data': add_data})
             except Exception as e:
                 print(e)
-        return changes
+        return changes, removed_data
 
+    def prune(self, ldap_conn=None, set_only=None, keep_fields=None, new_batch=None):
+        if ldap_conn is None:
+            ldap_conn = ldap.initialize(settings.LDAP_SERVER_URI)
+            ldap_conn.simple_bind_s(settings.LDAP_BIND_DN, settings.LDAP_BIND_PASSWORD)
+        if keep_fields is None:
+            keep_fields = _get_rules('KEEP_FIELDS')
+        if new_batch is not None:
+            batch = LDAPActionBatch(description = new_batch)
+            save()
+        else:
+            batch = self
+        changes, removed_data = self.analyze(ldap_conn)
+        actions = []
+        for change in enumerate(changes):
+            if change['action'] in {'add', 'modify', 'upsert'}:
+                data = change['data']
+                for k, v in data.items():
+                    if set_only is not None and k not in set_only:
+                        data.pop(k, None)
+                    if k in keep_fields:
+                        data.pop(k, None)
+                change['data'] = data
+                change['batch'] = batch
+                a = LDAPAction(**change)
+                actions.append(a)
+        for order, a in enumerate(actions):
+            a.order = order
+        if new_batch is not None:
+            self.actions.delete()
+        LDAPAction.bulk_create(actions)
+        return batch
 
 class LDAPAction(models.Model):
     ACTION_CHOICES = [

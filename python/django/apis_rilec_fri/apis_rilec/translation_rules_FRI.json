@@ -6,19 +6,19 @@
             ["${OsebniPodatki__0002__0__ime}", []]
         ]],
         ["sluggy_ime", [
-            ["${ime}", ["unidecode_merged_fn"]]
+            ["${ime}", ["unidecode", "remove_whitespace"]]
         ]],
         ["priimek", [
             ["${OsebniPodatki__0002__0__priimek}", []]
         ]],
         ["sluggy_priimek", [
-            ["${priimek}", ["unidecode_merged_fn"]]
+            ["${priimek}", ["unidecode", "remove_whitespace"]]
         ]],
         ["default_username", [
             ["${sluggy_ime}.${sluggy_priimek}", []]
         ]],
         ["default_samaccount", [
-            ["$default_username", ["first_20_chars_fn"]]
+            ["$default_username", ["first_20_chars"]]
         ]],
         ["celoime", [
             ["${OsebniPodatki__0002__0__priimek}, ${OsebniPodatki__0002__0__ime}", []],
@@ -26,10 +26,10 @@
         ]],
         ["display_name_printable", [
             ["${OsebniPodatki__0002__0__ime} ${OsebniPodatki__0002__0__priimek}", ["unidecode_fn"]],
-            ["${ime}, ${priimek}", ["unidecode_fn"]]
+            ["${ime} ${priimek}", ["unidecode"]]
         ]],
         ["email", [
-            ["${Komunikacija__0105__0010__vrednostNaziv}", ["capitalize_mail_fn"]]
+            ["${Komunikacija__0105__0010__vrednostNaziv}", ["capitalize_mail"]]
         ]],
         ["ad_lokacija", [
             ["${lokacija}", ["studis_sifrant_lokacije"]],
@@ -363,7 +363,7 @@
         "manager": "${manager_dn}",
         "homePhone": "${domaci_telefon}",
         "mobile": "${mobilni_telefon}",
-        "displayNamePrintable": "${celoime}",
+        "displayNamePrintable": "${display_name_printable}",
         "schacHomeOrganization": "${clanica_dnsdomena}",
         "eduPersonAffiliation": "staff",
         "eduPersonPrimaryAffiliation": "staff",
