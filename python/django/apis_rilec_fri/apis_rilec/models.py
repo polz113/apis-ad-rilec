@@ -162,6 +162,9 @@ class StrTranslator():
     def values(self):
         return list()
     
+    def rules(self):
+        return self.rules
+
     def translate(self, s, **kwargs):
         for pattern, replacement in self.rules:
             s = s.replace(pattern, replacement)
@@ -181,6 +184,9 @@ class DictTranslator():
     def values(self):
         return self.d.values()
 
+    def rules(self):
+        return self.d.items()
+
     def translate(self, s, **kwargs):
         if self.use_default:
             default = self.d.get("", s)
@@ -199,6 +205,9 @@ class FuncTranslator():
         return list()
 
     def values(self):
+        return list()
+
+    def rules(self):
         return list()
     
     def translate(self, s, **kwargs):
@@ -945,18 +954,26 @@ def _apis_field_uid_map(timestamp, field):
 def _apis_relations_to_ou_managers(oud, relations, timestamp=None):
     if timestamp is None:
         timestamp = timezone.now()
-    ou_managers = list()
-    position_uid_map = _apis_field_uid_map(timestamp, "OrgDodelitev__0001__0__glavnaOrganizacijskaEnota_Id")
-    for ou_id, ou_data in oud.items():
-        for supervisor_position in relations.get(ou_id, set()):
-            supervisor_uids = position_uid_map[supervisor_position]
-        if len(supervisor_uids) != 1:
-            continue
-        else:
-            supervisor_uids = list(supervisor_uids)[0]
-        for supervisor_uid in supervisor_uids:
-            ou_managers.append([ou_id, supervisor_uid])
-    return ou_managers
+    position_uids_dict = _apis_field_uid_map(timestamp, "Razporeditev__1001__B008__sistemiziranoMesto_Id")
+    position_uid_dict = dict()
+    for position, uids in position_uids_dict.items():
+        position_uid_dict[position] = list(uids)[0]
+    ou_uid_dict = _apis_field_uid_map(timestamp, "OrgDodelitev__0001__0__glavnaOrganizacijskaEnota_Id")
+    uid_ou_dict = dict()
+    for ouid, uids in ou_uid_dict.items():
+        for uid in uids:
+            uid_ou_dict[uid] = ouid
+    ou_manager_relations = relations
+    ou_managers = defaultdict(set)
+    for ouid, manager_positions in ou_manager_relations.items():
+        for pos in manager_positions:
+            ou_managers[ouid].add(position_uid_dict.get(pos, None))
+            ou_managers[ouid].discard(None)
+    result = list()
+    for (k, v) in ou_managers.items():
+        if len(v) == 1:
+            result.append((k, v.pop()))
+    return result
 
 
 def _apis_relations_to_uid_managers(oud, relationsd, timestamp=None):

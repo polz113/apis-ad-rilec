@@ -54,7 +54,6 @@ def userproperty_list(request):
     props = UserDataField.objects.values_list('field', flat=True).distinct()
     return render(request, 'apis_rilec/userproperty_list.html', {'object_list': props})
 
-
 def rule_list(request):
     props = get_rules()
     return render(request, 'apis_rilec/rule_list.html', {'object_list': props})
@@ -62,12 +61,24 @@ def rule_list(request):
 def user_rules(request):
     extra_fields = get_rules('EXTRA_FIELDS')
     user_rules = get_rules('USER_RULES')
-    return render(request, 'apis_rilec/user_rules.html', {'extra_fields': extra_fields, 'user_rules': user_rules})
+    properties = UserDataField.objects.values_list('field', flat=True).distinct()
+    return render(request, 'apis_rilec/user_rules.html', {'properties': properties, 'extra_fields': extra_fields, 'user_rules': user_rules})
+
+def generic_rule_detail(request, rules_part):
+    try:
+        props = get_rules(rules_part)
+    except:
+        props = dict()
+    return render(request, 'apis_rilec/generic_rule_detail.html', {'object': props, 'rules_part': rules_part})
+
+def group_rules(request):
+    props = get_rules('GROUP_RULES')
+    return render(request, 'apis_rilec/group_rules.html', {'object': props})
 
 @staff_member_required
-def generic_rule_detail(request, rules_part):
-    props = get_rules(rules_part)
-    return render(request, 'apis_rilec/generic_rule_detail.html', {'object_list': props})
+def translations(request):
+    props = get_rules('TRANSLATIONS')
+    return render(request, 'apis_rilec/translations.html', {'object_list': props})
 
 @staff_member_required
 def ldapactionbatch_list(request):

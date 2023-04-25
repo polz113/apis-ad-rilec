@@ -12,6 +12,8 @@ urlpatterns = [
     path('userproperties', views.userproperty_list, name='userproperty_list'),
     path('rules/', views.rule_list, name='rule_list'),
     path('rules/USER_RULES', views.user_rules, name='user_rules'),
+    path('rules/TRANSLATIONS', views.translations, name='translations'),
+    path('rules/GROUP_RULES', views.group_rules, name='group_rules'),
     path('rules/<str:rules_part>', views.generic_rule_detail, name='generic_rule_detail'),
 ]
 
