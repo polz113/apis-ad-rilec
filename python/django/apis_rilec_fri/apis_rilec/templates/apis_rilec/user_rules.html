@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Pravila{% endblock %}
+{% block body %}
+<div>
+USER_RULES:
+<ul>
+	{% for k, v in user_rules.items %}
+	<li><span>{{k}}</span>:<span>{{v}}</span></li>
+	{% endfor %}
+</ul>
+</div>
+<div>
+EXTRA_FIELDS:
+<ul>
+	{% for i in extra_fields %}
+	<li>{{i.0}}: {{i.1}}</li>
+	{% endfor %}
+</ul>
+</div>
+{% endblock %}

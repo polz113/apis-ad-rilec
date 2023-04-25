@@ -43,13 +43,11 @@ def _letter_and_surname_fn(s, **kwargs):
         l = [l[0][0]] + l[1:]
     return "".join(l)
 
-
 def _name_and_letters_fn(s, **kwargs):
     l = [slugify(i) for i in re.split('[^\w]', s)]
     if len(l) > 1:
         l = l[0:1] + [i[0] for i in l[1:]]
     return "".join(l)
-
 
 def _first_20_chars(s, **kwargs):
     return s[:20]
@@ -116,7 +114,7 @@ def _tzdate(date):
     return timezone.make_aware(t)
 
 
-def _get_rules(name=None, timestamp=None):
+def get_rules(name=None):
     dirname = os.path.dirname(__file__)
     with open(os.path.join(dirname, 'translation_rules.json')) as f:
         d = json.load(f)
@@ -652,9 +650,9 @@ class UserData(models.Model):
                    ldap_conn=None):
         translated_dicts = list()
         if extra_fields is None:
-            extra_fields = _get_rules('EXTRA_FIELDS')
+            extra_fields = get_rules('EXTRA_FIELDS')
         if translations is None:
-            translations = _get_rules('TRANSLATIONS')
+            translations = get_rules('TRANSLATIONS')
         # this would reload the rules every time the function is run.
         # extra_user_field_gen = extra_user_field_gen_factory()
         source = self.dataset.source.source
@@ -679,9 +677,9 @@ class MergedUserData(models.Model):
                  ldap_conn=None, sources=None):
         l = []
         if extra_fields is None:
-            extra_fields = _get_rules('EXTRA_FIELDS')
+            extra_fields = get_rules('EXTRA_FIELDS')
         if translations is None:
-            translations = _get_rules('TRANSLATIONS')
+            translations = get_rules('TRANSLATIONS')
         if sources is not None:
             filtered_data = self.data.filter(dataset__source__source__in=sources)
         else:
@@ -696,9 +694,9 @@ class MergedUserData(models.Model):
     def by_rules(self, timestamp=None, user_rules=None, extra_fields=None, translations=None,
                  ldap_conn=None, sources=None):
         if user_rules is None:
-            user_rules = _get_rules('USER_RULES')
+            user_rules = get_rules('USER_RULES')
         if translations is None:
-            translations = _get_rules('TRANSLATIONS')
+            translations = get_rules('TRANSLATIONS')
         datadicts = self.with_extra(timestamp=timestamp, extra_fields=extra_fields, 
                                     translations=translations,
                                     ldap_conn=ldap_conn)
@@ -722,9 +720,9 @@ class MergedUserData(models.Model):
     def groups_at(self, timestamp=None, group_rules=None, translations=None,
                   ldap_conn=None):
         if group_rules is None:
-            group_rules = _get_rules('GROUP_RULES')
+            group_rules = get_rules('GROUP_RULES')
         if translations is None:
-            translations = _get_rules('TRANSLATIONS')
+            translations = get_rules('TRANSLATIONS')
         datadicts = self.with_extra(timestamp=timestamp, translations=translations,
                                     ldap_conn=ldap_conn)
         result = set()
@@ -748,9 +746,9 @@ class MergedUserData(models.Model):
 
 def get_groups(timestamp=None, group_rules=None, translations=None, ldap_conn=None):
     if group_rules is None:
-        group_rules = _get_rules('GROUP_RULES')
+        group_rules = get_rules('GROUP_RULES')
     if translations is None:
-        translations = _get_rules('TRANSLATIONS')
+        translations = get_rules('TRANSLATIONS')
     groups = list()
     for field_dict, flags in group_rules:
         create_sources = flags.get("create_sources", {})
@@ -1000,6 +998,8 @@ def _apis_relations_to_uid_managers(oud, relationsd, timestamp=None):
             ouid = parent_ouid
         if cur_managers is not None and len(cur_managers) == 1:
             managers[uid] = list(cur_managers)[0]
+        # Set default value to None
+        managers[''] = ''
     return list(managers.items())
 
 
@@ -1029,23 +1029,13 @@ def apis_to_translations(timestamp=None,
                                add_only=add_only, keep_default=keep_default)
 
 
-def latest_userdata(source=None):
-    latest_userdata = dict()
-    users = UserData.objects.all()
-    if source is not None:
-        users = users.filter(dataset__source__source=source)
-    for ud in users.order_by('dataset__timestamp'):
-        latest_userdata[ud.uid] = ud
-    return latest_userdata
-
-
 def get_ad_user_dn(ldap_conn, user_fields):
     for i in ['employeeId', 'userPrincipalName']:
         i = i.upper()
         ret = None
         try:
             filterstr = "{}={}".format(i.upper(), ldap.dn.escape_dn_chars(user_fields[i][0]))
-            print("search", filterstr, settings.LDAP_USER_SEARCH_BASE)
+            # print("search", filterstr, settings.LDAP_USER_SEARCH_BASE)
             ret = ldap_conn.search_s(settings.LDAP_USER_SEARCH_BASE,
                                      scope=settings.LDAP_USER_SEARCH_SCOPE,
                                      filterstr=filterstr,
@@ -1055,8 +1045,8 @@ def get_ad_user_dn(ldap_conn, user_fields):
             return(ret[0][0])
         except Exception as e:
             # print(e)
-            traceback.print_exception(e)
-            print(user_fields, ret)
+            # traceback.print_exception(e)
+            # print(user_fields, ret)
             pass
     return user_fields.get('DISTINGUISHEDNAME', None)
 
@@ -1086,10 +1076,10 @@ def user_ldapactionbatch(userdata_set, timestamp=None, ldap_conn=None,
                          rename_users=False, empty_groups=True):
     if timestamp is None:
         timestamp = timezone.now()
-    extra_fields = _get_rules('EXTRA_FIELDS')
-    translations = _get_rules('TRANSLATIONS')
-    group_rules = _get_rules('GROUP_RULES')
-    keep_fields = _get_rules('KEEP_FIELDS')
+    extra_fields = get_rules('EXTRA_FIELDS')
+    translations = get_rules('TRANSLATIONS')
+    group_rules = get_rules('GROUP_RULES')
+    keep_fields = get_rules('KEEP_FIELDS')
     actionbatch = LDAPActionBatch(description=timestamp.isoformat())
     groups_membership = MultiValueDict()
     actions = list()
@@ -1133,6 +1123,10 @@ def user_ldapactionbatch(userdata_set, timestamp=None, ldap_conn=None,
         action.order = i
     LDAPAction.objects.bulk_create(actions)
     return actionbatch
+
+
+def delete_old_userdata():
+    apis_rilec.models.UserData.objects.filter(mergeduserdata=None).delete()
 
 
 class LDAPActionBatch(models.Model):
@@ -1187,8 +1181,8 @@ class LDAPActionBatch(models.Model):
                     else:
                         if type(a_data) != list:
                             a_data = [a_data]
-                        a_data = set([i.encode('utf-8') for i in a_data])
-                        l_data = set(ldap_data[k])
+                        a_data = set(a_data)
+                        l_data = set([i.decode('utf-8') for i in ldap_data[k]])
                         # (mod_op,mod_type,mod_vals)
                         if set(l_data) != set(a_data):
                             to_add = list(a_data.difference(l_data))
@@ -1196,16 +1190,17 @@ class LDAPActionBatch(models.Model):
                         else:
                             to_add = to_remove = []
                         if len(to_remove) > 0:
-                            replace_data[k] = a_data
-                            removed_data[a.dn].append((k, to_remove))
+                            replace_data[k] = list(a_data)
+                            removed_data[a.dn].append((k, list(to_remove)))
                         elif len(to_add) > 0:
-                            add_data[k] = to_add
+                            add_data[k] = list(to_add)
                 if len(replace_data) > 0:
                     changes.append({'action': 'modify', 'dn': a.dn, 'data': replace_data})
                 elif len(add_data) > 0:
                     changes.append({'action': 'add', 'dn': a.dn, 'data': add_data})
             except Exception as e:
-                print(e)
+                pass
+                # print(e)
         return changes, removed_data
 
     def prune(self, ldap_conn=None, set_only=None, keep_fields=None, new_batch=None):
@@ -1213,15 +1208,15 @@ class LDAPActionBatch(models.Model):
             ldap_conn = ldap.initialize(settings.LDAP_SERVER_URI)
             ldap_conn.simple_bind_s(settings.LDAP_BIND_DN, settings.LDAP_BIND_PASSWORD)
         if keep_fields is None:
-            keep_fields = _get_rules('KEEP_FIELDS')
+            keep_fields = get_rules('KEEP_FIELDS')
         if new_batch is not None:
             batch = LDAPActionBatch(description = new_batch)
-            save()
+            batch.save()
         else:
             batch = self
         changes, removed_data = self.analyze(ldap_conn)
         actions = []
-        for change in enumerate(changes):
+        for change in changes:
             if change['action'] in {'add', 'modify', 'upsert'}:
                 data = change['data']
                 for k, v in data.items():
@@ -1235,9 +1230,9 @@ class LDAPActionBatch(models.Model):
                 actions.append(a)
         for order, a in enumerate(actions):
             a.order = order
-        if new_batch is not None:
-            self.actions.delete()
-        LDAPAction.bulk_create(actions)
+        if new_batch is None:
+            self.actions.all().delete()
+        LDAPAction.objects.bulk_create(actions)
         return batch
 
 class LDAPAction(models.Model):
@@ -1263,7 +1258,7 @@ class LDAPAction(models.Model):
             print(e)
             exists = False
         if exists:
-            keep_fields = _get_rules('KEEP_FIELDS')
+            keep_fields = get_rules('KEEP_FIELDS')
             for k in keep_fields:
                 self.data.pop(k, None)
             return self._modify(ldap_conn)
