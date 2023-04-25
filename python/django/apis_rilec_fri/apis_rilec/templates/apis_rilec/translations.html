@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Šifranti{% endblock %}
+{% block body %}
+{% for tab_name, tab in object_list.items %}
+<div>
+	<h1>{{tab_name}}</h1>
+	<div>
+		<li>
+		{% for k,v in tab.rules %}
+		<ul><span>{{k}}</span>: <span>{{v}}</span></ul>
+		{% endfor %}
+		</li>
+	</div>
+</div>
+{% endfor %}
+{% endblock %}
