@@ -43,7 +43,7 @@
             ["${Komunikacija__0105__0020__vrednostNaziv}", []]
         ]],
         ["job_title", [
-            ["${OsebniPodatki__0002__0__nazivPredImenom}", []]
+            ["${OrgDodelitev__0001__0__glavnoDelovnoMesto}", []]
         ]],
         ["ip_telefon", [
         ]],
@@ -61,6 +61,7 @@
         ["homepage", [
         ]],
         ["izobrazba_prefix", [
+            ["${OsebniPodatki__0002__0__nazivPredImenom}", []]
         ]],
         ["izobrazba_suffix", [
         ]],
@@ -113,7 +114,7 @@
         ["apis_oupart", [
             [
                 "${OrgDodelitev__0001__0__glavnaOrganizacijskaEnota_Id}",
-                ["apis_ou_parts"]
+                ["apis_ou_parts", "sap_ou_shortnames"]
             ]
         ]],
         ["studisavtomatika_skupina", [
@@ -125,7 +126,7 @@
         ["apis_lab", [
             [
                 "${OrgDodelitev__0001__0__glavnaOrganizacijskaEnota_Id}",
-                ["apis_ou__shortname", "sap_ou_shortnames"]
+                ["apis_ou__shortname"]
             ]
         ]],
         ["studisavtomatika_lab",[
@@ -135,7 +136,7 @@
             ]
         ]],
         ["avtomatika_lab", [
-            [ "${apis_lab}", []],
+            [ "${apis_lab}", ["sap_ou_shortnames"]],
             [ "${studisavtomatika_lab}", []]
         ]],
         ["studisvrstamesta", [
@@ -295,7 +296,7 @@
                 ["LUI-2.4", "LUI"],
                 ["LVS-2.15", "LVS"],
                 ["LUVSS-2.3", "LUVSS"],
-                ["LRSS-2.13", "LUI"],
+                ["LRSS-2.13", "LRSS"],
                 ["LRK-2.19", "LRK"],
                 ["LTPO-2.14", "LTPO"],
                 ["LBRSO-2.2", "LBRSO"]

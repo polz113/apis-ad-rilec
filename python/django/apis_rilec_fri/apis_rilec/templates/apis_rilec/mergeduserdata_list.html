@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block title %}Pravila{% endblock %}
+{% block body %}
+Pravila:
+<ul>
+	{% for i in object_list %}
+	<li><a href="{{i}}">{{i}}</a></li>
+	{% endfor %}
+</ul>
+{% endblock %}

@@ -80,6 +80,7 @@ def uid_to_dn(uid, ldap_conn, **kwargs):
         assert len(ret) == 1
         dn = ret[0][0]
     except Exception as e:
+        print(e)
         dn = None
     return dn
 
@@ -675,6 +676,45 @@ class UserData(models.Model):
         return translated_dicts
 
 
+def dicts_to_ldapuser(rules, translations, datadicts):
+    result = dict()
+    for fieldname, templates in rules.items():
+        if type(templates) != list:
+            templates = [templates]
+        values = set()
+        for template in templates:
+            t = string.Template(template)
+            for d in datadicts:
+                try:
+                    data = t.substitute(d)
+                    values.add(data)
+                except KeyError:
+                    pass
+        if len(values) > 0:
+            result[fieldname.upper()] = list(values)
+    return result
+
+
+def dicts_to_ldapgroups(rules, datadicts):
+    result = set()
+    default_dn = None
+    for fields, flags in rules:
+        fields = dict([(k.upper(), v) for k, v in fields.items()])
+        template = fields['DISTINGUISHEDNAME']
+        t = string.Template(template)
+        for d in datadicts:
+            try:
+                group_dn = t.substitute(d)
+                if flags.get('main_ou', False):
+                    default_dn = group_dn
+                else:
+                    result.add(group_dn)
+            except KeyError as e:
+                # print("  fail:", e)
+                pass
+    return default_dn, list(result)
+
+
 class MergedUserData(models.Model):
     def __str__(self):
         return("{}".format(self.uid))
@@ -709,48 +749,15 @@ class MergedUserData(models.Model):
         datadicts = self.with_extra(timestamp=timestamp, extra_fields=extra_fields, 
                                     translations=translations,
                                     ldap_conn=ldap_conn)
-        result = dict()
-        for fieldname, templates in user_rules.items():
-            if type(templates) != list:
-                templates = [templates]
-            values = set()
-            for template in templates:
-                t = string.Template(template)
-                for d in datadicts:
-                    try:
-                        data = t.substitute(d)
-                        values.add(data)
-                    except KeyError:
-                        pass
-            if len(values) > 0:
-                result[fieldname.upper()] = list(values)
-        return result
+        return dicts_to_ldapuser(user_rules, translations, datadicts)
 
-    def groups_at(self, timestamp=None, group_rules=None, translations=None,
+    def groups_at(self, timestamp=None, group_rules=None, extra_fields=None,
                   ldap_conn=None):
         if group_rules is None:
             group_rules = get_rules('GROUP_RULES')
-        if translations is None:
-            translations = get_rules('TRANSLATIONS')
-        datadicts = self.with_extra(timestamp=timestamp, translations=translations,
+        datadicts = self.with_extra(timestamp=timestamp,
                                     ldap_conn=ldap_conn)
-        result = set()
-        default_dn = None
-        for fields, flags in group_rules:
-            fields = dict([(k.upper(), v) for k, v in fields.items()])
-            template = fields['DISTINGUISHEDNAME']
-            t = string.Template(template)
-            for d in datadicts:
-                try:
-                    group_dn = t.substitute(d)
-                    if flags.get('main_ou', False):
-                        default_dn = group_dn
-                    else:
-                        result.add(group_dn)
-                except KeyError as e:
-                    # print("  fail:", e)
-                    pass
-        return default_dn, list(result)
+        return dicts_to_ldapgroups(group_rules, datadicts)
 
 
 def get_groups(timestamp=None, group_rules=None, translations=None, ldap_conn=None):
@@ -928,7 +935,7 @@ def _apis_relations_to_outree(oud, relations):
         # turn the list of ids into OUs
         t = string.Template("OU=${shortname}")
         parent_strs = []
-        for i in reversed(parent_ids):
+        for i in parent_ids:
             try:
                 parent_strs.append(t.substitute(escaped_oud[i]))
             except KeyError as e:
@@ -1052,17 +1059,17 @@ def get_ad_user_dn(ldap_conn, user_fields):
         ret = None
         try:
             filterstr = "{}={}".format(i.upper(), ldap.dn.escape_dn_chars(user_fields[i][0]))
-            # print("search", filterstr, settings.LDAP_USER_SEARCH_BASE)
+            print("search", filterstr, settings.LDAP_USER_SEARCH_BASE)
             ret = ldap_conn.search_s(settings.LDAP_USER_SEARCH_BASE,
                                      scope=settings.LDAP_USER_SEARCH_SCOPE,
                                      filterstr=filterstr,
                                      attrlist=['DISTINGUISHEDNAME'])
-            # print("returning", ret)
+            print("returning", ret)
             assert len(ret) == 1
             return(ret[0][0])
         except Exception as e:
-            # print(e)
-            # traceback.print_exception(e)
+            print("Err:", e)
+            traceback.print_exception(e)
             # print(user_fields, ret)
             pass
     return user_fields.get('DISTINGUISHEDNAME', None)
@@ -1147,6 +1154,8 @@ def delete_old_userdata():
 
 
 class LDAPActionBatch(models.Model):
+    def __str__(self):
+        return str(self.description)
     description = models.CharField(max_length=512, blank=True, default='')
     def apply(self, ldap_conn=None):
         if ldap_conn is None:

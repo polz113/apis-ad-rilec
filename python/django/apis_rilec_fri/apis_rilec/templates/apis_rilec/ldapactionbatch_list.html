@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block title %}Nabori akcij{% endblock %}
+{% block body %}
+Nabori:
+<ul>
+	{% for i in object_list %}
+	<li><a href="{{i.pk}}">{{i}}</a></li>
+	{% endfor %}
+</ul>
+{% endblock %}

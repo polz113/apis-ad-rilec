@@ -5,8 +5,10 @@ from django.utils import timezone
 from itertools import chain
 from django.contrib.admin.views.decorators import staff_member_required
 import logging
+import ldap
 
-from .models import DataSource, MergedUserData, LDAPActionBatch, LDAPAction, UserDataField, get_rules
+from .models import DataSource, MergedUserData, LDAPActionBatch, LDAPAction, UserDataField,\
+        get_rules, dicts_to_ldapuser, dicts_to_ldapgroups
 
 # Create your views here
 
@@ -39,14 +41,34 @@ def hrmaster_replicate(request):
         
 
 @staff_member_required
-def mergeduserdata_list(request, date_str):
+def mergeduserdata_list(request):
     mudl = MergedUserData.objects.all()
     return render(request, 'apis_rilec/mergeduserdata_list.html', {'object_list': mudl})
 
 @staff_member_required
-def mergeduserdata_detail(request, date_str, user_id):
+def mergeduserdata_detail(request, user_id):
+    try:
+        ldap_conn = ldap.initialize(settings.LDAP_SERVER_URI)
+        ldap_conn.simple_bind_s(settings.LDAP_BIND_DN, settings.LDAP_BIND_PASSWORD)
+    except Exception as e:
+        print(e)
+        ldap_conn = None
     mud = get_object_or_404(MergedUserData, uid=user_id)
-    return render(request, 'apis_rilec/mergeduserdata_detail.html', {'object': mud})
+    user_rules = get_rules('USER_RULES')
+    group_rules = get_rules('GROUP_RULES')
+    extra_fields = get_rules('EXTRA_FIELDS')
+    translations = get_rules('TRANSLATIONS')
+    with_extra = mud.with_extra(translations=translations, extra_fields=extra_fields,
+                                ldap_conn = ldap_conn)
+    by_rules = dicts_to_ldapuser(user_rules, translations, with_extra)
+    default_dn, groups = dicts_to_ldapgroups(group_rules, with_extra)
+    return render(request, 'apis_rilec/mergeduserdata_detail.html', {
+                                'by_rules': by_rules,
+                                'with_extra': with_extra,
+                                'groups': groups,
+                                'default_dn': default_dn,
+                                'object': mud
+                            })
 
 #@staff_member_required
 
@@ -82,11 +104,11 @@ def translations(request):
 
 @staff_member_required
 def ldapactionbatch_list(request):
-    mudl = LDAPActionBatch.objects.all()
-    return render(request, 'apis_rilec/ldapactionbatch_list.html')
+    batches = LDAPActionBatch.objects.all()
+    return render(request, 'apis_rilec/ldapactionbatch_list.html', {'object_list': batches})
 
 @staff_member_required
-def ldapactionbatch_detail(request, batch_id):
-    batch = get_object_or_404(LDAPActionBatch, pk=batch_id)
-    return render(request, 'apis_rilec/ldapactionbatch_detail.html')
+def ldapactionbatch_detail(request, pk):
+    batch = get_object_or_404(LDAPActionBatch, pk=pk)
+    return render(request, 'apis_rilec/ldapactionbatch_detail.html', {'object': batch})
 

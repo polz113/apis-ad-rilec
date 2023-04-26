@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+      <meta charset="utf-8">
+      <title>Podrobnosti</title>
+</head>
+<body>
+    <div>
+    <ul>
+        {% for k, v in by_rules.items %}
+        <li>
+            {{k}}: {{v}}
+        </li>
+        {% endfor %}
+    </ul>
+    </div>
+    <div>
+        {{default_dn}}
+        <ul>
+        {% for group in groups %}
+            <li>{{group}}</li>
+        {% endfor %}
+        </ul>
+    </div>
+    <ul>
+        {% for d in with_extra %}
+        <li>
+            <ul>
+            {% for k, v in d.items %}
+
+                <li>
+                    {{k}}: {{v}}
+                </li>
+            {% endfor %}
+            </ul>
+        </li>
+        {% endfor %}
+    </ul>
+</body>
+</html>
