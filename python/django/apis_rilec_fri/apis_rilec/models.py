@@ -115,6 +115,16 @@ def _tzdate(date):
     return timezone.make_aware(t)
 
 
+def try_init_ldap(ldap_conn=None):
+    if ldap_conn is not None:
+        return ldap_conn
+    try:
+        pass
+    except:
+        ldap_conn = None
+    return ldap_conn
+
+
 def get_rules(name=None):
     dirname = os.path.dirname(__file__)
     with open(os.path.join(dirname, 'translation_rules.json')) as f:
@@ -624,7 +634,7 @@ class OURelation(models.Model):
 
 class UserData(models.Model):
     def __str__(self):
-        return("{} ({})".format(self.uid, self.dataset))
+        return("{}({}) ({})".format(self.uid, self.sub_id, self.dataset))
     dataset = models.ForeignKey('DataSet', on_delete=models.CASCADE)
     uid = models.CharField(max_length=64)
     sub_id = models.CharField(max_length=512)
@@ -751,11 +761,12 @@ class MergedUserData(models.Model):
                                     ldap_conn=ldap_conn)
         return dicts_to_ldapuser(user_rules, translations, datadicts)
 
-    def groups_at(self, timestamp=None, group_rules=None, extra_fields=None,
+    def groups_at(self, timestamp=None, group_rules=None, extra_fields=None, translations=None,
                   ldap_conn=None):
         if group_rules is None:
             group_rules = get_rules('GROUP_RULES')
         datadicts = self.with_extra(timestamp=timestamp,
+                                    translations=translations,
                                     ldap_conn=ldap_conn)
         return dicts_to_ldapgroups(group_rules, datadicts)
 
@@ -1100,6 +1111,7 @@ def user_ldapactionbatch(userdata_set, timestamp=None, ldap_conn=None,
                          rename_users=False, empty_groups=True):
     if timestamp is None:
         timestamp = timezone.now()
+    ldap_conn = try_init_ldap(ldap_conn)
     extra_fields = get_rules('EXTRA_FIELDS')
     translations = get_rules('TRANSLATIONS')
     group_rules = get_rules('GROUP_RULES')
@@ -1158,9 +1170,7 @@ class LDAPActionBatch(models.Model):
         return str(self.description)
     description = models.CharField(max_length=512, blank=True, default='')
     def apply(self, ldap_conn=None):
-        if ldap_conn is None:
-            ldap_conn = ldap.initialize(settings.LDAP_SERVER_URI)
-            ldap_conn.simple_bind_s(settings.LDAP_BIND_DN, settings.LDAP_BIND_PASSWORD)
+        ldap_conn = try_init_ldap(ldap_conn)
         for a in self.actions.order_by('order'):
             try:
                 apply = a.apply(ldap_conn)
@@ -1168,9 +1178,7 @@ class LDAPActionBatch(models.Model):
                 print(e)
 
     def analyze(self, ldap_conn=None):
-        if ldap_conn is None:
-            ldap_conn = ldap.initialize(settings.LDAP_SERVER_URI)
-            ldap_conn.simple_bind_s(settings.LDAP_BIND_DN, settings.LDAP_BIND_PASSWORD)
+        ldap_conn = try_init_ldap(ldap_conn)
         changes = []
         removed_data = defaultdict(list)
         for a in self.actions.order_by('order'):
@@ -1230,9 +1238,7 @@ class LDAPActionBatch(models.Model):
         return changes, removed_data
 
     def prune(self, ldap_conn=None, set_only=None, keep_fields=None, new_batch=None):
-        if ldap_conn is None:
-            ldap_conn = ldap.initialize(settings.LDAP_SERVER_URI)
-            ldap_conn.simple_bind_s(settings.LDAP_BIND_DN, settings.LDAP_BIND_PASSWORD)
+        ldap_conn = try_init_ldap(ldap_conn)
         if keep_fields is None:
             keep_fields = get_rules('KEEP_FIELDS')
         if new_batch is not None:
@@ -1245,11 +1251,14 @@ class LDAPActionBatch(models.Model):
         for change in changes:
             if change['action'] in {'add', 'modify', 'upsert'}:
                 data = change['data']
-                for k, v in data.items():
+                to_pop = set()
+                for k in data:
                     if set_only is not None and k not in set_only:
-                        data.pop(k, None)
+                        to_pop.add(k)
                     if k in keep_fields:
-                        data.pop(k, None)
+                        to_pop.add(k)
+                for k in to_pop:
+                    data.pop(k, None)
                 change['data'] = data
                 change['batch'] = batch
                 a = LDAPAction(**change)
@@ -1262,6 +1271,9 @@ class LDAPActionBatch(models.Model):
         return batch
 
 class LDAPAction(models.Model):
+    def __str__(self):
+        return "{} {}".format(self.dn, self.action)
+
     ACTION_CHOICES = [
         ('upsert', 'Upsert (add or modify)'),
         ('add', 'Add'),
@@ -1315,7 +1327,8 @@ class LDAPAction(models.Model):
     def _delete(self, ldap_conn):
         ldap_conn.delete_s(self.dn)
 
-    def apply(self, ldap_conn):
+    def apply(self, ldap_conn = None):
+        ldap_conn = try_init_ldap(ldap_conn)
         apply_fns = {
             'upsert': self._upsert,
             'add': self._add,
