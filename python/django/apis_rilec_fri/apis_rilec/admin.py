@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.db import models
+from django import forms
 
 
 from .models import DataSource, DataSet,\
@@ -13,7 +14,7 @@ class DataSourceAdmin(admin.ModelAdmin):
     actions = ['to_datasets']
     list_display = ['str_data']
     formfield_overrides = {
-        models.BinaryField: {'widget': RichTextEditorWidget},
+        models.BinaryField: {'widget': forms.TextArea},
     }
     @admin.action(description='Turn into datasets')
     def to_datasets(self, request, queryset):
