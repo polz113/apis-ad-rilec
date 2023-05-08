@@ -13,7 +13,7 @@ from .models import DataSource, DataSet,\
 class DataSourceAdmin(admin.ModelAdmin):
     actions = ['to_datasets']
     # list_display = ['str_data']
-    # readonly_fields = ['str_data']
+    readonly_fields = ['str_data']
     
     @admin.display(description="Raw data")
     def str_data(self, instance):
