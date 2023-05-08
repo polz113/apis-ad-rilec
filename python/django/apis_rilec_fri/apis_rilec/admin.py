@@ -14,7 +14,7 @@ class DataSourceAdmin(admin.ModelAdmin):
     actions = ['to_datasets']
     list_display = ['str_data']
     formfield_overrides = {
-        models.BinaryField: {'widget': forms.TextArea},
+        models.BinaryField: {'widget': forms.Textarea},
     }
     @admin.action(description='Turn into datasets')
     def to_datasets(self, request, queryset):
