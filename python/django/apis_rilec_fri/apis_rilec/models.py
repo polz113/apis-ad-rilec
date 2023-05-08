@@ -272,7 +272,7 @@ def _field_adder(datadict, extra_fields, translations, update_datadict=True,
 
 class DataSource(models.Model):
     DATA_SOURCES = [('apis', 'Apis'), ('studis', 'Studis')]
-    subsource = models.JSONField(default=dict)
+    subsource = models.JSONField(default=dict, blank=True)
     source = models.CharField(max_length=32, choices=DATA_SOURCES)
     timestamp = models.DateTimeField()
     data = models.BinaryField()
@@ -280,8 +280,8 @@ class DataSource(models.Model):
     def parsed_json(self):
         return json.loads(self.data)
 
-    def str_data(self):
-        return self.data.decode('utf-8')
+    #def str_data(self):
+    #    return self.data.decode('utf-8')
 
     def _apis_to_userdatadicts(self, timestamp, prefix, dataitem):
         valid_from_d = dataitem['veljaOd']

@@ -12,15 +12,18 @@ from .models import DataSource, DataSet,\
 # Register your models here.
 class DataSourceAdmin(admin.ModelAdmin):
     actions = ['to_datasets']
-    list_display = ['str_data']
-    formfield_overrides = {
-        models.BinaryField: {'widget': forms.Textarea},
-    }
+    # list_display = ['str_data']
+    # readonly_fields = ['str_data']
+    
+    @admin.display(description="Raw data")
+    def str_data(self, instance):
+        return instance.data.decode('utf-8')
+        # return instance.str_data()
+
     @admin.action(description='Turn into datasets')
     def to_datasets(self, request, queryset):
         for i in queryset.all():
             i.to_datasets()
-
 
 class TranslationRuleInline(admin.TabularInline):
     model = TranslationRule
