@@ -9,6 +9,10 @@ from .models import DataSource, DataSet,\
 # Register your models here.
 class DataSourceAdmin(admin.ModelAdmin):
     actions = ['to_datasets']
+    list_display = ['str_data']
+    formfield_overrides = {
+        models.BinaryField: {'widget': RichTextEditorWidget},
+    }
     @admin.action(description='Turn into datasets')
     def to_datasets(self, request, queryset):
         for i in queryset.all():

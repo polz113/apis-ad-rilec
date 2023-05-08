@@ -279,7 +279,10 @@ class DataSource(models.Model):
     
     def parsed_json(self):
         return json.loads(self.data)
-    
+
+    def str_data(self):
+        return self.data.decode('utf-8')
+
     def _apis_to_userdatadicts(self, timestamp, prefix, dataitem):
         valid_from_d = dataitem['veljaOd']
         valid_to_d = dataitem['veljaDo']
