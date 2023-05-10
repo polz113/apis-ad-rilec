@@ -10,7 +10,8 @@ import ldap
 
 from .models import DataSource, MergedUserData, LDAPActionBatch, LDAPAction, UserDataField,\
         get_rules, dicts_to_ldapuser, dicts_to_ldapgroups,\
-        delete_old_userdata, user_ldapactionbatch, group_ldapactionbatch
+        delete_old_userdata, user_ldapactionbatch, group_ldapactionbatch,\
+        get_data_studis, apis_to_translations
 
 # Create your views here
 
@@ -41,6 +42,20 @@ def hrmaster_replicate(request):
         )
     return JsonResponse({'result': 'UNSUPPORTED METHOD'})
         
+
+@staff_member_required
+def datasources_to_datasets(request):
+    for i in DataSource.objects.filter(dataset=None):
+        i.to_datasets()
+    apis_to_translations()
+    return render(request, 'apis_rilec/datasources_to_datasets.html')
+
+
+@staff_member_required
+def get_data_studis_view(request):
+    get_data_studis()
+    return render(request, 'apis_rilec/get_data_studis.html')
+
 
 @staff_member_required
 def mergeduserdata_list(request):
