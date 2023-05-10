@@ -120,7 +120,9 @@ def try_init_ldap(ldap_conn=None):
     if ldap_conn is not None:
         return ldap_conn
     try:
-        pass
+        ldap_conn = ldap.initialize(settings.LDAP_SERVER_URI)
+        # TODO: init tls
+        ldap_conn.simple_bind_s(settings.LDAP_BIND_DN, settings.LDAP_BIND_PASSWORD)
     except:
         ldap_conn = None
     return ldap_conn
