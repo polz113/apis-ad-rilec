@@ -6,8 +6,8 @@
 </head>
 <body>
     <h1>{{object.description}}</h1>
-    <div><a href="{% url "apis_rilec:actionbatch_prune" pk=object.pk %}">Obreži</a></div>
-    <div><a href="{% url "apis_rilec:actionbatch_apply" pk=object.pk %}">Izvedi</a></div>
+    <div><a href="{% url "apis_rilec:ldapactionbatch_prune" pk=object.pk %}">Obreži</a></div>
+    <div><a href="{% url "apis_rilec:ldapactionbatch_apply" pk=object.pk %}">Izvedi</a></div>
     <div>
         {% for a in object.actions.all %}
         <h2>{{a.dn}}</h2>
