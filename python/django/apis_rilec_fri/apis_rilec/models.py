@@ -1177,7 +1177,7 @@ class LDAPActionBatch(models.Model):
     def __str__(self):
         return str(self.description)
     def get_absolute_url(self):
-        return reverse("apis_rilec:ldapaction_detail", kwargs={"pk": self.pk})
+        return reverse("apis_rilec:ldapactionbatch_detail", kwargs={"pk": self.pk})
 
     description = models.CharField(max_length=512, blank=True, default='')
 

@@ -85,14 +85,21 @@ def delete_old_userdata_view(request):
 def user_ldapactionbatch_view(request, t=None):
     # if request.method == 'PUT' or request.method == 'POST':
     # TODO fix CSRF vulnerability here
-    b = user_ldapactionbatch(t)
+    timestamp = None
+    if t is not None:
+        timestamp = timezone.make_aware(timezone.datetime.fromisoformat(t))
+    userdata = MergedUserData.objects.all()
+    b = user_ldapactionbatch(userdata, timestamp=timestamp)
     return redirect(b)
 
 @staff_member_required
 def group_ldapactionbatch_view(request, t=None):
     # if request.method == 'PUT' or request.method == 'POST':
     # TODO fix CSRF vulnerability here
-    b = group_ldapactionbatch(t)
+    timestamp = None
+    if t is not None:
+        timestamp = timezone.make_aware(timezone.datetime.fromisoformat(t))
+    b = group_ldapactionbatch(timestamp=timestamp)
     return redirect(b)
 
 #@staff_member_required
