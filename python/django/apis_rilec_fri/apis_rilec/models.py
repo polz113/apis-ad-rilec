@@ -436,12 +436,14 @@ class DataSource(models.Model):
         dataset.userdata_set.all().delete()
         for user in parsed:
             uid = user.get('ul_id_predavatelja', None)
-            mud, mud_created = MergedUserData.objects.get_or_create(uid=uid)
-            sub_id = user['upn']
             if uid is None:
                 uid = upn_to_uid(user['upn'])
                 if uid is None:
                     uid='?'
+            if "upn" not in user:
+                continue
+            mud, mud_created = MergedUserData.objects.get_or_create(uid=uid)
+            sub_id = user['upn']
             # ud, created = UserData.objects.get_or_create(dataset=dataset, uid=uid)
             # if not created:
             #     ud.fields.all().delete()
