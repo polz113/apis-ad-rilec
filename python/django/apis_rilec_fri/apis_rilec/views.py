@@ -1,4 +1,5 @@
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
+from django.urls import reverse
 from django.conf import settings
 from django.http import HttpResponse, JsonResponse, StreamingHttpResponse
 from django.utils import timezone
@@ -8,7 +9,8 @@ import logging
 import ldap
 
 from .models import DataSource, MergedUserData, LDAPActionBatch, LDAPAction, UserDataField,\
-        get_rules, dicts_to_ldapuser, dicts_to_ldapgroups
+        get_rules, dicts_to_ldapuser, dicts_to_ldapgroups,\
+        delete_old_userdata, user_ldapactionbatch, group_ldapactionbatch
 
 # Create your views here
 
@@ -45,6 +47,7 @@ def mergeduserdata_list(request):
     mudl = MergedUserData.objects.all()
     return render(request, 'apis_rilec/mergeduserdata_list.html', {'object_list': mudl})
 
+
 @staff_member_required
 def mergeduserdata_detail(request, user_id):
     try:
@@ -69,6 +72,28 @@ def mergeduserdata_detail(request, user_id):
                                 'default_dn': default_dn,
                                 'object': mud
                             })
+
+
+@staff_member_required
+def delete_old_userdata_view(request):
+    # if request.method == 'PUT' or request.method == 'POST':
+    # TODO fix CSRF vulnerability here
+    delete_old_userdata()
+    return redirect(reverse("apis_rilec:mergeduserdata_list"))
+
+@staff_member_required
+def user_ldapactionbatch_view(request, t=None):
+    # if request.method == 'PUT' or request.method == 'POST':
+    # TODO fix CSRF vulnerability here
+    b = user_ldapactionbatch(t)
+    return redirect(b)
+
+@staff_member_required
+def group_ldapactionbatch_view(request, t=None):
+    # if request.method == 'PUT' or request.method == 'POST':
+    # TODO fix CSRF vulnerability here
+    b = group_ldapactionbatch(t)
+    return redirect(b)
 
 #@staff_member_required
 
@@ -112,3 +137,14 @@ def ldapactionbatch_detail(request, pk):
     batch = get_object_or_404(LDAPActionBatch, pk=pk)
     return render(request, 'apis_rilec/ldapactionbatch_detail.html', {'object': batch})
 
+@staff_member_required
+def ldapactionbatch_apply(request, pk):
+    batch = get_object_or_404(LDAPActionBatch, pk=pk)
+    ret = batch.apply() 
+    return render(request, 'apis_rilec/ldapactionbatch_apply.html', {'object': batch, 'ret': ret})
+
+@staff_member_required
+def ldapactionbatch_prune(request, pk):
+    batch = get_object_or_404(LDAPActionBatch, pk=pk)
+    ret = batch.prune()
+    return render(request, 'apis_rilec/ldapactionbatch_prune.html', {'object': batch, 'ret': ret})

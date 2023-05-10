@@ -3,4 +3,15 @@
 {% block title %}Kadrovski APIS podatki - glug, glug, njam, njam{% endblock %}
 {% block body %}    
 Vmesnik za prenos podatkov iz SAP / Studis v AD.
+
+Funkcionalnost:
+<ul>
+	<li><a href="{% url "apis_rilec:user_ldapactionbatch"%}">Pripravi prenos za uporabnike</a></li>
+	<li><a href="{% url "apis_rilec:mergeduserdata_list" %}">Podatki o zaposlenih</a></li>
+	<li><a href="{% url "apis_rilec:delete_old_userdata" %}">Izbriši neuporabljene podatke zaposlenih</a></li>
+	<li><a href="{% url "apis_rilec:group_ldapactionbatch" %}">Pripravi prenos za ustvarjanje skupin</a></li>
+	<li><a href="{% url "apis_rilec:ldapactionbatch_list" %}">Seznam prenosov</a></li>
+	<li><a href="{% url "apis_rilec:rule_list" %}">Pravila</a></li>
+	<li><a href="{% url "apis_rilec:userproperty_list" %}">Dostopne lastnosti</a></li>
+</ul>
 {% endblock %}

@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 
-{% block title %}Pravila{% endblock %}
+{% block title %}Osebe{% endblock %}
 {% block body %}
-Pravila:
+Osebe
 <ul>
 	{% for i in object_list %}
-	<li><a href="{{i}}">{{i}}</a></li>
+	<li><a href="{{i.get_absolute_url}}">{{i}}</a></li>
 	{% endfor %}
 </ul>
 {% endblock %}

@@ -3,6 +3,7 @@ from django.utils import timezone
 from django.utils.datastructures import MultiValueDict
 from django.conf import settings
 from django.utils.text import slugify
+from django.urls import reverse
 
 from unidecode import unidecode
 
@@ -731,9 +732,13 @@ def dicts_to_ldapgroups(rules, datadicts):
 class MergedUserData(models.Model):
     def __str__(self):
         return("{}".format(self.uid))
+
+    def get_absolute_url(self):
+        return reverse("apis_rilec:mergeduserdata_detail", kwargs={"user_id": self.uid})
+
     uid = models.CharField(max_length=64)
-    # latest = models.BooleanField(default=False)
     data = models.ManyToManyField(UserData)
+    # latest = models.BooleanField(default=False)
 
     def with_extra(self, timestamp=None, user_rules=None, extra_fields=None, translations=None,
                  ldap_conn=None, sources=None):
@@ -1165,13 +1170,17 @@ def user_ldapactionbatch(userdata_set, timestamp=None, ldap_conn=None,
 
 
 def delete_old_userdata():
-    apis_rilec.models.UserData.objects.filter(mergeduserdata=None).delete()
+    UserData.objects.filter(mergeduserdata=None).delete()
 
 
 class LDAPActionBatch(models.Model):
     def __str__(self):
         return str(self.description)
+    def get_absolute_url(self):
+        return reverse("apis_rilec:ldapaction_detail", kwargs={"pk": self.pk})
+
     description = models.CharField(max_length=512, blank=True, default='')
+
     def apply(self, ldap_conn=None):
         ldap_conn = try_init_ldap(ldap_conn)
         for a in self.actions.order_by('order'):

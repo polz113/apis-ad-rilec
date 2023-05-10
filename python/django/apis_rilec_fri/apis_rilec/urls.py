@@ -9,6 +9,9 @@ urlpatterns = [
     path('hr/HRMaster/replicate', csrf_exempt(views.hrmaster_replicate), name='hrmaster_replicate'),
     path('mergeduserdata/', views.mergeduserdata_list, name='mergeduserdata_list'),
     path('mergeduserdata/<str:user_id>', views.mergeduserdata_detail, name='mergeduserdata_detail'),
+    path('delete_old_userdata', views.delete_old_userdata_view, name='delete_old_userdata'),
+    path('user_ldapactionbatch', views.user_ldapactionbatch_view, name='user_ldapactionbatch'),
+    path('group_ldapactionbatch', views.group_ldapactionbatch_view, name='group_ldapactionbatch'),
     path('userproperties', views.userproperty_list, name='userproperty_list'),
     path('rules/', views.rule_list, name='rule_list'),
     path('rules/USER_RULES', views.user_rules, name='user_rules'),
@@ -17,5 +20,7 @@ urlpatterns = [
     path('rules/<str:rules_part>', views.generic_rule_detail, name='generic_rule_detail'),
     path('actionbatches/', views.ldapactionbatch_list, name='ldapactionbatch_list'),
     path('actionbatches/<int:pk>', views.ldapactionbatch_detail, name='ldapactionbatch_detail'),
+    path('actionbatches/<int:pk>/apply', views.ldapactionbatch_apply, name='ldapactionbatch_apply'),
+    path('actionbatches/<int:pk>/prune', views.ldapactionbatch_prune, name='ldapactionbatch_prune'),
 ]
 
