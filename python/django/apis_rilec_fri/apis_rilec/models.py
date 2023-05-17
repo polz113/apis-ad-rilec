@@ -122,6 +122,14 @@ def try_init_ldap(ldap_conn=None):
     try:
         ldap_conn = ldap.initialize(settings.LDAP_SERVER_URI)
         # TODO: init tls
+        ldap_conn.set_option(ldap.OPT_PROTOCOL_VERSION, ldap.VERSION3)
+        for n in ["LDAP_OPT_X_TLS_REQUIRE_CERT"]:
+            setting = getattr(settings, n, None)
+            opt = getattr(ldap, n, None)
+            if (setting is not None) and (opt is not None):
+                ldap_conn.set_option(opt, setting)
+        if settings.LDAP_START_TLS:
+            ldap_conn.start_tls_s()
         ldap_conn.simple_bind_s(settings.LDAP_BIND_DN, settings.LDAP_BIND_PASSWORD)
     except:
         ldap_conn = None
