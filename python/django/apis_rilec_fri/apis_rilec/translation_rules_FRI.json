@@ -32,8 +32,8 @@
             ["${Komunikacija__0105__0010__vrednostNaziv}", ["capitalize_mail"]]
         ]],
         ["ad_lokacija", [
-            ["${lokacija}", ["studis_sifrant_lokacije"]],
-            ["${Komunikacija__0105__9005__vrednostNaziv}", []]
+            ["${lokacija}", ["studis_sifrant_lokacije", "upper"]],
+            ["${Komunikacija__0105__9005__vrednostNaziv}", ["upper"]]
         ]],
         ["userPrincipalName", [
             ["${Komunikacija__0105__9007__vrednostNaziv}", []],
