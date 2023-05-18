@@ -625,6 +625,8 @@ class DataSet(models.Model):
 
 
 class OUData(models.Model):
+    class Meta:
+        verbose_name_plural = "OUData"
     def __str__(self):
         return("{}: {} ({})".format(self.shortname, self.name, self.dataset))
     dataset = models.ForeignKey('DataSet', on_delete=models.CASCADE)
@@ -649,6 +651,8 @@ class OURelation(models.Model):
 
 
 class UserData(models.Model):
+    class Meta:
+        verbose_name_plural = "UserData"
     def __str__(self):
         return("{}({}) ({})".format(self.uid, self.sub_id, self.dataset))
     dataset = models.ForeignKey('DataSet', on_delete=models.CASCADE)
@@ -742,6 +746,8 @@ def dicts_to_ldapgroups(rules, datadicts):
 
 
 class MergedUserData(models.Model):
+    class Meta:
+        verbose_name_plural = "MergedUserData"
     def __str__(self):
         return("{}".format(self.uid))
 
@@ -1186,6 +1192,8 @@ def delete_old_userdata():
 
 
 class LDAPActionBatch(models.Model):
+    class Meta:
+        verbose_name_plural = "LDAPActionBatches"
     def __str__(self):
         return str(self.description)
     def get_absolute_url(self):
@@ -1364,6 +1372,8 @@ class LDAPAction(models.Model):
  
 
 class LDAPApply(models.Model):
+    class Meta:
+        verbose_name_plural = "LDAPApplies"
     batch = models.ForeignKey('LDAPActionBatch', on_delete=models.RESTRICT)
     result = models.JSONField()
     timestamp = models.DateTimeField()
