@@ -11,7 +11,7 @@ import ldap
 from .models import DataSource, MergedUserData, LDAPActionBatch, LDAPAction, UserDataField,\
         get_rules, dicts_to_ldapuser, dicts_to_ldapgroups,\
         delete_old_userdata, user_ldapactionbatch, group_ldapactionbatch,\
-        get_data_studis, apis_to_translations
+        get_data_studis, apis_to_translations, try_init_ldap
 
 # Create your views here
 
@@ -65,12 +65,7 @@ def mergeduserdata_list(request):
 
 @staff_member_required
 def mergeduserdata_detail(request, user_id):
-    try:
-        ldap_conn = ldap.initialize(settings.LDAP_SERVER_URI)
-        ldap_conn.simple_bind_s(settings.LDAP_BIND_DN, settings.LDAP_BIND_PASSWORD)
-    except Exception as e:
-        print(e)
-        ldap_conn = None
+    ldap_conn = try_init_ldap()
     mud = get_object_or_404(MergedUserData, uid=user_id)
     user_rules = get_rules('USER_RULES')
     group_rules = get_rules('GROUP_RULES')

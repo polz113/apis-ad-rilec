@@ -81,7 +81,7 @@ def uid_to_dn(uid, ldap_conn, **kwargs):
         assert len(ret) == 1
         dn = ret[0][0]
     except Exception as e:
-        print(e)
+        print("Uid_to_dn: ", e)
         dn = None
     return dn
 
@@ -89,10 +89,36 @@ def uid_to_dn(uid, ldap_conn, **kwargs):
 def upn_to_uid(upn, **kwargs):
     if upn is None:
         return None
-    possible=set(UserDataField.objects.filter(field='Komunikacija__0105__9007__vrednostNaziv', value__iexact=upn).values_list('userdata__uid', flat=True))
+    possible=set(UserDataField.objects.filter(field=FIELD_DELIMITER.join(['Komunikacija', '0105', '9007', 'vrednostNaziv']), value__iexact=upn).values_list('userdata__uid', flat=True))
     if len(possible) == 1:
         return possible.pop()
     return None
+
+
+def datetime_to_timestamp(s, **kwargs):
+    try:
+        d0 = timezone.datetime(1601, 1, 1, tzinfo=timezone.timezone.utc)
+        d = timezone.datetime.fromisoformat(s)
+        res = str(int((d - d0).total_seconds() * 10000000))
+    except:
+        res = None
+    return res
+
+
+def datetime_to_schacstr(s, **kwargs):
+    try:
+        d = timezone.datetime.fromisoformat(s)
+        d = timezone.datetime.fromtimestamp(d.timestamp())
+        res = d.strftime(format="%Y%m%d%H%MZ")
+    except:
+        res = None
+    return res
+
+
+def starts_with_zero_strip(s, **kwargs):
+    if not s.startswith('0'):
+        return None
+    return s[1:].strip()
 
 
 TRANSLATOR_FUNCTIONS = {
@@ -105,6 +131,9 @@ TRANSLATOR_FUNCTIONS = {
     'lower': _lower,
     'uid_to_dn': uid_to_dn,
     'upn_to_uid': upn_to_uid,
+    'datetime_to_timestamp': datetime_to_timestamp,
+    'datetime_to_schacstr': datetime_to_schacstr,
+    'starts_with_zero_strip': starts_with_zero_strip,
 }
 
 
@@ -125,13 +154,14 @@ def try_init_ldap(ldap_conn=None):
         ldap_conn.set_option(ldap.OPT_PROTOCOL_VERSION, ldap.VERSION3)
         for n in ["LDAP_OPT_X_TLS_REQUIRE_CERT"]:
             setting = getattr(settings, n, None)
-            opt = getattr(ldap, n, None)
+            opt = getattr(ldap, n[len('LDAP_'):], None)
             if (setting is not None) and (opt is not None):
                 ldap_conn.set_option(opt, setting)
         if settings.LDAP_START_TLS:
             ldap_conn.start_tls_s()
         ldap_conn.simple_bind_s(settings.LDAP_BIND_DN, settings.LDAP_BIND_PASSWORD)
-    except:
+    except Exception as e:
+        print("LDAP conn init error:", e)
         ldap_conn = None
     return ldap_conn
 
@@ -674,6 +704,7 @@ class UserData(models.Model):
         common_d = MultiValueDict({"uid": [self.uid]})
         for i in ffields.filter(fieldgroup=None):
             common_d.appendlist(i.field, i.value)
+        common_d['dataset' + FIELD_DELIMITER + 'source'] = self.dataset.source.source
         for i in ffields.exclude(fieldgroup=None):
             if i.fieldgroup is None or i.fieldgroup != prev_fieldgroup:
                 if d is not None:
@@ -681,7 +712,12 @@ class UserData(models.Model):
                 prev_fieldgroup = i.fieldgroup
                 # print(d)
                 d = common_d.copy()
+            # d.appendlist(i.field, (i.value, i.valid_from, i.valid_to))
             d.appendlist(i.field, i.value)
+            if i.valid_from is not None:
+                d.appendlist(i.field + FIELD_DELIMITER + 'valid_from', i.valid_from)
+            if i.valid_to is not None:
+                d.appendlist(i.field + FIELD_DELIMITER + 'valid_to', i.valid_to)
         if d is not None:
             dicts.append(d)
         return dicts
@@ -998,11 +1034,11 @@ def _apis_field_uid_map(timestamp, field):
 def _apis_relations_to_ou_managers(oud, relations, timestamp=None):
     if timestamp is None:
         timestamp = timezone.now()
-    position_uids_dict = _apis_field_uid_map(timestamp, "Razporeditev__1001__B008__sistemiziranoMesto_Id")
+    position_uids_dict = _apis_field_uid_map(timestamp, FIELD_DELIMITER.join(["Razporeditev", "1001", "B008", "sistemiziranoMesto_Id"]))
     position_uid_dict = dict()
     for position, uids in position_uids_dict.items():
         position_uid_dict[position] = list(uids)[0]
-    ou_uid_dict = _apis_field_uid_map(timestamp, "OrgDodelitev__0001__0__glavnaOrganizacijskaEnota_Id")
+    ou_uid_dict = _apis_field_uid_map(timestamp, FIELD_DELIMITER.join(["OrgDodelitev", "0001", "0", "glavnaOrganizacijskaEnota_Id"]))
     uid_ou_dict = dict()
     for ouid, uids in ou_uid_dict.items():
         for uid in uids:
@@ -1023,22 +1059,22 @@ def _apis_relations_to_ou_managers(oud, relations, timestamp=None):
 def _apis_relations_to_uid_managers(oud, relationsd, timestamp=None):
     if timestamp is None:
         timestamp = timezone.now()
-    position_uids_dict = _apis_field_uid_map(timestamp, "Razporeditev__1001__B008__sistemiziranoMesto_Id")
+    position_uids_dict = _apis_field_uid_map(timestamp, FIELD_DELIMITER.join(["Razporeditev", "1001", "B008", "sistemiziranoMesto_Id"]))
     position_uid_dict = dict()
     for position, uids in position_uids_dict.items():
         position_uid_dict[position] = list(uids)[0]
-    ou_uid_dict = _apis_field_uid_map(timestamp, "OrgDodelitev__0001__0__glavnaOrganizacijskaEnota_Id")
+    ou_uid_dict = _apis_field_uid_map(timestamp, FIELD_DELIMITER.join(["OrgDodelitev", "0001", "0", "glavnaOrganizacijskaEnota_Id"]))
     uid_ou_dict = dict()
     for ouid, uids in ou_uid_dict.items():
         for uid in uids:
             uid_ou_dict[uid] = ouid
-    ou_manager_relations = relationsd.get('1001__B012', dict())
+    ou_manager_relations = relationsd.get(FIELD_DELIMITER.join(['1001', 'B012']), dict())
     ou_managers = defaultdict(set)
     for ouid, manager_positions in ou_manager_relations.items():
         for pos in manager_positions:
             ou_managers[ouid].add(position_uid_dict.get(pos, None))
             ou_managers[ouid].discard(None)
-    explicit_managers = relationsd.get('N__1001__A002', dict())
+    explicit_managers = relationsd.get(FIELD_DELIMITER.join(['N', '1001', 'A002']), dict())
     # TODO: set managers
     managers = dict()
     for position, uid in position_uid_dict.items():
@@ -1052,7 +1088,8 @@ def _apis_relations_to_uid_managers(oud, relationsd, timestamp=None):
         # print("uid:", uid, "ou:", ouid, "managers:", cur_managers)
         while cur_managers is not None and\
                 uid in cur_managers:
-            parent_ouids = relationsd.get('1001__A002', dict()).get(ouid, {None})
+            parent_ouids = relationsd.get(FIELD_DELIMITER.join(['1001', 'A002']),
+                                          dict()).get(ouid, {None})
             parent_ouid = list(parent_ouids)[0]
             # print("parent ou:", parent_ouid)
             cur_managers = ou_managers.get(parent_ouid, None)
@@ -1074,8 +1111,8 @@ def apis_to_translations(timestamp=None,
     for ou_id, ou_data in oud.items():
         ou_shortnames.append([ou_id, ou_data['shortname']])
         ou_names.append([ou_id, ou_data['name']])
-    ou_relations = relationsd.get('1001__A002', {})
-    ou_manager_relations = relationsd.get('1001__B012', {})
+    ou_relations = relationsd.get(FIELD_DELIMITER.join(['1001', 'A002']), {})
+    ou_manager_relations = relationsd.get(FIELD_DELIMITER.join(['1001', 'B012']), {})
     trans_dict = {
         "apis_ou__shortname": ou_shortnames,
         "apis_ou__name": ou_names,
@@ -1096,12 +1133,12 @@ def get_ad_user_dn(ldap_conn, user_fields):
         ret = None
         try:
             filterstr = "{}={}".format(i.upper(), ldap.dn.escape_dn_chars(user_fields[i][0]))
-            print("search", filterstr, settings.LDAP_USER_SEARCH_BASE)
+            # print("search", filterstr, settings.LDAP_USER_SEARCH_BASE)
             ret = ldap_conn.search_s(settings.LDAP_USER_SEARCH_BASE,
                                      scope=settings.LDAP_USER_SEARCH_SCOPE,
                                      filterstr=filterstr,
                                      attrlist=['DISTINGUISHEDNAME'])
-            print("returning", ret)
+            # print("returning", ret)
             assert len(ret) == 1
             return(ret[0][0])
         except Exception as e:
@@ -1325,7 +1362,7 @@ class LDAPAction(models.Model):
             exists = ldap_conn.compare_s(self.dn,
                                          'DISTINGUISHEDNAME', self.dn)
         except Exception as e:
-            print(e)
+            print("Ups:", e)
             exists = False
         if exists:
             keep_fields = get_rules('KEEP_FIELDS')

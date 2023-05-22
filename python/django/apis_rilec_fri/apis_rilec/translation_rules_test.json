@@ -21,11 +21,9 @@
             ["$default_username", ["first_20_chars"]]
         ]],
         ["celoime", [
-            ["${OsebniPodatki__0002__0__priimek}, ${OsebniPodatki__0002__0__ime}", []],
             ["${priimek}, ${ime}", []]
         ]],
         ["display_name_printable", [
-            ["${OsebniPodatki__0002__0__ime} ${OsebniPodatki__0002__0__priimek}", ["unidecode_fn"]],
             ["${ime} ${priimek}", ["unidecode"]]
         ]],
         ["email", [
@@ -45,6 +43,15 @@
         ["job_title", [
             ["${OsebniPodatki__0002__0__nazivPredImenom}", []]
         ]],
+	["account_expires_iso", [ 
+	    ["${Ukrep__0000__0__statusKadrovskeStevilke} ${Ukrep__0000__0__statusKadrovskeStevilke__valid_from}", ["starts_with_zero_strip"]]
+	]],
+	["account_expires_timestamp", [ 
+	    ["${account_expires_iso}", ["datetime_to_timestamp"]]
+	]],
+	["account_expires_schac", [
+	    ["${account_expires_iso}", ["datetime_to_schacstr"]]
+	]],
         ["ip_telefon", [
         ]],
         ["domaci_telefon", [
@@ -369,6 +376,8 @@
         "eduPersonPrimaryAffiliation": "staff",
         "PersonalTitle": "${izobrazba_prefix}",
         "schacPersonalTitle": "${izobrazba_suffix}",
+	"accountExpires": "${account_expires_timestamp}",
+	"schacExpiryDate": "${account_expires_schac}",
         "schacPersonalPosition": "${personal_position}",
         "OU": "${ou_name}"
     },

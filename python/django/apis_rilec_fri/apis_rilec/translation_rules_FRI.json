@@ -45,6 +45,12 @@
         ["job_title", [
             ["${OrgDodelitev__0001__0__glavnoDelovnoMesto}", []]
         ]],
+	["account_expires_timestamp", [
+            ["${OrgDodelitev__0001__0__skupinaZaposlenih__valid_to}", ["datetime_to_timestamp"]]
+	]],
+	["account_expires_shac", [
+            ["${OrgDodelitev__0001__0__skupinaZaposlenih__valid_to}", ["datetime_to_schacstr"]]
+	]],
         ["ip_telefon", [
         ]],
         ["domaci_telefon", [
@@ -335,6 +341,16 @@
     "KEEP_FIELDS": [
         "CN", "NAME", "OBJECTCATEGORY", "SAMACCOUNTNAME", "USERPRINCIPALNAME"
     ],
+    "FIELD_MERGE_RULES": [
+    	"cn": ["keep_ldap"],
+    	"name": ["keep_ldap"],
+    	"objectCategory": ["keep_ldap"],
+    	"sAMAccountName": ["keep_ldap"],
+    	"userPrincipalName": ["keep_ldap"],
+        "physicalDeliveryOfficeName": ["studis_first"],
+        "schacExpiryDate": ["max"],
+    	"mail": ["apis_first", "only_last", "keep_ldap"]
+    ],
     "USER_RULES": {
         "objectClass": ["top","person","organizationalPerson","user"],
         "co": "Slovenia",
@@ -366,6 +382,7 @@
         "mobile": "${mobilni_telefon}",
         "displayNamePrintable": "${display_name_printable}",
         "schacHomeOrganization": "${clanica_dnsdomena}",
+        "accountExpires":"${OrgDodelitev__0001__0__skupinaZaposlenih__valid_to}",
         "eduPersonAffiliation": "staff",
         "eduPersonPrimaryAffiliation": "staff",
         "schacHomeOrganization":"fri1.uni-lj.si",
