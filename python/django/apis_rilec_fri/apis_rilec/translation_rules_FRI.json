@@ -344,7 +344,7 @@
     "KEEP_FIELDS": [
         "CN", "NAME", "OBJECTCATEGORY", "SAMACCOUNTNAME", "USERPRINCIPALNAME"
     ],
-    "FIELD_MERGE_RULES": [
+    "FIELD_MERGE_RULES": {
     	"cn": ["keep_ldap"],
     	"name": ["keep_ldap"],
     	"objectCategory": ["keep_ldap"],
@@ -353,7 +353,7 @@
         "physicalDeliveryOfficeName": ["studis_first"],
         "schacExpiryDate": ["max"],
     	"mail": ["apis_first", "only_last", "keep_ldap"]
-    ],
+    },
     "USER_RULES": {
         "objectClass": ["top","person","organizationalPerson","user"],
         "co": "Slovenia",
