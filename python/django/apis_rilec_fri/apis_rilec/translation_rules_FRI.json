@@ -45,11 +45,14 @@
         ["job_title", [
             ["${OrgDodelitev__0001__0__glavnoDelovnoMesto}", []]
         ]],
-	["account_expires_timestamp", [
-            ["${OrgDodelitev__0001__0__skupinaZaposlenih__valid_to}", ["datetime_to_timestamp"]]
+	["account_expires_iso", [ 
+	    ["${Ukrep__0000__0__statusKadrovskeStevilke} ${Ukrep__0000__0__statusKadrovskeStevilke__valid_from}", ["starts_with_zero_strip"]]
 	]],
-	["account_expires_shac", [
-            ["${OrgDodelitev__0001__0__skupinaZaposlenih__valid_to}", ["datetime_to_schacstr"]]
+	["account_expires_timestamp", [ 
+	    ["${account_expires_iso}", ["datetime_to_timestamp"]]
+	]],
+	["account_expires_schac", [
+	    ["${account_expires_iso}", ["datetime_to_schacstr"]]
 	]],
         ["ip_telefon", [
         ]],
@@ -382,11 +385,11 @@
         "mobile": "${mobilni_telefon}",
         "displayNamePrintable": "${display_name_printable}",
         "schacHomeOrganization": "${clanica_dnsdomena}",
-        "accountExpires":"${OrgDodelitev__0001__0__skupinaZaposlenih__valid_to}",
+        "accountExpires":"${account_expires_timestamp}",
         "eduPersonAffiliation": "staff",
         "eduPersonPrimaryAffiliation": "staff",
         "schacHomeOrganization":"fri1.uni-lj.si",
-        "schacExpiryDate":"20251030235959Z",
+        "schacExpiryDate":"${account_expires_schac}",
         "schacHomeOrganizationType":"urn:arnes.si:homeOrgType:univerza",
         "eduPersonPrimaryAffiliation":"staff",
         "eduPersonAffiliation":"staff",
