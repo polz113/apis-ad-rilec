@@ -165,3 +165,11 @@ def ldapactionbatch_prune(request, pk):
     batch = get_object_or_404(LDAPActionBatch, pk=pk)
     ret = batch.prune()
     return render(request, 'apis_rilec/ldapactionbatch_prune.html', {'object': batch, 'ret': ret})
+
+@staff_member_required
+def ldapaction_apply(request, pk):
+    action = get_object_or_404(LDAPAction, pk=pk)
+    ret = action.apply() 
+    return render(request, 'apis_rilec/ldapaction_apply.html', {'object': batch, 'ret': ret})
+
+

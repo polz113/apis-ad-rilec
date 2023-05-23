@@ -23,6 +23,7 @@ urlpatterns = [
     path('actionbatches/', views.ldapactionbatch_list, name='ldapactionbatch_list'),
     path('actionbatches/<int:pk>', views.ldapactionbatch_detail, name='ldapactionbatch_detail'),
     path('actionbatches/<int:pk>/apply', views.ldapactionbatch_apply, name='ldapactionbatch_apply'),
+    path('actions/<int:pk>/apply', views.ldapaction_apply, name='ldapaction_apply'),
     path('actionbatches/<int:pk>/prune', views.ldapactionbatch_prune, name='ldapactionbatch_prune'),
 ]
 

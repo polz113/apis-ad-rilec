@@ -479,8 +479,6 @@ class DataSource(models.Model):
             sub_id = user.get("upn", None)
             if uid is None:
                 uid = upn_to_uid(sub_id)
-                if uid is None:
-                    uid='?'
             if uid is None or sub_id is None:
                 continue
             mud, mud_created = MergedUserData.objects.get_or_create(uid=uid)
@@ -1358,45 +1356,77 @@ class LDAPAction(models.Model):
     flags = models.JSONField(blank=True, default=dict)
 
     def _upsert(self, ldap_conn):
+        results = []
         try:
             exists = ldap_conn.compare_s(self.dn,
                                          'DISTINGUISHEDNAME', self.dn)
         except Exception as e:
-            print("Ups:", e)
             exists = False
         if exists:
             keep_fields = get_rules('KEEP_FIELDS')
             for k in keep_fields:
-                self.data.pop(k, None)
-            return self._modify(ldap_conn)
+                ul = self.data.pop(k, None)
+                results.append({"key": k, "values": ul, "action": "discard",
+                                "success": True})
+            results += self._modify(ldap_conn)
         else:
-            return self._add(ldap_conn)
+            results += self._add(ldap_conn)
+        return results
 
     def _add(self, ldap_conn):
-        ul = []
+        results = []
         for k, l in self.data.items():
-            ul.append((k, [i.encode('utf-8') for i in l]))
-        ldap_conn.add_s(self.dn, ul)
+            ul = None
+            try:
+                ul = [i.encode('utf-8') for i in l]
+                ldap_conn.add_s(self.dn, [(k, ul)])
+                results.append({"key": k, "values": ul, "action": "add",
+                                "success": True})
+            except Exception as e:
+
+                results.append({"key": k, "values": ul, "action": "add",
+                                "success": False, "status": str(e)})
+        return results
 
     def _modify(self, ldap_conn):
-        ul = []
+        results = []
         for k, l in self.data.items():
-            ul = []
+            ul = None
             try:
-                ul.append((ldap.MOD_REPLACE, k, [i.encode('utf-8') for i in l]))
-                ldap_conn.modify_s(self.dn, ul)
+                ul = [i.encode('utf-8') for i in l]
+                ldap_conn.modify_s(self.dn, [(ldap.MOD_REPLACE, k, ul)])
+                results.append({"key": k, "values": ul, "action": "modify",
+                                "success": True})
             except Exception as e:
-                print("failed:", k)
-                print(e)
+                results.append({"key": k, "values": ul, "action": "modify",
+                                "success": False, "status": str(e)})
+        return results
 
     def _rename(self, ldap_conn):
-        new_dn = self.data['DISTINGUISHEDNAME']
-        ldap_conn.rename_s(self.dn, new_dn)
+        results = []
+        new_dn = None
+        try:
+            new_dn = self.data['DISTINGUISHEDNAME']
+            ldap_conn.rename_s(self.dn, new_dn)
+            results.append({"key": self.dn, "values": [new_dn], "action": "rename", 
+                            "success": True})
+        except Exception as e:
+            results.append({"key": self.dn, "values": [new_dn], "action": "rename",
+                            "success": False, "status": str(e)})
+        return results
 
     def _delete(self, ldap_conn):
-        ldap_conn.delete_s(self.dn)
+        results = []
+        try:
+            ldap_conn.delete_s(self.dn)
+            results.append({"key": self.dn, "values": [], "action": "delete",
+                            "success": True})
+        except Exception as e:
+            results.append({"key": self.dn, "values": [], "action": "delete",
+                            "success": False, "status": str(e)})
+        return results
 
-    def apply(self, ldap_conn = None):
+    def apply(self, ldap_conn = None, create_ldapapply = True):
         ldap_conn = try_init_ldap(ldap_conn)
         apply_fns = {
             'upsert': self._upsert,
@@ -1405,13 +1435,17 @@ class LDAPAction(models.Model):
             'rename': self._modify,
             'delete': self._delete,
         }
-        return(apply_fns[self.action](ldap_conn))
+        ret = apply_fns[self.action](ldap_conn)
+        if create_ldapapply:
+            ldapapply = LDAPApply(result=ret, action = self, timestamp=timezone.now())
+            ldapapply.save()
+        return ret
  
 
 class LDAPApply(models.Model):
     class Meta:
         verbose_name_plural = "LDAPApplies"
-    batch = models.ForeignKey('LDAPActionBatch', on_delete=models.RESTRICT)
+    action = models.ForeignKey('LDAPAction', on_delete=models.RESTRICT)
     result = models.JSONField()
     timestamp = models.DateTimeField()
 

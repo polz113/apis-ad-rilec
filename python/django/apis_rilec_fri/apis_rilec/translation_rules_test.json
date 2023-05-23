@@ -26,7 +26,8 @@
         ["display_name_printable", [
             ["${ime} ${priimek}", ["unidecode"]]
         ]],
-        ["email", [
+        ["eposta", [
+	    ["${email}", ["capitalize_mail"]],
             ["${Komunikacija__0105__0010__vrednostNaziv}", ["capitalize_mail"]]
         ]],
         ["ad_lokacija", [
@@ -353,7 +354,7 @@
         "name": "${celoime}",
         "sAMAccountName": "${default_samaccount}",
         "userPrincipalName": "${userPrincipalName}",
-        "mail": "${email}",
+        "mail": "${eposta}",
         "employeeID": "${uid}",
         "c": "SI",
         "l": "Ljubljana",
