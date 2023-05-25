@@ -25,7 +25,7 @@ from urllib.request import Request, urlopen, quote
 # Create your models here.
 
 FIELD_DELIMITER='__'
-DEFAULT_MERGE_RULES = {'pick': 'all', "filters": ["unique"]}
+DEFAULT_MERGE_RULES = {'pick': 'unique', "filters": []}
 
 def _slugify_username_fn(s):
     return slugify(s)
@@ -197,7 +197,8 @@ def get_rules(name=None):
             translators[tname] = translator
         d['TRANSLATIONS'] = translators
     if name is None or name == 'MERGE_RULES':
-        merge_rules = d.get('MERGE_RULES', {"": DEFAULT_MERGE_RULES})
+        l = [(k.upper(), v) for k, v in d.get('MERGE_RULES', {"": DEFAULT_MERGE_RULES}).items()]
+        merge_rules = dict(l)
         d['MERGE_RULES'] = merge_rules
     if name is None:
         return d
@@ -747,8 +748,9 @@ def dicts_to_ldapuser(user_rules, merge_rules, datadicts):
     for fieldname, templates in user_rules.items():
         if type(templates) != list:
             templates = [templates]
-        fmergerules = merge_rules.get(fieldname.upper, default_merge_rules)
+        fmergerules = merge_rules.get(fieldname.upper(), default_merge_rules)
         sorttemplate = fmergerules.get("order", None)
+        print("mr", fmergerules, sorttemplate)
         if sorttemplate is None:
             st = None
         else:
@@ -769,6 +771,7 @@ def dicts_to_ldapuser(user_rules, merge_rules, datadicts):
             if f == 'keep_ldap':
                 pass
         if len(sortvalues) > 0:
+            print(sortvalues)
             values = [i[1] for i in sorted(sortvalues)]
             picked = values
             pick = fmergerules.get("pick", None)

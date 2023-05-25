@@ -340,15 +340,16 @@
         }
     },
     "MERGE_RULES": {
-        "": {"pick": "first", "order": "${dataset__source}"},
+        "": {"pick": "unique"},
         "cn": {"pick": "first", "filters": ["keep_ldap"]},
         "name": {"pick": "first", "filters": ["keep_ldap"]},
         "objectCategory": {"pick": "unique", "filters": ["keep_ldap"]},
-        "sAMAccountName": {"pick": "first", "filters": true},
-        "userPrincipalName": {"pick": "first", "keep_ldap": true},
-        "physicalDeliveryOfficeName": {"order": "${dataset__source}"},
-        "schacExpiryDate": {"pick": "first"},
-        "mail": {"order": "${dataset__source}", "pick": "last", "keep_ldap": true}
+        "sAMAccountName": {"pick": "first", "filters": ["keep_ldap"]},
+        "userPrincipalName": {"pick": "first", "filters": ["keep_ldap"]},
+        "schacExpiryDate": {"pick": "first", "order": "${account_expires_iso}"},
+        "physicalDeliveryOfficeName": {"pick": "last", "order": "${dataset__source}"},
+        "eduPersonPrincipalName": {"pick": "first"},
+        "mail": {"order": "${dataset__source}", "pick": "first", "filters": ["keep_ldap"]}
     },
     "USER_RULES": {
         "objectClass": ["top","person","organizationalPerson","user"],

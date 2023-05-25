@@ -45,15 +45,15 @@
         ["job_title", [
             ["${OrgDodelitev__0001__0__glavnoDelovnoMesto}", []]
         ]],
-	["account_expires_iso", [ 
-	    ["${Ukrep__0000__0__statusKadrovskeStevilke} ${Ukrep__0000__0__statusKadrovskeStevilke__valid_from}", ["starts_with_zero_strip"]]
-	]],
-	["account_expires_timestamp", [ 
-	    ["${account_expires_iso}", ["datetime_to_timestamp"]]
-	]],
-	["account_expires_schac", [
-	    ["${account_expires_iso}", ["datetime_to_schacstr"]]
-	]],
+        ["account_expires_iso", [ 
+            ["${Ukrep__0000__0__statusKadrovskeStevilke} ${Ukrep__0000__0__statusKadrovskeStevilke__valid_from}", ["starts_with_zero_strip"]]
+        ]],
+        ["account_expires_timestamp", [ 
+            ["${account_expires_iso}", ["datetime_to_timestamp"]]
+        ]],
+        ["account_expires_schac", [
+            ["${account_expires_iso}", ["datetime_to_schacstr"]]
+        ]],
         ["ip_telefon", [
         ]],
         ["domaci_telefon", [
@@ -349,7 +349,9 @@
         "sAMAccountName": {"pick": "first", "filters": ["keep_ldap"]},
         "userPrincipalName": {"pick": "first", "filters": ["keep_ldap"]},
         "schacExpiryDate": {"pick": "first", "order": "${account_expires_iso}"},
-        "mail": {"order": "${dataset__source}", "pick": "last", "filters": ["keep_ldap"]}
+        "physicalDeliveryOfficeName": {"pick": "last", "order": "${dataset__source}"},
+        "eduPersonPrincipalName": {"pick": "first"},
+        "mail": {"order": "${dataset__source}", "pick": "first", "filters": ["keep_ldap"]}
     },
     "USER_RULES": {
         "objectClass": ["top","person","organizationalPerson","user"],
