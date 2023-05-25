@@ -25,6 +25,7 @@ from urllib.request import Request, urlopen, quote
 # Create your models here.
 
 FIELD_DELIMITER='__'
+DEFAULT_MERGE_RULES = {'pick': 'all', "filters": ["unique"]}
 
 def _slugify_username_fn(s):
     return slugify(s)
@@ -195,10 +196,9 @@ def get_rules(name=None):
                 translator = FuncTranslator(trules)
             translators[tname] = translator
         d['TRANSLATIONS'] = translators
-    if name is None or name == 'KEEP_FIELDS':
-        fields = d.get('KEEP_FIELDS', [])
-        fields = set([i.upper() for i in fields])
-        d['KEEP_FIELDS'] = fields
+    if name is None or name == 'MERGE_RULES':
+        merge_rules = d.get('MERGE_RULES', {"": DEFAULT_MERGE_RULES})
+        d['MERGE_RULES'] = merge_rules
     if name is None:
         return d
     return d[name]
@@ -740,22 +740,47 @@ class UserData(models.Model):
         return translated_dicts
 
 
-def dicts_to_ldapuser(rules, translations, datadicts):
+def dicts_to_ldapuser(user_rules, merge_rules, datadicts):
     result = dict()
-    for fieldname, templates in rules.items():
+    default_merge_rules = merge_rules.get("", DEFAULT_MERGE_RULES)
+    print(merge_rules)
+    for fieldname, templates in user_rules.items():
         if type(templates) != list:
             templates = [templates]
-        values = set()
+        fmergerules = merge_rules.get(fieldname.upper, default_merge_rules)
+        sorttemplate = fmergerules.get("order", None)
+        if sorttemplate is None:
+            st = None
+        else:
+            st = string.Template(sorttemplate)
+        sortvalues = []
         for template in templates:
             t = string.Template(template)
             for d in datadicts:
                 try:
-                    data = t.substitute(d)
-                    values.add(data)
+                    sort_prefix = None
+                    if st is not None:
+                        sort_prefix = st.substitute(d)
+                    data = (sort_prefix, t.substitute(d))
+                    sortvalues.append(data)
                 except KeyError:
                     pass
-        if len(values) > 0:
-            result[fieldname.upper()] = list(values)
+        for f in fmergerules.get('filters', []):
+            if f == 'keep_ldap':
+                pass
+        if len(sortvalues) > 0:
+            values = [i[1] for i in sorted(sortvalues)]
+            picked = values
+            pick = fmergerules.get("pick", None)
+            if pick is None or pick == "all":
+                pass
+            elif pick == "first":
+                picked = values[:1]
+            elif pick == "last":
+                picked = values[-1:]
+            elif pick == "unique":
+                picked = list(set(values))
+            result[fieldname.upper()] = picked
     return result
 
 
@@ -810,16 +835,21 @@ class MergedUserData(models.Model):
                                  ldap_conn=ldap_conn)
         return l
 
-    def by_rules(self, timestamp=None, user_rules=None, extra_fields=None, translations=None,
+    def by_rules(self, timestamp=None, 
+                 user_rules=None, extra_fields=None, 
+                 merge_rules=None, translations=None,
                  ldap_conn=None, sources=None):
         if user_rules is None:
             user_rules = get_rules('USER_RULES')
         if translations is None:
             translations = get_rules('TRANSLATIONS')
+        if merge_rules is None:
+            merge_rules = get_rules('MERGE_RULES')
+        print("MR:", merge_rules)
         datadicts = self.with_extra(timestamp=timestamp, extra_fields=extra_fields, 
                                     translations=translations,
                                     ldap_conn=ldap_conn)
-        return dicts_to_ldapuser(user_rules, translations, datadicts)
+        return dicts_to_ldapuser(user_rules, merge_rules, datadicts)
 
     def groups_at(self, timestamp=None, group_rules=None, extra_fields=None, translations=None,
                   ldap_conn=None):
@@ -1168,6 +1198,14 @@ def group_ldapactionbatch(timestamp=None):
     return actionbatch
     
 
+def __get_keep_fields(merge_rules):
+    keep_fields = set()
+    for k, v in merge_rules.items():
+        if "keep_ldap" in v.get("filters", []):
+            keep_fields.add(k.upper())
+    return keep_fields
+ 
+
 def user_ldapactionbatch(userdata_set, timestamp=None, ldap_conn=None,
                          rename_users=False, empty_groups=True):
     if timestamp is None:
@@ -1176,7 +1214,9 @@ def user_ldapactionbatch(userdata_set, timestamp=None, ldap_conn=None,
     extra_fields = get_rules('EXTRA_FIELDS')
     translations = get_rules('TRANSLATIONS')
     group_rules = get_rules('GROUP_RULES')
-    keep_fields = get_rules('KEEP_FIELDS')
+    user_rules = get_rules('USER_RULES')
+    merge_rules = get_rules('MERGE_RULES')
+    keep_fields = __get_keep_fields(merge_rules)
     actionbatch = LDAPActionBatch(description=timestamp.isoformat())
     groups_membership = MultiValueDict()
     actions = list()
@@ -1184,7 +1224,9 @@ def user_ldapactionbatch(userdata_set, timestamp=None, ldap_conn=None,
     for userdata in userdata_set:
         uid = userdata.uid
         default_group_dn, groups_to_join = userdata.groups_at(timestamp, translations=translations, group_rules=group_rules)
-        user_fields = userdata.by_rules(timestamp, translations=translations, extra_fields=extra_fields,
+        user_fields = userdata.by_rules(timestamp, user_rules=user_rules, 
+                                        merge_rules=merge_rules, translations=translations, 
+                                        extra_fields=extra_fields,
                                         ldap_conn=ldap_conn)
         default_dn="CN={},{}".format(ldap.dn.escape_dn_chars(user_fields['CN'][0]), default_group_dn)
         existing_dn = get_ad_user_dn(ldap_conn, user_fields)
@@ -1307,7 +1349,8 @@ class LDAPActionBatch(models.Model):
     def prune(self, ldap_conn=None, set_only=None, keep_fields=None, new_batch=None):
         ldap_conn = try_init_ldap(ldap_conn)
         if keep_fields is None:
-            keep_fields = get_rules('KEEP_FIELDS')
+            merge_rules = get_rules('MERGE_RULES')
+            keep_fields = __get_keep_fields(merge_rules)
         if new_batch is not None:
             batch = LDAPActionBatch(description = new_batch)
             batch.save()
@@ -1363,11 +1406,12 @@ class LDAPAction(models.Model):
         except Exception as e:
             exists = False
         if exists:
-            keep_fields = get_rules('KEEP_FIELDS')
-            for k in keep_fields:
-                ul = self.data.pop(k, None)
-                results.append({"key": k, "values": ul, "action": "discard",
-                                "success": True})
+            merge_rules = get_rules('MERGE_RULES')
+            for k, v in merge_rules.items():
+                if "keep_ldap" in v.get("filters", []):
+                    ul = self.data.pop(k.upper(), None)
+                    results.append({"key": k, "values": ul, "action": "discard",
+                                    "success": True})
             results += self._modify(ldap_conn)
         else:
             results += self._add(ldap_conn)

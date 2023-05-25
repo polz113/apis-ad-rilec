@@ -27,7 +27,7 @@
             ["${ime} ${priimek}", ["unidecode"]]
         ]],
         ["eposta", [
-	    ["${email}", ["capitalize_mail"]],
+            ["${email}", ["capitalize_mail"]],
             ["${Komunikacija__0105__0010__vrednostNaziv}", ["capitalize_mail"]]
         ]],
         ["ad_lokacija", [
@@ -44,15 +44,15 @@
         ["job_title", [
             ["${OsebniPodatki__0002__0__nazivPredImenom}", []]
         ]],
-	["account_expires_iso", [ 
-	    ["${Ukrep__0000__0__statusKadrovskeStevilke} ${Ukrep__0000__0__statusKadrovskeStevilke__valid_from}", ["starts_with_zero_strip"]]
-	]],
-	["account_expires_timestamp", [ 
-	    ["${account_expires_iso}", ["datetime_to_timestamp"]]
-	]],
-	["account_expires_schac", [
-	    ["${account_expires_iso}", ["datetime_to_schacstr"]]
-	]],
+        ["account_expires_iso", [ 
+            ["${Ukrep__0000__0__statusKadrovskeStevilke} ${Ukrep__0000__0__statusKadrovskeStevilke__valid_from}", ["starts_with_zero_strip"]]
+        ]],
+        ["account_expires_timestamp", [ 
+            ["${account_expires_iso}", ["datetime_to_timestamp"]]
+        ]],
+        ["account_expires_schac", [
+            ["${account_expires_iso}", ["datetime_to_schacstr"]]
+        ]],
         ["ip_telefon", [
         ]],
         ["domaci_telefon", [
@@ -339,9 +339,17 @@
             ]
         }
     },
-    "KEEP_FIELDS": [
-        "CN", "NAME", "OBJECTCATEGORY", "SAMACCOUNTNAME", "USERPRINCIPALNAME"
-    ],
+    "MERGE_RULES": {
+        "": {"pick": "first", "order": "${dataset__source}"},
+        "cn": {"pick": "first", "filters": ["keep_ldap"]},
+        "name": {"pick": "first", "filters": ["keep_ldap"]},
+        "objectCategory": {"pick": "unique", "filters": ["keep_ldap"]},
+        "sAMAccountName": {"pick": "first", "filters": true},
+        "userPrincipalName": {"pick": "first", "keep_ldap": true},
+        "physicalDeliveryOfficeName": {"order": "${dataset__source}"},
+        "schacExpiryDate": {"pick": "first"},
+        "mail": {"order": "${dataset__source}", "pick": "last", "keep_ldap": true}
+    },
     "USER_RULES": {
         "objectClass": ["top","person","organizationalPerson","user"],
         "co": "Slovenia",
@@ -377,8 +385,8 @@
         "eduPersonPrimaryAffiliation": "staff",
         "PersonalTitle": "${izobrazba_prefix}",
         "schacPersonalTitle": "${izobrazba_suffix}",
-	"accountExpires": "${account_expires_timestamp}",
-	"schacExpiryDate": "${account_expires_schac}",
+        "accountExpires": "${account_expires_timestamp}",
+        "schacExpiryDate": "${account_expires_schac}",
         "schacPersonalPosition": "${personal_position}",
         "OU": "${ou_name}"
     },

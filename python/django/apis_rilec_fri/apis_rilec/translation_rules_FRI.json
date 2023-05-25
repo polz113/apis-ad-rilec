@@ -341,18 +341,15 @@
             ]
         }
     },
-    "KEEP_FIELDS": [
-        "CN", "NAME", "OBJECTCATEGORY", "SAMACCOUNTNAME", "USERPRINCIPALNAME"
-    ],
-    "FIELD_MERGE_RULES": {
-    	"cn": ["keep_ldap"],
-    	"name": ["keep_ldap"],
-    	"objectCategory": ["keep_ldap"],
-    	"sAMAccountName": ["keep_ldap"],
-    	"userPrincipalName": ["keep_ldap"],
-        "physicalDeliveryOfficeName": ["studis_first"],
-        "schacExpiryDate": ["max"],
-    	"mail": ["apis_first", "only_last", "keep_ldap"]
+    "MERGE_RULES": {
+        "": {"pick": "unique"},
+        "cn": {"pick": "first", "filters": ["keep_ldap"]},
+        "name": {"pick": "first", "filters": ["keep_ldap"]},
+        "objectCategory": {"pick": "unique", "filters": ["keep_ldap"]},
+        "sAMAccountName": {"pick": "first", "filters": ["keep_ldap"]},
+        "userPrincipalName": {"pick": "first", "filters": ["keep_ldap"]},
+        "schacExpiryDate": {"pick": "first", "order": "${account_expires_iso}"},
+        "mail": {"order": "${dataset__source}", "pick": "last", "filters": ["keep_ldap"]}
     },
     "USER_RULES": {
         "objectClass": ["top","person","organizationalPerson","user"],

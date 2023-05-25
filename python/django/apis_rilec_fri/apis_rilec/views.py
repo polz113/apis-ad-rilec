@@ -71,9 +71,10 @@ def mergeduserdata_detail(request, user_id):
     group_rules = get_rules('GROUP_RULES')
     extra_fields = get_rules('EXTRA_FIELDS')
     translations = get_rules('TRANSLATIONS')
+    merge_rules = get_rules('MERGE_RULES')
     with_extra = mud.with_extra(translations=translations, extra_fields=extra_fields,
-                                ldap_conn = ldap_conn)
-    by_rules = dicts_to_ldapuser(user_rules, translations, with_extra)
+                                ldap_conn=ldap_conn)
+    by_rules = dicts_to_ldapuser(user_rules=user_rules, merge_rules=merge_rules, datadicts=with_extra)
     default_dn, groups = dicts_to_ldapgroups(group_rules, with_extra)
     return render(request, 'apis_rilec/mergeduserdata_detail.html', {
                                 'by_rules': by_rules,
