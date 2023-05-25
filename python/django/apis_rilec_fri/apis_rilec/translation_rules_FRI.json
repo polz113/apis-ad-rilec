@@ -350,7 +350,8 @@
         "userPrincipalName": {"pick": "first", "filters": ["keep_ldap"]},
         "schacExpiryDate": {"pick": "first", "order": "${account_expires_iso}"},
         "physicalDeliveryOfficeName": {"pick": "last", "order": "${dataset__source}"},
-        "eduPersonPrincipalName": {"pick": "first"},
+        "eduPersonPrincipalName": {"pick": "last"},
+        "telephoneNumber": {"order": "${dataset__source}", "pick": "first"},
         "mail": {"order": "${dataset__source}", "pick": "first", "filters": ["keep_ldap"]}
     },
     "USER_RULES": {
