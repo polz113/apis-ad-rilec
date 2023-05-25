@@ -82,7 +82,7 @@ def uid_to_dn(uid, ldap_conn, **kwargs):
         assert len(ret) == 1
         dn = ret[0][0]
     except Exception as e:
-        print("Uid_to_dn: ", e)
+        # print("Uid_to_dn: ", e)
         dn = None
     return dn
 
@@ -162,7 +162,7 @@ def try_init_ldap(ldap_conn=None):
             ldap_conn.start_tls_s()
         ldap_conn.simple_bind_s(settings.LDAP_BIND_DN, settings.LDAP_BIND_PASSWORD)
     except Exception as e:
-        print("LDAP conn init error:", e)
+        # print("LDAP conn init error:", e)
         ldap_conn = None
     return ldap_conn
 
@@ -744,13 +744,11 @@ class UserData(models.Model):
 def dicts_to_ldapuser(user_rules, merge_rules, datadicts):
     result = dict()
     default_merge_rules = merge_rules.get("", DEFAULT_MERGE_RULES)
-    print(merge_rules)
     for fieldname, templates in user_rules.items():
         if type(templates) != list:
             templates = [templates]
         fmergerules = merge_rules.get(fieldname.upper(), default_merge_rules)
         sorttemplate = fmergerules.get("order", None)
-        print("mr", fmergerules, sorttemplate)
         if sorttemplate is None:
             st = None
         else:
@@ -771,7 +769,6 @@ def dicts_to_ldapuser(user_rules, merge_rules, datadicts):
             if f == 'keep_ldap':
                 pass
         if len(sortvalues) > 0:
-            print(sortvalues)
             values = [i[1] for i in sorted(sortvalues)]
             picked = values
             pick = fmergerules.get("pick", None)
@@ -848,7 +845,6 @@ class MergedUserData(models.Model):
             translations = get_rules('TRANSLATIONS')
         if merge_rules is None:
             merge_rules = get_rules('MERGE_RULES')
-        print("MR:", merge_rules)
         datadicts = self.with_extra(timestamp=timestamp, extra_fields=extra_fields, 
                                     translations=translations,
                                     ldap_conn=ldap_conn)
@@ -1173,8 +1169,8 @@ def get_ad_user_dn(ldap_conn, user_fields):
             assert len(ret) == 1
             return(ret[0][0])
         except Exception as e:
-            print("Err:", e)
-            traceback.print_exception(e)
+            #print("Err:", e)
+            #traceback.print_exception(e)
             # print(user_fields, ret)
             pass
     return user_fields.get('DISTINGUISHEDNAME', None)
@@ -1287,7 +1283,8 @@ class LDAPActionBatch(models.Model):
             try:
                 apply = a.apply(ldap_conn)
             except Exception as e:
-                print(e)
+                pass
+                # print(e)
 
     def analyze(self, ldap_conn=None):
         ldap_conn = try_init_ldap(ldap_conn)
