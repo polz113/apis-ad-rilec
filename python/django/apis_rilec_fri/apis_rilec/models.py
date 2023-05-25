@@ -1197,7 +1197,7 @@ def group_ldapactionbatch(timestamp=None):
     return actionbatch
     
 
-def __get_keep_fields(merge_rules):
+def _get_keep_fields(merge_rules):
     keep_fields = set()
     for k, v in merge_rules.items():
         if "keep_ldap" in v.get("filters", []):
@@ -1215,7 +1215,7 @@ def user_ldapactionbatch(userdata_set, timestamp=None, ldap_conn=None,
     group_rules = get_rules('GROUP_RULES')
     user_rules = get_rules('USER_RULES')
     merge_rules = get_rules('MERGE_RULES')
-    keep_fields = __get_keep_fields(merge_rules)
+    keep_fields = _get_keep_fields(merge_rules)
     actionbatch = LDAPActionBatch(description=timestamp.isoformat())
     groups_membership = MultiValueDict()
     actions = list()
@@ -1350,7 +1350,7 @@ class LDAPActionBatch(models.Model):
         ldap_conn = try_init_ldap(ldap_conn)
         if keep_fields is None:
             merge_rules = get_rules('MERGE_RULES')
-            keep_fields = __get_keep_fields(merge_rules)
+            keep_fields = _get_keep_fields(merge_rules)
         if new_batch is not None:
             batch = LDAPActionBatch(description = new_batch)
             batch.save()
