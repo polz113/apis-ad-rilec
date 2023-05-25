@@ -5,7 +5,7 @@
 Osebe
 <ul>
 	{% for i in object_list %}
-	<li><a href="{{i.get_absolute_url}}">{{i}}</a></li>
+	<li><a href="{{i.get_absolute_url}}">{{i.uid}} - {{i.by_rules.CN.0}}</a></li>
 	{% endfor %}
 </ul>
 {% endblock %}
