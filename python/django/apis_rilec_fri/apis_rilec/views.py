@@ -2,9 +2,11 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 from django.conf import settings
 from django.http import HttpResponse, JsonResponse, StreamingHttpResponse
+from django.utils.datastructures import MultiValueDict
 from django.utils import timezone
 from itertools import chain
 from django.contrib.admin.views.decorators import staff_member_required
+# from silk.profiling.profiler import silk_profile
 import logging
 import ldap
 
@@ -43,6 +45,7 @@ def hrmaster_replicate(request):
     return JsonResponse({'result': 'UNSUPPORTED METHOD'})
         
 
+# @silk_profile(name='datasources_to_datasets')
 @staff_member_required
 def datasources_to_datasets(request):
     for i in DataSource.objects.filter(dataset=None):
@@ -57,10 +60,32 @@ def get_data_studis_view(request):
     return render(request, 'apis_rilec/get_data_studis.html')
 
 
+# @silk_profile(name='mergeduserdata list')
 @staff_member_required
 def mergeduserdata_list(request):
-    mudl = MergedUserData.objects.all()
+    mudl = MergedUserData.objects.prefetch_related('data', 'data__fields').all()
     return render(request, 'apis_rilec/mergeduserdata_list.html', {'object_list': mudl})
+
+
+@staff_member_required
+def mergeduserdata_fields(request):
+    fieldnames = ['OsebniPodatki__0002__0__ime', 'OsebniPodatki__0002__0__priimek', 'OsebniPodatki__kadrovskaSt']
+    objects = UserDataField.objects.select_related('userdata').filter(
+            field__in=fieldnames).order_by('userdata__uid', 'userdata__id')
+    object_list = []
+    old_id = None
+    old_uid = None
+    fields = MultiValueDict()
+    for o in objects:
+        if old_id is not None and o.userdata.id != old_id:
+            object_list.append({"uid": old_uid, "id": old_id, "fields": fields})
+            fields = MultiValueDict()
+        old_uid = o.userdata.uid
+        old_id = o.userdata.id
+        fields.appendlist(o.field, o.value)
+    if len(fields):
+        object_list.append({"uid": o.userdata.uid, "id": o.userdata.id, "fields": fields})
+    return render(request, 'apis_rilec/mergeduserdata_fields.html', {'object_list': object_list, "fieldnames": fieldnames})
 
 
 @staff_member_required
@@ -92,6 +117,8 @@ def delete_old_userdata_view(request):
     delete_old_userdata()
     return redirect(reverse("apis_rilec:mergeduserdata_list"))
 
+
+# @silk_profile(name='user_ldapactionbatch')
 @staff_member_required
 def user_ldapactionbatch_view(request, t=None):
     # if request.method == 'PUT' or request.method == 'POST':
@@ -99,9 +126,10 @@ def user_ldapactionbatch_view(request, t=None):
     timestamp = None
     if t is not None:
         timestamp = timezone.make_aware(timezone.datetime.fromisoformat(t))
-    userdata = MergedUserData.objects.all()
+    userdata = MergedUserData.objects.prefetch_related('data', 'data__fields', 'data__dataset__source').all()
     b = user_ldapactionbatch(userdata, timestamp=timestamp)
     return redirect(b)
+
 
 @staff_member_required
 def group_ldapactionbatch_view(request, t=None):
@@ -114,7 +142,6 @@ def group_ldapactionbatch_view(request, t=None):
     return redirect(b)
 
 #@staff_member_required
-
 def userproperty_list(request):
     props = UserDataField.objects.values_list('field', flat=True).distinct()
     return render(request, 'apis_rilec/userproperty_list.html', {'object_list': props})
@@ -127,7 +154,8 @@ def user_rules(request):
     extra_fields = get_rules('EXTRA_FIELDS')
     user_rules = get_rules('USER_RULES')
     properties = UserDataField.objects.values_list('field', flat=True).distinct()
-    return render(request, 'apis_rilec/user_rules.html', {'properties': properties, 'extra_fields': extra_fields, 'user_rules': user_rules})
+    return render(request, 'apis_rilec/user_rules.html',
+                  {'properties': properties, 'extra_fields': extra_fields, 'user_rules': user_rules})
 
 def generic_rule_detail(request, rules_part):
     try:

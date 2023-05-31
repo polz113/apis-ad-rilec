@@ -166,7 +166,6 @@ def try_init_ldap(ldap_conn=None):
         ldap_conn = None
     return ldap_conn
 
-
 def get_rules(name=None):
     dirname = os.path.dirname(__file__)
     with open(os.path.join(dirname, 'translation_rules.json')) as f:
@@ -694,30 +693,28 @@ class UserData(models.Model):
         dicts = list()
         d = None
         prev_fieldgroup = None
-        ffields = self.fields.filter(
-                    valid_from__lte=timestamp,
-                    valid_to__gte=timestamp
-                ).order_by(
-                    'fieldgroup'
-                )
-        common_d = MultiValueDict({"uid": [self.uid]})
-        for i in ffields.filter(fieldgroup=None):
-            common_d.appendlist(i.field, i.value)
-        common_d['dataset' + FIELD_DELIMITER + 'source'] = self.dataset.source.source
-        for i in ffields.exclude(fieldgroup=None):
-            if i.fieldgroup is None or i.fieldgroup != prev_fieldgroup:
-                if d is not None:
-                    dicts.append(d)
-                prev_fieldgroup = i.fieldgroup
-                # print(d)
-                d = common_d.copy()
-            # d.appendlist(i.field, (i.value, i.valid_from, i.valid_to))
-            d.appendlist(i.field, i.value)
-            if i.valid_from is not None:
-                d.appendlist(i.field + FIELD_DELIMITER + 'valid_from', i.valid_from)
-            if i.valid_to is not None:
-                d.appendlist(i.field + FIELD_DELIMITER + 'valid_to', i.valid_to)
-        if d is not None:
+        #ffields = self.fields.filter(
+        #            valid_from__lte=timestamp,
+        #            valid_to__gte=timestamp
+        #        )
+        common_d = MultiValueDict({
+            "uid": [self.uid],
+            'dataset' + FIELD_DELIMITER + 'source': [self.dataset.source.source]
+            })
+        by_fieldgroup = defaultdict(MultiValueDict)
+        for f in self.fields.all():
+            if f.valid_from > timestamp or f.valid_to < timestamp:
+                continue
+            d = by_fieldgroup[f.fieldgroup]
+            d.appendlist(f.field, f.value)
+            if f.fieldgroup is not None:
+                if f.valid_from is not None:
+                    d.appendlist(f.field + FIELD_DELIMITER + 'valid_from', f.valid_from)
+                if f.valid_to is not None:
+                    d.appendlist(f.field + FIELD_DELIMITER + 'valid_to', f.valid_to)
+        default_d = by_fieldgroup[None]
+        for k, d in by_fieldgroup.items():
+            d.update(default_d)
             dicts.append(d)
         return dicts
 
@@ -730,7 +727,6 @@ class UserData(models.Model):
             translations = get_rules('TRANSLATIONS')
         # this would reload the rules every time the function is run.
         # extra_user_field_gen = extra_user_field_gen_factory()
-        source = self.dataset.source.source
         for datadict in self.as_dicts(timestamp=timestamp):
             translated_dicts.append(_field_adder(datadict,
                                                  extra_fields=extra_fields, 
@@ -947,9 +943,11 @@ def oudicts_at(timestamp=None):
     if timestamp is None:
         timestamp = timezone.now()
     ouds = OUData.objects.filter(valid_to__gte=timestamp,
-                                 valid_from__lte=timestamp)
+                                 valid_from__lte=timestamp).select_related('dataset').only(
+                                         'shortname', 'name', 'dataset__source_id', 'uid')
     ours = OURelation.objects.filter(valid_to__gte=timestamp,
-                                 valid_from__lte=timestamp)
+                                 valid_from__lte=timestamp).select_related('dataset').only(
+                                         'relation', 'ou1_id', 'ou2_id', 'dataset__source_id')
     ous = dict()
     id_relations = defaultdict(lambda: defaultdict(set))
     oud_sources = dict()
@@ -1047,11 +1045,11 @@ def _apis_relations_to_outree(oud, relations):
 
 def _apis_field_uid_map(timestamp, field):
     pos_map = defaultdict(set)
-    position_fields = UserDataField.objects.filter(
+    position_fields = UserDataField.objects.select_related('userdata').filter(
         field = field,
         valid_from__lte = timestamp,
         valid_to__gte = timestamp,
-    )
+    ).only('userdata__uid', 'value')
     for f in position_fields:
         # percentage_f = f.userdata.fields.filter()
         pos_map[f.value].add(f.userdata.uid)
