@@ -69,7 +69,9 @@ def mergeduserdata_list(request):
 
 @staff_member_required
 def mergeduserdata_fields(request):
-    fieldnames = ['OsebniPodatki__0002__0__ime', 'OsebniPodatki__0002__0__priimek', 'OsebniPodatki__kadrovskaSt']
+    fieldnames = request.GET.getlist(
+            'fieldname',
+            ['OsebniPodatki__0002__0__ime', 'OsebniPodatki__0002__0__priimek', 'OsebniPodatki__kadrovskaSt'])
     objects = UserDataField.objects.select_related('userdata').filter(
             field__in=fieldnames).order_by('userdata__uid', 'userdata__id')
     object_list = []

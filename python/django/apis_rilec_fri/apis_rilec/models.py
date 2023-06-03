@@ -1368,6 +1368,8 @@ class LDAPActionBatch(models.Model):
                 for k in to_pop:
                     data.pop(k, None)
                 change['data'] = data
+                if len(data) < 1:
+                    continue
                 change['batch'] = batch
                 a = LDAPAction(**change)
                 actions.append(a)
