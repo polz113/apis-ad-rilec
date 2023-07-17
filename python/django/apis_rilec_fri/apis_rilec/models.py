@@ -906,6 +906,11 @@ def get_groups(timestamp=None, group_rules=None, translations=None, ldap_conn=No
 class UserDataField(models.Model):
     def __str__(self):
         return("{}: {} ({})".format(self.userdata, self.field, self.value))
+    class Meta:
+        indexes = [
+                models.Index(fields=['userdata']),
+                models.Index(fields=['field']),
+        ]
     userdata = models.ForeignKey('UserData', on_delete=models.CASCADE, related_name='fields')
     valid_from = models.DateTimeField(null=True)
     valid_to = models.DateTimeField(null=True)
@@ -933,6 +938,11 @@ class TranslationTable(models.Model):
 class TranslationRule(models.Model):
     def __str__(self):
         return "{} -> {}".format(self.pattern, self.replacement)
+    class Meta:
+        indexes = [
+                models.Index(fields=['table']),
+                models.Index(fields=['pattern']),
+        ]
     table = models.ForeignKey('TranslationTable', on_delete=models.CASCADE, related_name='rules')
     order = models.IntegerField(default=0)
     pattern = models.TextField(blank=True)
