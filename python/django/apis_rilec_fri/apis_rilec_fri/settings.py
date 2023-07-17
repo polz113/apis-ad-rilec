@@ -22,7 +22,11 @@ SITE_ROOT = root()
 
 DEBUG = env.bool('DEBUG', default=False)
 
+
 TEMPLATE_DEBUG = DEBUG
+
+if DEBUG:
+    SILKY_PYTHON_PROFILER=True
 
 ldap_options_dict = {
     "NEVER": ldap.OPT_X_TLS_NEVER,
@@ -144,6 +148,11 @@ INSTALLED_APPS = [
 #    "rest_framework_api_key",
 ]
 
+if DEBUG:
+    INSTALLED_APPS += [
+        "silk",
+    ]
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -153,6 +162,11 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+if DEBUG:
+    MIDDLEWARE += [
+        'silk.middleware.SilkyMiddleware',
+    ]
 
 ROOT_URLCONF = 'apis_rilec_fri.urls'
 
