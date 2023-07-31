@@ -991,34 +991,6 @@ def oudicts_at(timestamp=None):
     return ous, id_relations, source_ids
 
 
-def outrees_at(timestamp=None):
-    outree = dict()
-    ous, id_relations, source_ids = oudicts_at(timestamp)
-    for k, v in id_relations.items():
-        toplevel = set() # toplevel OUs
-        rel_ous = dict()
-        # build a list of OUs with lists for children, add all OUs to toplevel
-        for uid, ou_data in ous.items():
-            d = { "uid": uid,
-                  "children": []}
-            d.update(ou_data)
-            rel_ous[uid] = d
-            toplevel.add(uid)
-        # remove OUs with parents from toplevel, build children lists
-        for child_id, parent_ids in v.items():
-            parent_id = parent_ids.pop()
-            rel_ous[child_id]["parent"] = parent_id
-            if parent_id in rel_ous:
-                toplevel.discard(child_id)
-                rel_ous[parent_id]["children"].append(rel_ous[child_id])
-        rel_outree = []
-        # add toplevel OUs to output
-        for i in toplevel:
-            rel_outree.append(rel_ous[i])
-        outree[k] = rel_outree # tree for relation type k created
-    return outree, source_ids
-
-
 def __dict_to_translations(name, rules, type='defaultdict', 
                            add_only=False, keep_default=True):
     tt, created = TranslationTable.objects.get_or_create(name=name, 
@@ -1403,6 +1375,7 @@ class LDAPActionBatch(models.Model):
             self.actions.all().delete()
         LDAPAction.objects.bulk_create(actions)
         return batch
+
 
 class LDAPAction(models.Model):
     def __str__(self):
