@@ -1268,14 +1268,19 @@ class LDAPActionBatch(models.Model):
         return str(self.description)
     def get_absolute_url(self):
         return reverse("apis_rilec:ldapactionbatch_detail", kwargs={"pk": self.pk})
-
+    
     description = models.CharField(max_length=512, blank=True, default='')
-
-    def apply(self, ldap_conn=None):
+    
+    def apply(self, ldap_conn=None, undo_batch=None):
+        """
+        apply / execute a batch of LDAPActions
+        :param ldap_conn: the LDAP connection; if None, initialize it using default settings
+        :param undo_batch: for each action, create an LDAPAction which undoes it and add it to undo_batch
+        """ 
         ldap_conn = try_init_ldap(ldap_conn)
         for a in self.actions.order_by('order'):
             try:
-                apply = a.apply(ldap_conn)
+                apply = a.apply(ldap_conn, undo_batch=undo_batch)
             except Exception as e:
                 pass
                 # print(e)
@@ -1377,6 +1382,44 @@ class LDAPActionBatch(models.Model):
         return batch
 
 
+def ldap_state(timestamp=None, dn_list=None):
+    objs = LDAPObjects.objects.all()
+    if dn_list is not None:
+        objs = objs.filter(dn__in=dn_list).all()
+    if timestamp is not None:
+        objs = objs.filter(timestamp__lte=timestamp)
+    ret = []
+    old_dn = None
+    for i in objs.order_by("dn", "timestamp"):
+        if i.dn != old_dn:
+            ret.append(i)
+            old_dn = i.dn
+    return ret
+
+
+
+class LDAPObject(models.Model):
+    class Meta:
+        indexes = [
+                models.Index(fields=['timestamp', 'dn']),
+                models.Index(fields=['timestamp']),
+                models.Index(fields=['dn']),
+        ]
+    timestamp = models.DateTimeField()
+    dn = models.TextField()
+
+
+class LDAPField(models.Model):
+    class Meta:
+        indexes = [
+                models.Index(fields=['parent']),
+                models.Index(fields=['parent', 'field']),
+        ]
+    parent = models.ForeignKey('LDAPObject', on_delete=models.CASCADE)
+    field = models.CharField(max_length=256)
+    value = models.TextField()
+
+
 class LDAPAction(models.Model):
     def __str__(self):
         return "{} {}".format(self.dn, self.action)
@@ -1395,8 +1438,9 @@ class LDAPAction(models.Model):
     data = models.JSONField()
     flags = models.JSONField(blank=True, default=dict)
 
-    def _upsert(self, ldap_conn):
+    def _upsert(self, ldap_conn, create_undo=False):
         results = []
+        undo = []
         try:
             exists = ldap_conn.compare_s(self.dn,
                                          'DISTINGUISHEDNAME', self.dn)
@@ -1409,13 +1453,18 @@ class LDAPAction(models.Model):
                     ul = self.data.pop(k.upper(), None)
                     results.append({"key": k, "values": ul, "action": "discard",
                                     "success": True})
-            results += self._modify(ldap_conn)
+            mod_ret, mod_undo = self._modify(ldap_conn, create_undo=create_undo)
+            results += mod_ret
+            undo += mod_undo
         else:
-            results += self._add(ldap_conn)
-        return results
+            add_ret, add_undo = self._add(ldap_conn, create_undo=create_undo)
+            results += add_ret
+            undo += add_undo
+        return results, undo
 
-    def _add(self, ldap_conn):
+    def _add(self, ldap_conn, create_undo=False):
         results = []
+        undo = []
         for k, l in self.data.items():
             ul = None
             try:
@@ -1424,13 +1473,13 @@ class LDAPAction(models.Model):
                 results.append({"key": k, "values": ul, "action": "add",
                                 "success": True})
             except Exception as e:
-
                 results.append({"key": k, "values": ul, "action": "add",
                                 "success": False, "status": str(e)})
-        return results
+        return results, undo
 
-    def _modify(self, ldap_conn):
+    def _modify(self, ldap_conn, create_undo=False):
         results = []
+        undo = []
         for k, l in self.data.items():
             ul = None
             try:
@@ -1441,10 +1490,11 @@ class LDAPAction(models.Model):
             except Exception as e:
                 results.append({"key": k, "values": ul, "action": "modify",
                                 "success": False, "status": str(e)})
-        return results
+        return results, undo
 
-    def _rename(self, ldap_conn):
+    def _rename(self, ldap_conn, create_undo=False):
         results = []
+        undo = []
         new_dn = None
         try:
             new_dn = self.data['DISTINGUISHEDNAME']
@@ -1454,10 +1504,11 @@ class LDAPAction(models.Model):
         except Exception as e:
             results.append({"key": self.dn, "values": [new_dn], "action": "rename",
                             "success": False, "status": str(e)})
-        return results
+        return results, undo
 
-    def _delete(self, ldap_conn):
+    def _delete(self, ldap_conn, create_undo=False):
         results = []
+        undo = []
         try:
             ldap_conn.delete_s(self.dn)
             results.append({"key": self.dn, "values": [], "action": "delete",
@@ -1465,9 +1516,9 @@ class LDAPAction(models.Model):
         except Exception as e:
             results.append({"key": self.dn, "values": [], "action": "delete",
                             "success": False, "status": str(e)})
-        return results
+        return results, undo
 
-    def apply(self, ldap_conn = None, create_ldapapply = True):
+    def apply(self, ldap_conn=None, create_ldapapply=True, create_undo=False):
         ldap_conn = try_init_ldap(ldap_conn)
         apply_fns = {
             'upsert': self._upsert,
@@ -1476,11 +1527,13 @@ class LDAPAction(models.Model):
             'rename': self._modify,
             'delete': self._delete,
         }
-        ret = apply_fns[self.action](ldap_conn)
+        
+        ret,undo = apply_fns[self.action](ldap_conn, create_undo=create_undo)
+
         if create_ldapapply:
             ldapapply = LDAPApply(result=ret, action = self, timestamp=timezone.now())
             ldapapply.save()
-        return ret
+        return ret, undo
  
 
 class LDAPApply(models.Model):

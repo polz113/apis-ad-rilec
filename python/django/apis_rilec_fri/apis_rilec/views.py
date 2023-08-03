@@ -204,3 +204,27 @@ def ldapaction_apply(request, pk):
     return render(request, 'apis_rilec/ldapaction_apply.html', {'object': batch, 'ret': ret})
 
 
+@staff_member_required
+def ldapstate_list(request, timestamp):
+    action = get_object_or_404(LDAPAction, pk=pk)
+    ret = action.apply() 
+    return render(request, 'apis_rilec/ldapobject_list.html', {'object': batch, 'ret': ret})
+
+
+@staff_member_required
+def ldapstate_detail(request, timestamp, dn):
+    action = get_object_or_404(LDAPAction, pk=pk)
+    ret = action.apply() 
+    return render(request, 'apis_rilec/ldapobject_list.html', {'object': batch, 'ret': ret})
+
+
+@staff_member_required
+def ldapobject_list(request):
+    latest_objects = []
+    return render(request, 'apis_rilec/ldapobject_list.html', {'object_list': latest_objects})
+
+
+@staff_member_required
+def ldapobject_detail(request, pk):
+    obj = get_object_or_404(LDAPObject, pk=pk)
+    return render(request, 'apis_rilec/ldapobject_detail.html', {'object': obj})
