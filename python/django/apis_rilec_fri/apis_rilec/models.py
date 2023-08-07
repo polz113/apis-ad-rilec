@@ -1383,7 +1383,7 @@ class LDAPActionBatch(models.Model):
 
 
 def ldap_state(timestamp=None, dn_list=None):
-    objs = LDAPObjects.objects.all()
+    objs = LDAPObject.objects.all()
     if dn_list is not None:
         objs = objs.filter(dn__in=dn_list).all()
     if timestamp is not None:
@@ -1397,25 +1397,52 @@ def ldap_state(timestamp=None, dn_list=None):
     return ret
 
 
+def save_ldap(ldap_conn=None, base_str=None, search_str=None):
+    # TODO get data from AD
+    # TODO check if the LDAPObject exists
+    # TODO since objectSID is immutable, use it to detect renames
+    # TODO if there is no objectSID, try finding the right object by upn, then dn,
+    # TODO finally, check EmployeeID
+    # for each field, try to find an exact match in the DB
+    # 
+
 
 class LDAPObject(models.Model):
     class Meta:
         indexes = [
                 models.Index(fields=['timestamp', 'dn']),
+                models.Index(fields=['timestamp', 'objectSID']),
+                models.Index(fields=['timestamp', 'uid']),
+                models.Index(fields=['timestamp', 'upn']),
                 models.Index(fields=['timestamp']),
                 models.Index(fields=['dn']),
+                models.Index(fields=['uid']),
+                models.Index(fields=['upn']),
+                models.Index(fields=['objectSID']),
         ]
     timestamp = models.DateTimeField()
-    dn = models.TextField()
+    dn = models.TextField(blank=True, null=True)
+    uid = models.CharField(max_length=64, blank=True, null=True)
+    upn = models.CharField(max_length=256, blank=True, null=True)
+    objectSID = models.CharField(max_length=184, blank=True, null=True)
+    fields = models.ManyToManyField('LDAPField')
+    
+    def previous(self):
+        pass
+
+    def diff(self, data):
+        pass
+
+    def diff_to_previous(self):
+        pass
 
 
 class LDAPField(models.Model):
     class Meta:
         indexes = [
-                models.Index(fields=['parent']),
-                models.Index(fields=['parent', 'field']),
+                models.Index(fields=['field']),
+                models.Index(fields=['field', 'value']),
         ]
-    parent = models.ForeignKey('LDAPObject', on_delete=models.CASCADE)
     field = models.CharField(max_length=256)
     value = models.TextField()
 
