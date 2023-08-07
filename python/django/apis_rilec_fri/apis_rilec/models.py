@@ -1,9 +1,11 @@
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 from django.utils.datastructures import MultiValueDict
 from django.conf import settings
 from django.utils.text import slugify
 from django.urls import reverse
+from django.core.exceptions import ObjectDoesNotExist
 
 from unidecode import unidecode
 
@@ -1342,7 +1344,7 @@ class LDAPActionBatch(models.Model):
                     changes.append({'action': 'add', 'dn': a.dn, 'data': add_data})
             except Exception as e:
                 pass
-                # print(e)
+            # print(e)
         return changes, removed_data
 
     def prune(self, ldap_conn=None, set_only=None, keep_fields=None, new_batch=None):
@@ -1397,44 +1399,105 @@ def ldap_state(timestamp=None, dn_list=None):
     return ret
 
 
-def save_ldap(ldap_conn=None, base_str=None, search_str=None):
-    # TODO get data from AD
-    # TODO check if the LDAPObject exists
-    # TODO since objectSID is immutable, use it to detect renames
-    # TODO if there is no objectSID, try finding the right object by upn, then dn,
-    # TODO finally, check EmployeeID
-    # for each field, try to find an exact match in the DB
-    # 
+def save_ldap(ldap_conn=None, filterstr=None,\
+        base=settings.LDAP_USER_SEARCH_BASE,
+        scope=settings.LDAP_USER_SEARCH_SCOPE):
+    timestamp = timezone.now()
+    for ad_dn, ad_obj in ldap_conn.search_s(base=base, scope=scope, filterstr=filterstr):
+        icase_obj = dict()
+        for k, v in ad_obj.items():
+            icase_obj[k.upper()] = v
+        db_obj = LDAPObject(timestamp=timestamp,
+                dn = ad_dn,
+                uid = icase_obj.get('employeeID'.upper(), [None])[0],
+                upn = icase_obj.get('userPrincipalName'.upper(), [None])[0],
+                objectSid = icase_obj.get('objectSid'.upper(), [None])[0],
+                )
+        db_obj.save()
+        for fieldname, val_list in icase_obj.items():
+            for val in val_list:
+                f, created = LDAPField.objects.get_or_create(field=fieldname,
+                                                             value=val)
+                f.save()
+                db_obj.fields.add(f)
+
 
 
 class LDAPObject(models.Model):
     class Meta:
         indexes = [
                 models.Index(fields=['timestamp', 'dn']),
-                models.Index(fields=['timestamp', 'objectSID']),
+                models.Index(fields=['timestamp', 'objectSid']),
                 models.Index(fields=['timestamp', 'uid']),
                 models.Index(fields=['timestamp', 'upn']),
                 models.Index(fields=['timestamp']),
                 models.Index(fields=['dn']),
                 models.Index(fields=['uid']),
                 models.Index(fields=['upn']),
-                models.Index(fields=['objectSID']),
+                models.Index(fields=['objectSid']),
         ]
     timestamp = models.DateTimeField()
     dn = models.TextField(blank=True, null=True)
     uid = models.CharField(max_length=64, blank=True, null=True)
     upn = models.CharField(max_length=256, blank=True, null=True)
-    objectSID = models.CharField(max_length=184, blank=True, null=True)
+    objectSid = models.BinaryField(max_length=28, blank=True, null=True)
     fields = models.ManyToManyField('LDAPField')
-    
+ 
     def previous(self):
-        pass
+        p = None
+        ordered = LDAPObject.objects.order_by('-timestamp')
+        try:
+            assert self.objectSid is not None and p is None
+            p = ordered.filter(objectSid=self.objectSid)[0]
+        except Exception:
+            pass
+        try:
+            assert self.upn is not None and p is None
+            p = ordered.filter(upn=self.upn)[0]
+        except Exception:
+            pass
+        try:
+            assert self.dn is not None and p is None
+            p = ordered.filter(dn=self.dn)[0]
+        except Exception:
+            pass
+        try:
+            assert self.uid is not None and p is None
+            p = ordered.filter(uid=self.uid)[0]
+        except Exception:
+            pass
+        return p
 
     def diff(self, data):
-        pass
+        icasedata = dict()
+        for k, v in data:
+            icasedata[k.upper()] = v.copy()
+        removed_data = dict()
+        for field in self.fields.order_by('name'):
+            field_data = icasedata.get(field.name.upper(), [])
+            if len(field_data) < 1:
+                l = removed_data.get(field.name, list())
+                l.append(field.value)
+            else:
+                field_data.discard(field.value)
+        return icasedata, removed_fields
 
     def diff_to_previous(self):
-        pass
+        prev = self.previous()
+        new_ids = set(self.fields.values_list('id', flat=True))
+        removed_ids = set()
+        if prev is not None:
+            cur_ids = new_ids
+            prev_ids = set(prev.fields.values_list('id', flat=True))
+            new_ids = cur_ids.difference(prev_ids)
+            removed_ids = prev_ids.difference(cur_ids)
+        changed_fields = LDAPField.objects.filter(id__in=new_ids)
+        removed_fields = LDAPField.objects.filter(id__in=removed_ids)
+        return changed_fields, removed_fields
+
+    def to_ldap(self, ldap_conn):
+        for field in self.fields.all():
+            pass
 
 
 class LDAPField(models.Model):
@@ -1444,7 +1507,7 @@ class LDAPField(models.Model):
                 models.Index(fields=['field', 'value']),
         ]
     field = models.CharField(max_length=256)
-    value = models.TextField()
+    value = models.BinaryField()
 
 
 class LDAPAction(models.Model):
