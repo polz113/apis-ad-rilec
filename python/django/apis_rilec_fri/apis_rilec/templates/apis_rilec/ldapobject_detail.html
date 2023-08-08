@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+      <meta charset="utf-8">
+      <title>Podrobnosti</title>
+</head>
+<body>
+    <div>
+	    <h1>{{object.dn}} ({{object.timestamp}} - {{object.source}})</h1>
+	    <h2>{{object.upn}}</h2>
+	    <h2>{{object.uid}}</h2>
+    </div>
+    <div>
+	    <a href="{{object.previous.get_absolute_url}}">previous version</a>
+    </div>
+    <div>
+    <ul>
+        {% for field, values in object.field_dict.items %}
+        <li>
+            {{field}}: {{values}}
+        </li>
+        {% endfor %}
+    </ul>
+    </div>
+</body>
+</html>

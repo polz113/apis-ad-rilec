@@ -11,7 +11,8 @@ import logging
 import ldap
 
 from .models import DataSource, MergedUserData, LDAPActionBatch, LDAPAction, UserDataField,\
-        get_rules, dicts_to_ldapuser, dicts_to_ldapgroups,\
+        LDAPObject,\
+        get_rules, dicts_to_ldapuser, dicts_to_ldapgroups, ldap_state,\
         delete_old_userdata, user_ldapactionbatch, group_ldapactionbatch,\
         get_data_studis, apis_to_translations, try_init_ldap
 
@@ -203,26 +204,10 @@ def ldapaction_apply(request, pk):
     ret = action.apply() 
     return render(request, 'apis_rilec/ldapaction_apply.html', {'object': batch, 'ret': ret})
 
-
-@staff_member_required
-def ldapstate_list(request, timestamp):
-    action = get_object_or_404(LDAPAction, pk=pk)
-    ret = action.apply() 
-    return render(request, 'apis_rilec/ldapobject_list.html', {'object': batch, 'ret': ret})
-
-
-@staff_member_required
-def ldapstate_detail(request, timestamp, dn):
-    action = get_object_or_404(LDAPAction, pk=pk)
-    ret = action.apply() 
-    return render(request, 'apis_rilec/ldapobject_list.html', {'object': batch, 'ret': ret})
-
-
 @staff_member_required
 def ldapobject_list(request):
-    latest_objects = []
+    latest_objects = ldap_state()
     return render(request, 'apis_rilec/ldapobject_list.html', {'object_list': latest_objects})
-
 
 @staff_member_required
 def ldapobject_detail(request, pk):

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block title %}Osebe{% endblock %}
+{% block body %}
+Osebe
+<ul>
+	{% for i in object_list %}
+	<li><a href="{{i.get_absolute_url}}">{{i}}</a></li>
+	{% endfor %}
+</ul>
+{% endblock %}

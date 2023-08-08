@@ -26,8 +26,6 @@ urlpatterns = [
     path('actionbatches/<int:pk>/apply', views.ldapactionbatch_apply, name='ldapactionbatch_apply'),
     path('actions/<int:pk>/apply', views.ldapaction_apply, name='ldapaction_apply'),
     path('actionbatches/<int:pk>/prune', views.ldapactionbatch_prune, name='ldapactionbatch_prune'),
-    path('ldapstate/<str:timestamp>', views.ldapstate_list, name='ldapstate_list'),
-    path('ldapstate/<str:timestamp>/<str:dn>', views.ldapstate_detail, name='ldapstate_detail'),
     path('ldapobject/', views.ldapobject_list, name='ldapobject_list'),
     path('ldapobject/<int:pk>', views.ldapobject_detail, name='ldapobject_detail'),
 ]
