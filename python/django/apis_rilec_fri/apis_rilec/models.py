@@ -1429,6 +1429,38 @@ def save_ldap(ldap_conn=None, filterstr=None,\
                 db_obj.fields.add(f)
 
 
+def save_apis(userdata_set, timestamp=None, ldap_conn=None,
+              ):
+    if timestamp is None:
+        timestamp = timezone.now()
+    ldap_conn = try_init_ldap(ldap_conn)
+    extra_fields = get_rules('EXTRA_FIELDS')
+    translations = get_rules('TRANSLATIONS')
+    group_rules = get_rules('GROUP_RULES')
+    user_rules = get_rules('USER_RULES')
+    merge_rules = get_rules('MERGE_RULES')
+    keep_fields = _get_keep_fields(merge_rules)
+    groups_membership = MultiValueDict()
+    users_by_uid = None
+    for userdata in userdata_set:
+        uid = userdata.uid
+        default_group_dn, groups_to_join = userdata.groups_at(timestamp, translations=translations, group_rules=group_rules)
+        user_fields = userdata.by_rules(timestamp, user_rules=user_rules, 
+                                        merge_rules=merge_rules, translations=translations, 
+                                        extra_fields=extra_fields,
+                                        ldap_conn=ldap_conn, users_by_uid=users_by_uid)
+        default_dn="CN={},{}".format(ldap.dn.escape_dn_chars(user_fields['CN'][0]), default_group_dn)
+        o = LDAPObject(timestamp=timestamp, source='rilec', 
+                dn=default_dn, 
+                uid=user_fields.get('EMPLOYEEID', None),
+                upn=user_fields.get('USERPRINCIPALNAME', None)
+            )
+        o.save()
+        for fieldname, vals in user_fields.items():
+            for val in vals:
+                field, created = LDAPField.objects.get_or_create(field=fieldname, value=val.encode('utf-8'))
+                o.fields.add(field)
+
 
 class LDAPObject(models.Model):
     class Meta:
@@ -1462,31 +1494,62 @@ class LDAPObject(models.Model):
     upn = models.CharField(max_length=256, blank=True, null=True)
     objectSid = models.BinaryField(max_length=28, blank=True, null=True)
     fields = models.ManyToManyField('LDAPField')
- 
-    def previous(self):
+  
+    def previous_id(self):
         p = None
         ordered = LDAPObject.objects.filter(timestamp__lt=self.timestamp).order_by('-timestamp')
         try:
             assert self.objectSid is not None and p is None
-            p = ordered.filter(objectSid=self.objectSid)[0]
+            p = ordered.filter(objectSid=self.objectSid).values_list('id', flat=True)[0]
         except Exception:
             pass
         try:
             assert self.upn is not None and p is None
-            p = ordered.filter(upn=self.upn)[0]
+            p = ordered.filter(upn=self.upn).values_list('id', flat=True)[0]
         except Exception:
             pass
         try:
             assert self.dn is not None and p is None
-            p = ordered.filter(dn=self.dn)[0]
+            p = ordered.filter(dn=self.dn).values_list('id', flat=True)[0]
         except Exception:
             pass
         try:
             assert self.uid is not None and p is None
-            p = ordered.filter(uid=self.uid)[0]
+            p = ordered.filter(uid=self.uid).values_list('id', flat=True)[0]
         except Exception:
             pass
         return p
+
+    def previous(self):
+        return LDAPObject.objects.get(id=self.previous_id())
+
+    def next_id(self):
+        p = None
+        ordered = LDAPObject.objects.filter(timestamp__gt=self.timestamp).order_by('timestamp')
+        try:
+            assert self.objectSid is not None and p is None
+            p = ordered.filter(objectSid=self.objectSid).values_list('id', flat=True)[0]
+        except Exception:
+            pass
+        try:
+            assert self.upn is not None and p is None
+            p = ordered.filter(upn=self.upn).values_list('id', flat=True)[0]
+        except Exception:
+            pass
+        try:
+            assert self.dn is not None and p is None
+            p = ordered.filter(dn=self.dn).values_list('id', flat=True)[0]
+        except Exception:
+            pass
+        try:
+            assert self.uid is not None and p is None
+            p = ordered.filter(uid=self.uid).values_list('id', flat=True)[0]
+        except Exception:
+            pass
+        return p
+
+    def next(self):
+        return LDAPObject.objects.get(id=self.next_id())
 
     def diff(self, data):
         icasedata = dict()
@@ -1504,11 +1567,11 @@ class LDAPObject(models.Model):
 
     def diff_to_previous(self):
         prev = self.previous()
-        new_ids = set(self.fields.values_list('id', flat=True))
+        new_ids = set(self.values_list('fields__id', flat=True))
         removed_ids = set()
         if prev is not None:
             cur_ids = new_ids
-            prev_ids = set(prev.fields.values_list('id', flat=True))
+            prev_ids = set(prev().values_list('fields__id', flat=True))
             new_ids = cur_ids.difference(prev_ids)
             removed_ids = prev_ids.difference(cur_ids)
         changed_fields = LDAPField.objects.filter(id__in=new_ids)
@@ -1557,21 +1620,9 @@ class LDAPObject(models.Model):
             ldap_conn.rename_s(real_dn, self.dn)
             real_dn = self.dn
         op_dict = defaultdict(list)
-        groups = set()
-        prev_f = None
-        vals = []
-        for field in self.fields.order_by('field'):
-            if prev_f != field.field and prev_f != None:
-                op_dict[real_dn].append((ldap.MOD_REPLACE, prev_f, vals))
-                if prev_f == 'MEMBEROF':
-                    groups = set(vals)
-                vals = []
-            prev_f = field.field
-            vals.append(field.value)
-        if prev_f != None:
-            if prev_f == 'MEMBEROF':
-                groups = set(vals)
+        for fieldname, vals in self.field_dict():
             op_dict[real_dn].append((ldap.MOD_REPLACE, prev_f, vals))
+        groups = set(field_dict('MEMBEROF'))
         groups_to_add = set()
         groups_to_remove = set()
         if clean_groups:
