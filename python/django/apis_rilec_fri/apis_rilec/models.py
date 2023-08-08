@@ -1578,31 +1578,46 @@ class LDAPObject(models.Model):
         removed_fields = LDAPField.objects.filter(id__in=removed_ids)
         return changed_fields, removed_fields
 
-    def find_in_ldap(self, ldap_conn=None):
+    def find_in_ldap(self, ldap_conn=None, find_by_fields=None):
+        if len(find_by_fields) == 0:
+            return self.dn
+        if find_by_fields is None:
+            find_by_fields = [
+                        "distinguishedName", "objectSid", "userPrincipalName", "employeeId"
+                    ]
         ldap_conn = try_init_ldap(ldap_conn)
         real_dn = self.dn
         # Find object if it exists
-        ldap_obj = ldap_conn.search_s(self.dn, scope=ldap.SCOPE_BASE, attrlist=['distinguishedname'])
-        if len(ldap_obj) < 1:
-            # if DN does not match, try other properties
-            if self.objectSid is None:
-                objectSidStr = None
-            else:
-                objectSidStr = "".join(["\\{0:02x}".format(j) for j in self.objectSid]),
-            for name, val in [
-                    ("objectSid", objectSidStr),
-                    ("userPrincipalName", self.upn),
-                    ("employeeId", self.uid )]:
-                if val is None:
-                    continue
-                filterstr = "{}={}".format(name, val)
-                ldap_obj = ldap_conn.search_s(settings.LDAP_USER_SEARCH_BASE,
-                                 scope=settings.LDAP_USER_SEARCH_SCOPE,
-                                 filterstr=filterstr,
-                                 attrlist=['distinguishedName'])
-                if len(ldap_obj) > 0:
-                    real_dn = ldap_obj[0][0]
-                    break
+        if self.objectSid is None:
+            objectSidStr = None
+        else:
+            objectSidStr = "".join(["\\{0:02x}".format(j) for j in self.objectSid]),
+        namevaldict = {
+                'objectSid'.upper(): objectSidStr,
+                'userPrincipalName'.upper(): self.upn,
+                'employeeId'.upper(): self.uid,
+                'distinguishedname'.upper(): self.dn
+            }
+        for name in find_by_fields:
+            name = name.upper()
+            val = namevaldict.get(name, None)
+            if val is None:
+                bin_val = self.field_dict().get(name, [None])[0]
+                if bin_val is not None:
+                    val = "".join(["\\{0:02x}".format(j) for j in bin_val])
+                continue
+            base = settings.LDAP_USER_SEARCH_BASE,
+            scope = settings.LDAP_USER_SEARCH_SCOPE,
+            if name == 'distinguishedName'.upper():
+                scope=ldap.SCOPE_BASE
+            filterstr = "{}={}".format(name, val)
+            ldap_obj = ldap_conn.search_s(settings.LDAP_USER_SEARCH_BASE,
+                             scope=settings.LDAP_USER_SEARCH_SCOPE,
+                             filterstr=filterstr,
+                             attrlist=['distinguishedName'])
+            if len(ldap_obj) > 0:
+                real_dn = ldap_obj[0][0]
+                break
         return real_dn
 
     def field_dict(self):
@@ -1611,11 +1626,9 @@ class LDAPObject(models.Model):
             ret[field.field].append(field.value)
         return dict(ret)
 
-    def to_ldap(self, ldap_conn=None, try_find=True, rename=True, clean_groups=True):
-        ldap_conn = try_init_ldap(ldap_conn)
-        real_dn = self.dn
-        if try_find:
-            real_dn = self.find_in_ldap(ldap_conn)
+    def to_ldap(self, ldap_conn=None, find_by_fields=None, rename=True, clean_groups=True):
+        ldap_conn = try_init_ldap(ldap_conn, find_by_fields=find_by_fields)
+        real_dn = self.find_in_ldap(ldap_conn, find_by_fields=find_by_fields)
         if rename and self.dn != real_dn:
             ldap_conn.rename_s(real_dn, self.dn)
             real_dn = self.dn
