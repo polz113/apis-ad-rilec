@@ -1465,7 +1465,7 @@ class LDAPObject(models.Model):
  
     def previous(self):
         p = None
-        ordered = LDAPObject.objects.order_by('-timestamp')
+        ordered = LDAPObject.objects.filter(timestamp__lt=self.timestamp).order_by('-timestamp')
         try:
             assert self.objectSid is not None and p is None
             p = ordered.filter(objectSid=self.objectSid)[0]
