@@ -93,15 +93,13 @@ def mergeduserdata_fields(request):
 
 @staff_member_required
 def mergeduserdata_detail(request, user_id):
-    ldap_conn = try_init_ldap()
     mud = get_object_or_404(MergedUserData, uid=user_id)
     user_rules = get_rules('USER_RULES')
     group_rules = get_rules('GROUP_RULES')
     extra_fields = get_rules('EXTRA_FIELDS')
     translations = get_rules('TRANSLATIONS')
     merge_rules = get_rules('MERGE_RULES')
-    with_extra = mud.with_extra(translations=translations, extra_fields=extra_fields,
-                                ldap_conn=ldap_conn)
+    with_extra = mud.with_extra(translations=translations, extra_fields=extra_fields)
     by_rules = dicts_to_ldapuser(user_rules=user_rules, merge_rules=merge_rules, datadicts=with_extra)
     default_dn, groups = dicts_to_ldapgroups(group_rules, with_extra)
     return render(request, 'apis_rilec/mergeduserdata_detail.html', {

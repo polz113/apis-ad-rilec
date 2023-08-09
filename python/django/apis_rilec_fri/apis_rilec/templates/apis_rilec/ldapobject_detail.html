@@ -5,13 +5,19 @@
       <title>Podrobnosti</title>
 </head>
 <body>
+    <a href="{% url "apis_rilec:ldapobject_list" %}">Nazaj na seznam</a>
     <div>
 	    <h1>{{object.dn}} ({{object.timestamp}} - {{object.source}})</h1>
-	    <h2>{{object.upn}}</h2>
-	    <h2>{{object.uid}}</h2>
+        <h2>{{object.upn}}</h2>
+        <h2><a href="{% url "apis_rilec:mergeduserdata_detail" object.uid %}">{{object.uid}}</a></h2>
     </div>
     <div>
-	    <a href="{{object.previous.get_absolute_url}}">previous version</a>
+        {% if object.previous_id is not None %}
+	    <a href="{% url "apis_rilec:ldapobject_detail" object.previous_id %}">Starejši</a>
+        {% endif %}
+        {% if object.next_id is not None %}
+	    <a href="{% url "apis_rilec:ldapobject_detail" object.next_id %}">Novejši</a>
+        {% endif %}
     </div>
     <div>
     <ul>

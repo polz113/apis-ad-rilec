@@ -19,7 +19,7 @@ import re
 import string
 import itertools
 import ldap
-
+from ldap.controls import SimplePagedResultsControl
 
 
 from urllib.request import Request, urlopen, quote
@@ -76,7 +76,7 @@ def _lower(s, **kwargs):
     return s.lower()
 
 
-def uid_to_dn(uid, ldap_conn, users_by_uid=None, **kwargs):
+def uid_to_dn(uid, users_by_uid=None, **kwargs):
     # TODO v primeru, da je objektov z istim employeeId več, izberi tistega s pravim upn
     try:
         dn = None
@@ -84,12 +84,11 @@ def uid_to_dn(uid, ldap_conn, users_by_uid=None, **kwargs):
             user_data = users_by_uid.get(uid, {'DISTINGUISHEDNAME': None})
             dn = user_data.get('DISTINGUISHEDNAME', None)
         if dn is None:
-            ret = ldap_conn.search_s(settings.LDAP_USER_SEARCH_BASE,
-                                     scope=settings.LDAP_USER_SEARCH_SCOPE,
-                                     filterstr='employeeId={}'.format(uid),
-                                     attrlist=['distinguishedName'])
-            assert len(ret) == 1
-            dn = ret[0][0]
+            dns = LDAPObject.objects.filter(uid=uid).order_by('-timestamp').values_list('dn', flat=True)
+            try:
+                dn = dns[0]
+            except:
+                dn = None
     except Exception as e:
         # print("Uid_to_dn: ", e)
         dn = None
@@ -294,7 +293,7 @@ def _fill_template(datadict, template, trans_names, translations,
         # print("  ", data)
         for tname in trans_names:
             data = translations.get(tname, NOOP_TRANSLATOR).translate(
-                        data, ldap_conn=ldap_conn, users_by_uid=users_by_uid)
+                        data, users_by_uid=users_by_uid)
     except KeyError as e:
         # print("  Booo", template)
         # if template.find('abilitacija') > -1:
@@ -314,7 +313,7 @@ def _field_adder(datadict, extra_fields, translations, update_datadict=True,
     for fieldname, rulelist in extra_fields:
         for (template, trans_names) in rulelist:
             new_data = _fill_template(d, template, trans_names, translations,
-                                      ldap_conn=ldap_conn, users_by_uid=users_by_uid)
+                                      users_by_uid=users_by_uid)
             # print(template, fieldname, new_data)
             if new_data is not None:
                 d[fieldname] = new_data
@@ -714,6 +713,7 @@ class UserData(models.Model):
             'dataset' + FIELD_DELIMITER + 'source': [self.dataset.source.source]
             })
         by_fieldgroup = defaultdict(MultiValueDict)
+        by_fieldgroup[None] = common_d
         for f in self.fields.all():
             if f.valid_from > timestamp or f.valid_to < timestamp:
                 continue
@@ -731,7 +731,7 @@ class UserData(models.Model):
         return dicts
 
     def with_extra(self, timestamp=None, extra_fields=None, translations=None,
-                   ldap_conn=None, users_by_uid=None):
+                   users_by_uid=None):
         translated_dicts = list()
         if extra_fields is None:
             extra_fields = get_rules('EXTRA_FIELDS')
@@ -744,7 +744,6 @@ class UserData(models.Model):
                                                  extra_fields=extra_fields, 
                                                  translations=translations,
                                                  update_datadict=True,
-                                                 ldap_conn=ldap_conn,
                                                  users_by_uid=users_by_uid))
             # translated_dicts.append(datadict)
         return translated_dicts
@@ -827,7 +826,7 @@ class MergedUserData(models.Model):
     # latest = models.BooleanField(default=False)
 
     def with_extra(self, timestamp=None, user_rules=None, extra_fields=None, translations=None,
-                 ldap_conn=None, users_by_uid=None, sources=None):
+                   users_by_uid=None, sources=None):
         l = []
         if extra_fields is None:
             extra_fields = get_rules('EXTRA_FIELDS')
@@ -841,14 +840,14 @@ class MergedUserData(models.Model):
             l += data.with_extra(timestamp=timestamp,
                                  extra_fields=extra_fields,
                                  translations=translations, 
-                                 ldap_conn=ldap_conn,
                                  users_by_uid=users_by_uid)
         return l
 
     def by_rules(self, timestamp=None, 
                  user_rules=None, extra_fields=None, 
                  merge_rules=None, translations=None,
-                 ldap_conn=None, sources=None):
+                 users_by_uid=None,
+                 sources=None):
         if user_rules is None:
             user_rules = get_rules('USER_RULES')
         if translations is None:
@@ -857,22 +856,19 @@ class MergedUserData(models.Model):
             merge_rules = get_rules('MERGE_RULES')
         datadicts = self.with_extra(timestamp=timestamp, extra_fields=extra_fields, 
                                     translations=translations,
-                                    ldap_conn=ldap_conn, users_by_uid=users_by_uid,
+                                    users_by_uid=users_by_uid,
                                     sources=sources)
         return dicts_to_ldapuser(user_rules, merge_rules, datadicts)
 
-    def groups_at(self, timestamp=None, group_rules=None, extra_fields=None, translations=None,
-                  ldap_conn=None):
+    def groups_at(self, timestamp=None, group_rules=None, extra_fields=None, translations=None):
         if group_rules is None:
             group_rules = get_rules('GROUP_RULES')
         datadicts = self.with_extra(timestamp=timestamp,
-                                    translations=translations,
-                                    ldap_conn=ldap_conn)
+                                    translations=translations)
         return dicts_to_ldapgroups(group_rules, datadicts)
 
 
-def get_groups(timestamp=None, group_rules=None, translations=None,
-               ldap_conn=None):
+def get_groups(timestamp=None, group_rules=None, translations=None):
     if group_rules is None:
         group_rules = get_rules('GROUP_RULES')
     if translations is None:
@@ -911,8 +907,7 @@ def get_groups(timestamp=None, group_rules=None, translations=None,
                 value_l = []
                 for template in templatel:
                     t1 = string.Template(template)
-                    d = _field_adder(d, extra_fields=create_fields, translations=translations,
-                                     ldap_conn=ldap_conn, users_by_uid=users_by_uid)
+                    d = _field_adder(d, extra_fields=create_fields, translations=translations)
                     value_l.append(t1.substitute(d))
                 group_dict[fieldname] = value_l
             groups.append(group_dict)
@@ -1191,7 +1186,27 @@ def group_ldapactionbatch(timestamp=None):
         action.order = i
     LDAPAction.objects.bulk_create(actions)
     return actionbatch
-    
+
+
+def group_ldapobjects(timestamp=None):
+    if timestamp is None:
+        timestamp = timezone.now()
+    for order, mixedcase_group in enumerate(get_groups(timestamp=timestamp)):
+        group = dict()
+        for k, v in mixedcase_group.items():
+            group[k.upper()] = v
+        # print(order, group)
+        dn = group.pop('distinguishedName'.upper())[0]
+        # TODO: create ldapobject
+        o = LDAPObject(dn=dn, timestamp=timestamp, source='rilec')
+        o.save()
+        for fieldname, values in group.items():
+            for chr_val in values:
+                val = chr_val.encode('utf-8')
+                f, created = LDAPField.objects.get_or_create(field=fieldname,
+                                                             value=val)
+                o.fields.add(f)
+
 
 def _get_keep_fields(merge_rules):
     keep_fields = set()
@@ -1392,11 +1407,32 @@ def ldap_state(timestamp=None, dn_list=None):
         objs = objs.filter(timestamp__lte=timestamp)
     ret = []
     old_dn = None
-    for i in objs.order_by("dn", "timestamp"):
+    for i in objs.order_by("dn", "-timestamp"):
         if i.dn != old_dn:
             ret.append(i)
             old_dn = i.dn
     return ret
+
+
+def infinite_search(ldap_conn, base, scope, filterstr='(objectClass=*)', attrlist=None, attrsonly=0):
+    PAGESIZE = 500
+    # code shamelessly inspired by https://gist.github.com/mattfahrner/c228ead9c516fc322d3a
+
+    lc = SimplePagedResultsControl(True, size=PAGESIZE, cookie='')
+    while True:
+        msgid = ldap_conn.search_ext(base=base, scope=scope, filterstr=filterstr,
+                                     attrlist=attrlist, serverctrls=[lc])
+        rtype, rdata, rmsgid, serverctrls = ldap_conn.result3(msgid)
+        for i in rdata:
+            yield i
+        # Get cookie for next request
+        pctrls = [c for c in serverctrls if c.controlType == SimplePagedResultsControl.controlType]
+        if not pctrls:
+            break
+        cookie = pctrls[0].cookie
+        if not cookie:
+            break
+        lc.cookie = cookie
 
 
 def save_ldap(ldap_conn=None, filterstr=None,\
@@ -1404,13 +1440,13 @@ def save_ldap(ldap_conn=None, filterstr=None,\
         scope=settings.LDAP_USER_SEARCH_SCOPE):
     ldap_conn = try_init_ldap(ldap_conn)
     timestamp = timezone.now()
-    for ad_dn, ad_obj in ldap_conn.search_s(base=base, scope=scope, filterstr=filterstr):
+    for ad_dn, ad_obj in infinite_search(ldap_conn, base=base, scope=scope, filterstr=filterstr):
         icase_obj = dict()
         for k, v in ad_obj.items():
             icase_obj[k.upper()] = v
-        uid = icase_obj.get('employeeID'.upper(), [b''])[0].decode('utf-8')
+        uid = icase_obj.get('employeeID'.upper(), [b''])[0].decode('utf-8').upper()
         if len(uid) < 1: uid = None
-        upn = icase_obj.get('userPrincipalName'.upper(), [b''])[0].decode('utf-8')
+        upn = icase_obj.get('userPrincipalName'.upper(), [b''])[0].decode('utf-8').upper()
         if len(upn) < 1: upn = None
         db_obj = LDAPObject(timestamp=timestamp,
                 dn = ad_dn,
@@ -1429,11 +1465,9 @@ def save_ldap(ldap_conn=None, filterstr=None,\
                 db_obj.fields.add(f)
 
 
-def save_apis(userdata_set, timestamp=None, ldap_conn=None,
-              ):
+def save_rilec(userdata_set, timestamp=None):
     if timestamp is None:
         timestamp = timezone.now()
-    ldap_conn = try_init_ldap(ldap_conn)
     extra_fields = get_rules('EXTRA_FIELDS')
     translations = get_rules('TRANSLATIONS')
     group_rules = get_rules('GROUP_RULES')
@@ -1448,19 +1482,22 @@ def save_apis(userdata_set, timestamp=None, ldap_conn=None,
         user_fields = userdata.by_rules(timestamp, user_rules=user_rules, 
                                         merge_rules=merge_rules, translations=translations, 
                                         extra_fields=extra_fields,
-                                        ldap_conn=ldap_conn, users_by_uid=users_by_uid)
+                                        users_by_uid=users_by_uid)
         default_dn="CN={},{}".format(ldap.dn.escape_dn_chars(user_fields['CN'][0]), default_group_dn)
         o = LDAPObject(timestamp=timestamp, source='rilec', 
                 dn=default_dn, 
-                uid=user_fields.get('EMPLOYEEID', None),
-                upn=user_fields.get('USERPRINCIPALNAME', None)
+                uid=user_fields.get('EMPLOYEEID', [None])[0],
+                upn=user_fields.get('USERPRINCIPALNAME', [None])[0]
             )
+
         o.save()
         for fieldname, vals in user_fields.items():
             for val in vals:
                 field, created = LDAPField.objects.get_or_create(field=fieldname, value=val.encode('utf-8'))
                 o.fields.add(field)
-
+        for g in groups_to_join:
+            field, created = LDAPField.objects.get_or_create(field='MEMBEROF', value=g.encode("utf-8"))
+            o.fields.add(field)
 
 class LDAPObject(models.Model):
     class Meta:
