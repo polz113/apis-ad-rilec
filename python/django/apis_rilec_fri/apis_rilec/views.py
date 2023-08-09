@@ -10,10 +10,11 @@ from django.contrib.admin.views.decorators import staff_member_required
 import logging
 import ldap
 
-from .models import DataSource, MergedUserData, LDAPActionBatch, LDAPAction, UserDataField,\
+from .models import DataSource, MergedUserData, UserDataField,\
         LDAPObject,\
         get_rules, dicts_to_ldapuser, dicts_to_ldapgroups, ldap_state,\
-        delete_old_userdata, user_ldapactionbatch, group_ldapactionbatch,\
+        delete_old_userdata,\
+        save_rilec, save_ldap, autogroup_ldapobjects,\
         get_data_studis, apis_to_translations, try_init_ldap
 
 # Create your views here
@@ -121,26 +122,28 @@ def delete_old_userdata_view(request):
 
 # @silk_profile(name='user_ldapactionbatch')
 @staff_member_required
-def user_ldapactionbatch_view(request, t=None):
+def user_rilec_save_view(request):
     # if request.method == 'PUT' or request.method == 'POST':
     # TODO fix CSRF vulnerability here
-    timestamp = None
-    if t is not None:
-        timestamp = timezone.make_aware(timezone.datetime.fromisoformat(t))
     userdata = MergedUserData.objects.prefetch_related('data', 'data__fields', 'data__dataset__source').all()
-    b = user_ldapactionbatch(userdata, timestamp=timestamp)
-    return redirect(b)
+    save_rilec(userdata)
+    return redirect(reverse("apis_rilec:ldapobject_list"))
 
 
 @staff_member_required
-def group_ldapactionbatch_view(request, t=None):
+def save_ldap_view(request):
+    # if request.method == 'PUT' or request.method == 'POST':
+    # TODO fix base, filterstr to something that will actually work
+    save_ldap()
+    return redirect(reverse("apis_rilec:ldapobject_list"))
+
+
+@staff_member_required
+def autogroup_ldapobjects_view(request, t=None):
     # if request.method == 'PUT' or request.method == 'POST':
     # TODO fix CSRF vulnerability here
-    timestamp = None
-    if t is not None:
-        timestamp = timezone.make_aware(timezone.datetime.fromisoformat(t))
-    b = group_ldapactionbatch(timestamp=timestamp)
-    return redirect(b)
+    autogroup_ldapobjects()
+    return redirect(reverse("apis_rilec:ldapobject_list"))
 
 #@staff_member_required
 def userproperty_list(request):
@@ -173,34 +176,6 @@ def group_rules(request):
 def translations(request):
     props = get_rules('TRANSLATIONS')
     return render(request, 'apis_rilec/translations.html', {'object_list': props})
-
-@staff_member_required
-def ldapactionbatch_list(request):
-    batches = LDAPActionBatch.objects.all()
-    return render(request, 'apis_rilec/ldapactionbatch_list.html', {'object_list': batches})
-
-@staff_member_required
-def ldapactionbatch_detail(request, pk):
-    batch = get_object_or_404(LDAPActionBatch, pk=pk)
-    return render(request, 'apis_rilec/ldapactionbatch_detail.html', {'object': batch})
-
-@staff_member_required
-def ldapactionbatch_apply(request, pk):
-    batch = get_object_or_404(LDAPActionBatch, pk=pk)
-    ret = batch.apply() 
-    return render(request, 'apis_rilec/ldapactionbatch_apply.html', {'object': batch, 'ret': ret})
-
-@staff_member_required
-def ldapactionbatch_prune(request, pk):
-    batch = get_object_or_404(LDAPActionBatch, pk=pk)
-    ret = batch.prune()
-    return render(request, 'apis_rilec/ldapactionbatch_prune.html', {'object': batch, 'ret': ret})
-
-@staff_member_required
-def ldapaction_apply(request, pk):
-    action = get_object_or_404(LDAPAction, pk=pk)
-    ret = action.apply() 
-    return render(request, 'apis_rilec/ldapaction_apply.html', {'object': batch, 'ret': ret})
 
 @staff_member_required
 def ldapobject_list(request):

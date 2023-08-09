@@ -5,9 +5,8 @@ from django.utils.translation import gettext_lazy as _
 
 from .models import DataSource, DataSet,\
     OUData, OURelation, MergedUserData, UserData, UserDataField,\
-    TranslationTable, TranslationRule,\
-    LDAPActionBatch, LDAPAction, LDAPApply,\
-    user_ldapactionbatch
+    LDAPObject,\
+    TranslationTable, TranslationRule
 
 # Register your models here.
 class DataSourceAdmin(admin.ModelAdmin):
@@ -78,36 +77,17 @@ class UserDataAdmin(admin.ModelAdmin):
     list_filter = [OldUserdataFilter]
 
 
+class LDAPObjectAdmin(admin.ModelAdmin):
+    pass
+
+
 class MergedUserDataAdmin(admin.ModelAdmin):
     raw_id_fields = ['data']
     # readonly_fields = ['data']
-    actions = ['to_ldapactionbatch']
-    @admin.action(description="Convert to LDAPActionBatch")
-    def to_ldapactionbatch(self, request, queryset):
-        user_ldapactionbatch(queryset.all())
-
-
-class LDAPActionBatchAdmin(admin.ModelAdmin):
-    actions = ['apply', 'prune']
-
-    @admin.action(description='Prune')
-    def prune(self, request, queryset):
-        for i in queryset.all():
-            i.prune()
-
-    @admin.action(description='Apply')
-    def apply(self, request, queryset):
-        for i in queryset.all():
-            i.apply()
-
-class LDAPActionAdmin(admin.ModelAdmin):
-    actions = ['apply']
-    raw_id_fields = ['sources']
-
-    @admin.action(description='Apply')
-    def apply(self, request, queryset):
-        for i in queryset.all():
-            i.apply()
+    #actions = ['to_ldapactionbatch']
+    #@admin.action(description="Convert to LDAPActionBatch")
+    #def to_ldapactionbatch(self, request, queryset):
+    #    user_ldapactionbatch(queryset.all())
 
 
 admin.site.register(DataSource, DataSourceAdmin)
@@ -116,6 +96,4 @@ admin.site.register(OUData)
 admin.site.register(TranslationTable, TranslationTableAdmin)
 admin.site.register(UserData, UserDataAdmin)
 admin.site.register(MergedUserData, MergedUserDataAdmin)
-admin.site.register(LDAPActionBatch, LDAPActionBatchAdmin)
-admin.site.register(LDAPAction, LDAPActionAdmin)
-admin.site.register(LDAPApply)
+admin.site.register(LDAPObject, LDAPObjectAdmin)
