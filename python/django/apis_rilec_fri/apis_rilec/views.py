@@ -185,4 +185,8 @@ def ldapobject_list(request):
 @staff_member_required
 def ldapobject_detail(request, pk):
     obj = get_object_or_404(LDAPObject, pk=pk)
-    return render(request, 'apis_rilec/ldapobject_detail.html', {'object': obj})
+    added, removed = obj.diff()
+    added = added.order_by('field')
+    removed = removed.order_by('field')
+    return render(request, 'apis_rilec/ldapobject_detail.html',
+                  {'object': obj, 'added': added, 'removed': removed})

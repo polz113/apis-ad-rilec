@@ -1240,6 +1240,9 @@ def save_ldap(ldap_conn=None, filterstr=None,\
         scope=settings.LDAP_USER_SEARCH_SCOPE):
     ldap_conn = try_init_ldap(ldap_conn)
     timestamp = timezone.now()
+    fielddict = dict()
+    for f, v, i in LDAPField.objects.values_list('field', 'value', 'id'):
+        fielddict[(f, v)] = i
     for ad_dn, ad_obj in infinite_search(ldap_conn, base=base, scope=scope, filterstr=filterstr):
         icase_obj = dict()
         for k, v in ad_obj.items():
@@ -1256,13 +1259,18 @@ def save_ldap(ldap_conn=None, filterstr=None,\
                 objectSid = icase_obj.get('objectSid'.upper(), [None])[0],
                 )
         db_obj.save()
+        fields_to_add=list()
         for fieldname, val_list in icase_obj.items():
             for val in val_list:
-                f, created = LDAPField.objects.get_or_create(field=fieldname,
+                fid = fielddict.get((fieldname, val), None)
+                if fid is not None:
+                    fields_to_add.append(fid)
+                else:
+                    f, created = LDAPField.objects.get_or_create(field=fieldname,
                                                              value=val)
-                if created:
-                    f.save()
-                db_obj.fields.add(f)
+                    fields_to_add.append(f.id)
+                    fielddict[(fieldname, val)] = f.id
+        db_obj.fields.add(*fields_to_add)
 
 
 def save_rilec(userdata_set, timestamp=None):
@@ -1276,6 +1284,9 @@ def save_rilec(userdata_set, timestamp=None):
     keep_fields = _get_keep_fields(merge_rules)
     groups_membership = MultiValueDict()
     users_by_uid = None
+    fielddict = dict()
+    for f, v, i in LDAPField.objects.values_list('field', 'value', 'id'):
+        fielddict[(f, v)] = i
     for userdata in userdata_set:
         uid = userdata.uid
         default_group_dn, groups_to_join = userdata.groups_at(timestamp, translations=translations, group_rules=group_rules)
@@ -1289,15 +1300,27 @@ def save_rilec(userdata_set, timestamp=None):
                 uid=user_fields.get('EMPLOYEEID', [None])[0],
                 upn=user_fields.get('USERPRINCIPALNAME', [None])[0]
             )
-
         o.save()
+        fields_to_add = list()
         for fieldname, vals in user_fields.items():
             for val in vals:
-                field, created = LDAPField.objects.get_or_create(field=fieldname, value=val.encode('utf-8'))
-                o.fields.add(field)
+                value = val.encode('utf-8')
+                fid = fielddict.get((fieldname, value), None)
+                if fid is not None:
+                    fields_to_add.append(fid)
+                else:
+                    field, created = LDAPField.objects.get_or_create(field=fieldname, value=value)
+                    fields_to_add.append(field.id)
+                    fielddict[(fieldname, val)] = field.id
         for g in groups_to_join:
-            field, created = LDAPField.objects.get_or_create(field='MEMBEROF', value=g.encode("utf-8"))
-            o.fields.add(field)
+            value = g.encode('utf-8')
+            fid = fielddict.get(('MEMBEROF', value), None)
+            if fid is not None:
+                fields_to_add.append(fid)
+            else:
+                field, created = LDAPField.objects.get_or_create(field='MEMBEROF', value=value)
+                fields_to_add.append(field.id)
+        o.fields.add(*fields_to_add)
 
 class LDAPObject(models.Model):
     class Meta:
@@ -1358,7 +1381,9 @@ class LDAPObject(models.Model):
         return p
 
     def previous(self):
-        return LDAPObject.objects.get(id=self.previous_id())
+        i = self.previous_id()
+        if i is None: return None
+        return LDAPObject.objects.get(id=i)
 
     def next_id(self):
         p = None
@@ -1386,9 +1411,11 @@ class LDAPObject(models.Model):
         return p
 
     def next(self):
-        return LDAPObject.objects.get(id=self.next_id())
+        i=self.next_id()
+        if i is None: return None
+        return LDAPObject.objects.get(id=i)
 
-    def diff(self, data):
+    def diff_to_data(self, data):
         icasedata = dict()
         for k, v in data:
             icasedata[k.upper()] = v.copy()
@@ -1401,29 +1428,30 @@ class LDAPObject(models.Model):
             else:
                 field_data.discard(field.value)
         return icasedata, removed_fields
-
-    def diff_to_previous(self):
-        prev = self.previous()
-        new_ids = set(self.values_list('fields__id', flat=True))
+    
+    def diff(self, other=None):
+        if other is None:
+            other = self.previous()
+        new_ids = set(self.fields.values_list('id', flat=True))
         removed_ids = set()
-        if prev is not None:
+        if other is not None:
             cur_ids = new_ids
-            prev_ids = set(prev().values_list('fields__id', flat=True))
-            new_ids = cur_ids.difference(prev_ids)
-            removed_ids = prev_ids.difference(cur_ids)
+            other_ids = set(other.fields.values_list('id', flat=True))
+            new_ids = cur_ids.difference(other_ids)
+            removed_ids = other_ids.difference(cur_ids)
         changed_fields = LDAPField.objects.filter(id__in=new_ids)
         removed_fields = LDAPField.objects.filter(id__in=removed_ids)
         return changed_fields, removed_fields
 
     def find_in_ldap(self, ldap_conn=None, find_by_fields=None):
         if len(find_by_fields) == 0:
-            return self.dn
+            return None
         if find_by_fields is None:
             find_by_fields = [
                         "distinguishedName", "objectSid", "userPrincipalName", "employeeId"
                     ]
         ldap_conn = try_init_ldap(ldap_conn)
-        real_dn = self.dn
+        real_dn = None
         # Find object if it exists
         if self.objectSid is None:
             objectSidStr = None
@@ -1447,9 +1475,10 @@ class LDAPObject(models.Model):
             scope = settings.LDAP_USER_SEARCH_SCOPE,
             if name == 'distinguishedName'.upper():
                 scope=ldap.SCOPE_BASE
+                base=self.dn
             filterstr = "{}={}".format(name, val)
-            ldap_obj = ldap_conn.search_s(settings.LDAP_USER_SEARCH_BASE,
-                             scope=settings.LDAP_USER_SEARCH_SCOPE,
+            ldap_obj = ldap_conn.search_s(base,
+                             scope=scope,
                              filterstr=filterstr,
                              attrlist=['distinguishedName'])
             if len(ldap_obj) > 0:
@@ -1463,15 +1492,22 @@ class LDAPObject(models.Model):
             ret[field.field].append(field.value)
         return dict(ret)
 
-    def to_ldap(self, ldap_conn=None, find_by_fields=None, rename=True, clean_groups=True):
-        ldap_conn = try_init_ldap(ldap_conn, find_by_fields=find_by_fields)
+    def to_ldap(self, ldap_conn=None, find_by_fields=None, rename=True, clean_groups=True,
+                ignore_fields=None, keep_fields=None):
+        ldap_conn = try_init_ldap(ldap_conn)
         real_dn = self.find_in_ldap(ldap_conn, find_by_fields=find_by_fields)
+        ignore_fields_set = set([i.upper() for i in ignore_fields])
+        if real_dn is None:
+            real_dn = self.dn
+        else:
+            ignore_fields_set = ignore_fields_set.union(set([i.upper() for i in keep_fields]))
         if rename and self.dn != real_dn:
             ldap_conn.rename_s(real_dn, self.dn)
             real_dn = self.dn
         op_dict = defaultdict(list)
         for fieldname, vals in self.field_dict():
-            op_dict[real_dn].append((ldap.MOD_REPLACE, prev_f, vals))
+            if fieldname.upper() not in ignore_field_set:
+                op_dict[real_dn].append((ldap.MOD_REPLACE, prev_f, vals))
         groups = set(field_dict('MEMBEROF'))
         groups_to_add = set()
         groups_to_remove = set()
