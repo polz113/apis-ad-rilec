@@ -1199,18 +1199,27 @@ def delete_old_userdata():
     UserData.objects.filter(mergeduserdata=None).delete()
 
 
-def ldap_state(timestamp=None, dn_list=None):
-    objs = LDAPObject.objects.all()
-    if dn_list is not None:
-        objs = objs.filter(dn__in=dn_list).all()
+def ldap_state(timestamp=None, dn_list=None, mark_changed=True):
+    if dn_list is None:
+        dns = LDAPObject.objects.order_by('dn').values_list('dn', flat=True).distinct()
     if timestamp is not None:
         objs = objs.filter(timestamp__lte=timestamp)
-    ret = []
-    old_dn = None
-    for i in objs.order_by("dn", "-timestamp"):
-        if i.dn != old_dn:
-            ret.append(i)
-            old_dn = i.dn
+    if mark_changed:
+        to_fetch = 2
+    else:
+        to_fetch = 1
+    ret = list()
+    for dn in dns:
+        latest2 = list(LDAPObject.objects.filter(dn=dn)\
+                .order_by('-timestamp')\
+                .prefetch_related('fields')\
+                .only('id', 'dn', 'timestamp', 'source', 'upn', 'uid', 'objectSid',
+                      'fields__id')[:to_fetch])
+        latest2 += [None] * (to_fetch - len(latest2))
+        newer, older = latest2
+        if mark_changed:
+            newer.changed = (older is None) or newer.is_different(older)
+        ret.append(newer)
     return ret
 
 
@@ -1356,38 +1365,26 @@ class LDAPObject(models.Model):
     fields = models.ManyToManyField('LDAPField')
     
     def siblings(self):
-        objs = LDAPObject.objects
-        filtered = False
-        try:
-            assert self.objectSid is not None and p is None
-            objs = objs.filter(objectSid=self.objectSid)
-            filtered = True
-        except Exception:
-            pass
-        try:
-            assert self.upn is not None and p is None
-            objs = objs.filter(upn=self.upn)
-            filtered = True
-        except Exception:
-            pass
-        try:
-            assert self.dn is not None and p is None
-            objs = objs.filter(dn=self.dn)
-            filtered = True
-        except Exception:
-            pass
-        try:
-            assert self.uid is not None and p is None
-            objs = objs.filter(uid=self.uid)
-            filtered = True
-        except Exception:
-            pass
-
-        return objs
+        objs = LDAPObject.objects.all()
+        query = Q()
+        if self.dn is not None:
+            query = query | Q(dn=self.dn)
+        if self.objectSid is not None:
+            query = query | Q(objectSid=self.objectSid)
+        if self.upn is not None:
+            query = query | Q(upn=self.upn)
+        if self.uid is not None:
+            query = query | Q(uid=self.uid)
+        if query is None:
+            return LDAPObject.objects.none()
+        return objs.filter(query)
 
     def previous_id(self):
-        ordered = self.siblings.order_by('-timestamp')
-        return ordered.values_list('id', flat=True)[0]
+        ordered = self.siblings().filter(timestamp__lt=self.timestamp).order_by('-timestamp')
+        try:
+            return ordered.values_list('id', flat=True)[0]
+        except:
+            return None
 
     def previous(self):
         i = self.previous_id()
@@ -1395,13 +1392,23 @@ class LDAPObject(models.Model):
         return LDAPObject.objects.get(id=i)
 
     def next_id(self):
-        ordered = self.siblings.order_by('timestamp')
-        return ordered.values_list('id', flat=True)[0]
+        ordered = self.siblings().filter(timestamp__gt=self.timestamp).order_by('timestamp')
+        try:
+            return ordered.values_list('id', flat=True)[0]
+        except:
+            return None
         
     def next(self):
         i=self.next_id()
         if i is None: return None
         return LDAPObject.objects.get(id=i)
+
+    def latest_id(self):
+        ordered = self.siblings().order_by('-timestamp')
+        try:
+            return ordered.values_list('id', flat=True)[0]
+        except:
+            return None
 
     def diff_to_data(self, data):
         icasedata = dict()
@@ -1417,6 +1424,15 @@ class LDAPObject(models.Model):
                 field_data.discard(field.value)
         return icasedata, removed_fields
     
+    def is_different(self, other=None):
+        if other is None:
+            other = self.previous()
+        if other is not None:
+            other_ids = set(other.fields.values_list('id', flat=True))
+            my_ids = set(self.fields.values_list('id', flat=True))
+            return len(my_ids.difference(other_ids)) > 0
+        return True
+
     def diff(self, other=None):
         if other is None:
             other = self.previous()
@@ -1432,12 +1448,12 @@ class LDAPObject(models.Model):
         return changed_fields, removed_fields
 
     def find_in_ldap(self, ldap_conn=None, find_by_fields=None):
-        if len(find_by_fields) == 0:
-            return None
         if find_by_fields is None:
             find_by_fields = [
                         "distinguishedName", "objectSid", "userPrincipalName", "employeeId"
                     ]
+        if len(find_by_fields) == 0:
+            return None
         ldap_conn = try_init_ldap(ldap_conn)
         real_dn = None
         # Find object if it exists
@@ -1464,7 +1480,9 @@ class LDAPObject(models.Model):
             if name == 'distinguishedName'.upper():
                 scope=ldap.SCOPE_BASE
                 base=self.dn
-            filterstr = "{}={}".format(name, val)
+                filterstr=None
+            else:
+                filterstr = "({}={})".format(name, ldap.filter.escape_filter_chars(val))
             ldap_obj = ldap_conn.search_s(base,
                              scope=scope,
                              filterstr=filterstr,

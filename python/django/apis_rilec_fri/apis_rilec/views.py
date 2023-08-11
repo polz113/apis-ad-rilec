@@ -200,12 +200,12 @@ def ldapobject_save(request, pk, source):
             dn = obj.dn
         save_ldap(ldap_conn=None, filterstr='(objectclass=*)', base=dn, scope=ldap.SCOPE_BASE)
     elif source == 'rilec':
-        userdata = MergedUserData.objects.prefetch_related('data', 'data__fields', 'data__dataset__source').get()
-        save_rilec()
-
-@staff_member_required
-def ldapobject_user_rilec_save(request, pk): 
-    obj = get_object_or_404(LDAPObject, pk=pk)
+        userdata = MergedUserData.objects.prefetch_related('data', 'data__fields', 'data__dataset__source').filter(uid=obj.uid)
+        save_rilec(userdata)
+    latest_id = obj.latest_id()
+    if latest_id is not None:
+        return redirect(reverse("apis_rilec:ldapobject_detail", kwargs={'pk': latest_id}))
+    return redirect(reverse("apis_rilec:ldapobject_list"))
 
 @staff_member_required
 def ldapobject_to_ldap(request, pk, source): 
