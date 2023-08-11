@@ -18,7 +18,7 @@
             ["${sluggy_ime}.${sluggy_priimek}", []]
         ]],
         ["default_samaccount", [
-            ["$default_username", ["first_20_chars"]]
+            ["$default_username", ["lower", "first_20_chars"]]
         ]],
         ["celoime", [
             ["${OsebniPodatki__0002__0__priimek}, ${OsebniPodatki__0002__0__ime}", []],
