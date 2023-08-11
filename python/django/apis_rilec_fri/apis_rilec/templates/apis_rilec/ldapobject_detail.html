@@ -7,7 +7,8 @@
 <body>
     <a href="{% url "apis_rilec:ldapobject_list" %}">Nazaj na seznam</a>
     <div>
-	    <h1>{{object.dn}} ({{object.timestamp}} - {{object.source}})</h1>
+	<h1>{{object.dn}}
+	<h2>{{object.source}} - {{object.timestamp}}</h2>
         <h2>{{object.upn}}</h2>
         <h2><a href="{% url "apis_rilec:mergeduserdata_detail" object.uid %}">{{object.uid}}</a></h2>
     </div>
@@ -18,6 +19,15 @@
         {% if object.next_id is not None %}
 	    <a href="{% url "apis_rilec:ldapobject_detail" object.next_id %}">Novejši</a>
         {% endif %}
+	{% with latest_id=object.latest_id %}
+            {% if object.id != latest_id %}
+	    <a href="{% url "apis_rilec:ldapobject_detail" object.latest_id %}">Najnovejši</a>
+	    {% endif %}
+	{% endwith %}
+    </div>
+    <div>
+        <a href="{% url "apis_rilec:ldapobject_save" object.id 'ldap' %}">Preberi iz LDAP</a>
+        <a href="{% url "apis_rilec:ldapobject_save" object.id 'rilec' %}">Preberi iz rilca</a>
     </div>
     <div>
         <h2>Dodana polja</h2>
