@@ -1354,31 +1354,40 @@ class LDAPObject(models.Model):
     upn = models.CharField(max_length=256, blank=True, null=True)
     objectSid = models.BinaryField(max_length=28, blank=True, null=True)
     fields = models.ManyToManyField('LDAPField')
-  
-    def previous_id(self):
-        p = None
-        ordered = LDAPObject.objects.filter(timestamp__lt=self.timestamp).order_by('-timestamp')
+    
+    def siblings(self):
+        objs = LDAPObject.objects
+        filtered = False
         try:
             assert self.objectSid is not None and p is None
-            p = ordered.filter(objectSid=self.objectSid).values_list('id', flat=True)[0]
+            objs = objs.filter(objectSid=self.objectSid)
+            filtered = True
         except Exception:
             pass
         try:
             assert self.upn is not None and p is None
-            p = ordered.filter(upn=self.upn).values_list('id', flat=True)[0]
+            objs = objs.filter(upn=self.upn)
+            filtered = True
         except Exception:
             pass
         try:
             assert self.dn is not None and p is None
-            p = ordered.filter(dn=self.dn).values_list('id', flat=True)[0]
+            objs = objs.filter(dn=self.dn)
+            filtered = True
         except Exception:
             pass
         try:
             assert self.uid is not None and p is None
-            p = ordered.filter(uid=self.uid).values_list('id', flat=True)[0]
+            objs = objs.filter(uid=self.uid)
+            filtered = True
         except Exception:
             pass
-        return p
+
+        return objs
+
+    def previous_id(self):
+        ordered = self.siblings.order_by('-timestamp')
+        return ordered.values_list('id', flat=True)[0]
 
     def previous(self):
         i = self.previous_id()
@@ -1386,30 +1395,9 @@ class LDAPObject(models.Model):
         return LDAPObject.objects.get(id=i)
 
     def next_id(self):
-        p = None
-        ordered = LDAPObject.objects.filter(timestamp__gt=self.timestamp).order_by('timestamp')
-        try:
-            assert self.objectSid is not None and p is None
-            p = ordered.filter(objectSid=self.objectSid).values_list('id', flat=True)[0]
-        except Exception:
-            pass
-        try:
-            assert self.upn is not None and p is None
-            p = ordered.filter(upn=self.upn).values_list('id', flat=True)[0]
-        except Exception:
-            pass
-        try:
-            assert self.dn is not None and p is None
-            p = ordered.filter(dn=self.dn).values_list('id', flat=True)[0]
-        except Exception:
-            pass
-        try:
-            assert self.uid is not None and p is None
-            p = ordered.filter(uid=self.uid).values_list('id', flat=True)[0]
-        except Exception:
-            pass
-        return p
-
+        ordered = self.siblings.order_by('timestamp')
+        return ordered.values_list('id', flat=True)[0]
+        
     def next(self):
         i=self.next_id()
         if i is None: return None

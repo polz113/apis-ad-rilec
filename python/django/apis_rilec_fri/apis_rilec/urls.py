@@ -24,5 +24,8 @@ urlpatterns = [
     path('rules/<str:rules_part>', views.generic_rule_detail, name='generic_rule_detail'),
     path('ldapobject/', views.ldapobject_list, name='ldapobject_list'),
     path('ldapobject/<int:pk>', views.ldapobject_detail, name='ldapobject_detail'),
+    path('ldapobject/<int:pk>/save_<slug:source>', views.ldapobject_save, name='ldapobject_save'),
+    path('ldapobject/<int:pk>/toldap', views.ldapobject_to_ldap, name='ldapobject_to_ldap'),
+    path('ldapobject/<int:pk>/difftoldap', views.ldapobject_diff_to_ldap, name='ldapobject_diff_to_ldap'),
 ]
 
