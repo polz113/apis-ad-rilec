@@ -20,6 +20,27 @@
         {% endif %}
     </div>
     <div>
+        <h2>Dodana polja</h2>
+        <ul>
+        {% for field in added %}
+        <li>
+            {{field.field}}: {{field.value}}
+        </li>
+        {% endfor %}
+        </ul>
+    </div>
+    <div>
+        <h2>Odstranjena/spremenjena polja</h2>
+        <ul>
+        {% for field in removed %}
+        <li>
+            {{field.field}}: {{field.value}}
+        </li>
+        {% endfor %}
+        </ul>
+    </div>
+    <div>
+    <h2>Vrednosti polj</h2>
     <ul>
         {% for field, values in object.field_dict.items %}
         <li>
