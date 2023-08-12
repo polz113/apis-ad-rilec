@@ -31,6 +31,9 @@
     </div>
     <div>
         <h2>Dodana polja</h2>
+        <form method="post">{% csrf_token %}
+            <button formaction="{% url "apis_rilec:ldapobject_diff_to_ldap" object.id %}" type="submit">Zapiši v LDAP</button>
+        </form>
         <ul>
         {% for field in added %}
         <li>
@@ -51,6 +54,9 @@
     </div>
     <div>
     <h2>Vrednosti polj</h2>
+    <form method="post">{% csrf_token %}
+        <button formaction="{% url "apis_rilec:ldapobject_to_ldap" object.id %}" type="submit">Zapiši v LDAP</button>
+    </form> 
     <ul>
         {% for field, values in object.field_dict.items %}
         <li>

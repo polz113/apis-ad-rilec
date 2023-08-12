@@ -657,6 +657,10 @@ def get_data_studis():
 
 
 class DataSet(models.Model):
+    class Meta:
+        indexes = [
+                models.Index(fields=['timestamp']),
+        ]
     def __str__(self):
         return("{}: {}".format(self.timestamp, self.source))
     timestamp = models.DateTimeField()
@@ -692,6 +696,9 @@ class OURelation(models.Model):
 class UserData(models.Model):
     class Meta:
         verbose_name_plural = "UserData"
+        indexes = [
+                models.Index(fields=['uid', 'sub_id']),
+        ]
     def __str__(self):
         return("{}({}) ({})".format(self.uid, self.sub_id, self.dataset))
     dataset = models.ForeignKey('DataSet', on_delete=models.CASCADE)
@@ -815,9 +822,13 @@ def dicts_to_ldapgroups(rules, datadicts):
 class MergedUserData(models.Model):
     class Meta:
         verbose_name_plural = "MergedUserData"
+        indexes = [
+                models.Index(fields=['uid']),
+        ]
+
     def __str__(self):
         return("{}".format(self.uid))
-
+    
     def get_absolute_url(self):
         return reverse("apis_rilec:mergeduserdata_detail", kwargs={"user_id": self.uid})
 
@@ -1177,7 +1188,7 @@ def autogroup_ldapobjects(timestamp=None):
         # print(order, group)
         dn = group.pop('distinguishedName'.upper())[0]
         # TODO: create ldapobject
-        o = LDAPObject(dn=dn, timestamp=timestamp, source='rilec')
+        o = LDAPObject(dn=dn, timestamp=timestamp, source='rilec', objectType='group')
         o.save()
         for fieldname, values in group.items():
             for chr_val in values:
@@ -1244,7 +1255,7 @@ def infinite_search(ldap_conn, base, scope, filterstr='(objectClass=*)', attrlis
         lc.cookie = cookie
 
 
-def save_ldap(ldap_conn=None, filterstr=None,\
+def save_ldap(ldap_conn=None, object_type=None, filterstr=None,\
         base=settings.LDAP_USER_SEARCH_BASE,
         scope=settings.LDAP_USER_SEARCH_SCOPE):
     ldap_conn = try_init_ldap(ldap_conn)
@@ -1262,6 +1273,7 @@ def save_ldap(ldap_conn=None, filterstr=None,\
         if len(upn) < 1: upn = None
         db_obj = LDAPObject(timestamp=timestamp,
                 dn = ad_dn,
+                objectType = object_type,
                 source = 'AD',
                 uid = uid,
                 upn = upn,
@@ -1306,6 +1318,7 @@ def save_rilec(userdata_set, timestamp=None):
         default_dn="CN={},{}".format(ldap.dn.escape_dn_chars(user_fields['CN'][0]), default_group_dn)
         o = LDAPObject(timestamp=timestamp, source='rilec', 
                 dn=default_dn, 
+                object_type='user',
                 uid=user_fields.get('EMPLOYEEID', [None])[0],
                 upn=user_fields.get('USERPRINCIPALNAME', [None])[0]
             )
@@ -1331,6 +1344,7 @@ def save_rilec(userdata_set, timestamp=None):
                 fields_to_add.append(field.id)
         o.fields.add(*fields_to_add)
 
+
 class LDAPObject(models.Model):
     class Meta:
         indexes = [
@@ -1338,15 +1352,21 @@ class LDAPObject(models.Model):
                 models.Index(fields=['timestamp', 'objectSid']),
                 models.Index(fields=['timestamp', 'uid']),
                 models.Index(fields=['timestamp', 'upn']),
-                models.Index(fields=['timestamp']),
+                # models.Index(fields=['timestamp']),
                 models.Index(fields=['dn']),
                 models.Index(fields=['uid']),
                 models.Index(fields=['upn']),
                 models.Index(fields=['objectSid']),
         ]
+
     SOURCE_TYPES=[
             ('AD', 'Active Directory'),
             ('rilec', 'Apis rilec'),
+        ]
+
+    OBJECT_TYPES=[
+            ('user', 'User'),
+            ('group', 'Group'),
         ]
 
     def __str__(self):
@@ -1358,6 +1378,7 @@ class LDAPObject(models.Model):
 
     timestamp = models.DateTimeField()
     source = models.CharField(max_length=64, choices=SOURCE_TYPES, default='AD')
+    objectType = models.CharField(max_length=64, choices=OBJECT_TYPES, null=True)
     dn = models.TextField(blank=True, null=True)
     uid = models.CharField(max_length=64, blank=True, null=True)
     upn = models.CharField(max_length=256, blank=True, null=True)
@@ -1498,11 +1519,15 @@ class LDAPObject(models.Model):
             ret[field.field].append(field.value)
         return dict(ret)
 
-    def to_ldap(self, ldap_conn=None, find_by_fields=None, rename=True, clean_groups=True,
-                ignore_fields=None, keep_fields=None):
+    def to_ldap(self, ldap_conn=None, 
+                find_by_fields=None, rename=True, clean_groups=True,
+                ignore_fields=None, keep_fields=None, clean_group_set=None, simulate=True):
         ldap_conn = try_init_ldap(ldap_conn)
         real_dn = self.find_in_ldap(ldap_conn, find_by_fields=find_by_fields)
-        ignore_fields_set = set([i.upper() for i in ignore_fields])
+        if ignore_fields is None:
+            ignore_fields_set = set()
+        else:
+            ignore_fields_set = set([i.upper() for i in ignore_fields])
         if real_dn is None:
             real_dn = self.dn
         else:
@@ -1511,14 +1536,16 @@ class LDAPObject(models.Model):
             ldap_conn.rename_s(real_dn, self.dn)
             real_dn = self.dn
         op_dict = defaultdict(list)
-        for fieldname, vals in self.field_dict():
-            if fieldname.upper() not in ignore_field_set:
-                op_dict[real_dn].append((ldap.MOD_REPLACE, prev_f, vals))
-        groups = set(field_dict('MEMBEROF'))
+        field_dict = self.field_dict()
+        groups = set(field_dict.pop('MEMBEROF', []))
         groups_to_add = set()
         groups_to_remove = set()
+        for fieldname, vals in field_dict.items():
+            if fieldname.upper() not in ignore_fields_set:
+                op_dict[real_dn].append((ldap.MOD_REPLACE, fieldname, vals))
         if clean_groups:
             try:
+                # TODO: fix this
                 cur_groups = ldap_conn.search_s(real_dn, scope=ldap.SCOPE_BASE, attrlist=['MEMBEROF'])
                 cur_groups = set(list(cur_groups[0][1].values())[0])
             except:
@@ -1532,13 +1559,19 @@ class LDAPObject(models.Model):
             op_dict[group].append((ldap.MOD_ADD, 'member', [real_dn]))
         for bin_group in groups_to_remove:
             group = ldap.dn.escape_dn_chars(bin_group.decode('utf-8'))
-            op_dict[group].append((ldap.MOD_DELETE, 'member', [real_dn]))
+            if clean_group_set is None or group in clean_group_set:
+                op_dict[group].append((ldap.MOD_DELETE, 'member', [real_dn]))
         # TODO find better way to skip read-only attributes
         for dn, op_list in op_dict.items():
             for op in op_list:
                 try:
-                    ldap_conn.modify_s(dn, [op])
-                except:
+                    if simulate:
+                        print("ACT: {}: {}".format(dn, op))
+                    else:
+                        # ldap_conn.modify_s(dn, [op])
+                        print("ACT: {}: {}".format(dn, op))
+                except Exception as e:
+                    print("Failed to write {}: {}: {}".format(dn, op[1], e))
                     pass
 
 
@@ -1547,7 +1580,7 @@ class LDAPField(models.Model):
         return "{}: {}".format(self.field, self.value)
     class Meta:
         indexes = [
-                models.Index(fields=['field']),
+                # models.Index(fields=['field']),
                 models.Index(fields=['field', 'value']),
         ]
     field = models.CharField(max_length=256)
