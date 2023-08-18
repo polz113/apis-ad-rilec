@@ -1318,7 +1318,7 @@ def save_rilec(userdata_set, timestamp=None):
         default_dn="CN={},{}".format(ldap.dn.escape_dn_chars(user_fields['CN'][0]), default_group_dn)
         o = LDAPObject(timestamp=timestamp, source='rilec', 
                 dn=default_dn, 
-                object_type='user',
+                objectType='user',
                 uid=user_fields.get('EMPLOYEEID', [None])[0],
                 upn=user_fields.get('USERPRINCIPALNAME', [None])[0]
             )
@@ -1582,6 +1582,9 @@ class LDAPField(models.Model):
         indexes = [
                 # models.Index(fields=['field']),
                 models.Index(fields=['field', 'value']),
+        ]
+        constraints = [
+            models.UniqueConstraint(name="field_value_unique", fields=['field', 'value'])
         ]
     field = models.CharField(max_length=256)
     value = models.BinaryField()
