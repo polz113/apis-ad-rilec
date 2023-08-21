@@ -19,6 +19,7 @@ import re
 import string
 import itertools
 import ldap
+import ldap.filter
 from ldap.controls import SimplePagedResultsControl
 
 
@@ -1228,7 +1229,7 @@ def ldap_state(timestamp=None, dn_list=None, mark_changed=True):
                 .prefetch_related('fields')\
                 .only('id', 'dn', 'timestamp', 'source', 'upn', 'uid', 'objectSid',
                       'fields__id')[:to_fetch])
-        latest2 += [None] * (to_fetch - len(latest2))
+        latest2 += [None] * (2 - len(latest2))
         newer, older = latest2
         if mark_changed:
             newer.changed = (older is None) or newer.is_different(older)
@@ -1320,7 +1321,7 @@ def save_rilec(userdata_set, timestamp=None):
         default_dn="CN={},{}".format(ldap.dn.escape_dn_chars(user_fields['CN'][0]), default_group_dn)
         o = LDAPObject(timestamp=timestamp, source='rilec', 
                 dn=default_dn, 
-                object_type='user',
+                objectType='user',
                 uid=user_fields.get('EMPLOYEEID', [None])[0],
                 upn=user_fields.get('USERPRINCIPALNAME', [None])[0]
             )
@@ -1505,14 +1506,17 @@ class LDAPObject(models.Model):
                 base=self.dn
                 filterstr=None
             else:
-                filterstr = "({}={})".format(name, ldap.filter.escape_filter_chars(val))
-            ldap_obj = ldap_conn.search_s(base,
-                             scope=scope,
-                             filterstr=filterstr,
-                             attrlist=['distinguishedName'])
-            if len(ldap_obj) > 0:
-                real_dn = ldap_obj[0][0]
-                break
+                filterstr = "({}={})".format(name, ldap.filter.escape_filter_chars(val[0]))
+            try:
+                ldap_obj = ldap_conn.search_s(base,
+                                              scope=scope,
+                                              filterstr=filterstr,
+                                              attrlist=['distinguishedName'])
+                if len(ldap_obj) > 0:
+                    real_dn = ldap_obj[0][0]
+                    break
+            except:
+                pass
         return real_dn
 
     def field_dict(self):
@@ -1584,6 +1588,9 @@ class LDAPField(models.Model):
         indexes = [
                 # models.Index(fields=['field']),
                 models.Index(fields=['field', 'value']),
+        ]
+        constraints = [
+            models.UniqueConstraint(name="field_value_unique", fields=['field', 'value'])
         ]
     field = models.CharField(max_length=256)
     value = models.BinaryField()
