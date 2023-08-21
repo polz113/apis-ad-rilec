@@ -1227,7 +1227,7 @@ def ldap_state(timestamp=None, dn_list=None, mark_changed=True):
                 .prefetch_related('fields')\
                 .only('id', 'dn', 'timestamp', 'source', 'upn', 'uid', 'objectSid',
                       'fields__id')[:to_fetch])
-        latest2 += [None] * (to_fetch - len(latest2))
+        latest2 += [None] * (2 - len(latest2))
         newer, older = latest2
         if mark_changed:
             newer.changed = (older is None) or newer.is_different(older)
