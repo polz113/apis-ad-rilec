@@ -1,5 +1,6 @@
 from django.db import models
-from django.db.models import Q
+from django.db.models import Q, F, Window
+from django.db.models.functions import DenseRank
 from django.utils import timezone
 from django.utils.datastructures import MultiValueDict
 from django.conf import settings
@@ -1214,8 +1215,9 @@ def delete_old_userdata():
 
 
 def ldap_state(timestamp=None, dn_list=None, mark_changed=True):
-    if dn_list is None:
-        dns = LDAPObject.objects.order_by('dn').values_list('dn', flat=True).distinct()
+    objs = LDAPObject.objects
+    if dn_list is not None:
+        objs = objs.filter(dn__in=dn_list)
     if timestamp is not None:
         objs = objs.filter(timestamp__lte=timestamp)
     if mark_changed:
@@ -1223,17 +1225,46 @@ def ldap_state(timestamp=None, dn_list=None, mark_changed=True):
     else:
         to_fetch = 1
     ret = list()
-    for dn in dns:
-        latest2 = list(LDAPObject.objects.filter(dn=dn)\
-                .order_by('-timestamp')\
-                .prefetch_related('fields')\
-                .only('id', 'dn', 'timestamp', 'source', 'upn', 'uid', 'objectSid',
-                      'fields__id')[:to_fetch])
-        latest2 += [None] * (2 - len(latest2))
-        newer, older = latest2
+
+    dense_rank = Window(
+        expression=DenseRank(),
+        order_by='-timestamp',
+        partition_by=F('dn'),
+    )
+
+    latest2_ids = [i['id'] for i in 
+                            objs.annotate(rank=dense_rank).\
+                                order_by('dn').\
+                                only('id', 'dn', '-timestamp').\
+                                values('id', 'rank', 'dn', 'timestamp')
+                        if i['rank'] <= to_fetch]
+    latest2 = LDAPObject.objects.filter(id__in=latest2_ids).order_by('dn', '-timestamp')
+    old = None
+    old_old = None
+    for i in latest2:
         if mark_changed:
-            newer.changed = (older is None) or newer.is_different(older)
-        ret.append(newer)
+            if old is not None:
+                if i.dn == old.dn:
+                    old.changed = old.is_different(i)
+                ret.append(old)
+                old_old = old
+            old = i
+        else:
+            ret.append(i)
+    if old_old is not None:
+        if old.dn != old_old.dn:
+            ret.append(old)
+    #for dn in dns:
+    #    latest2 = list(LDAPObject.objects.filter(dn=dn)\
+    #            .order_by('-timestamp')\
+    #            .prefetch_related('fields')\
+    #            .only('id', 'dn', 'timestamp', 'source', 'upn', 'uid', 'objectSid',
+    #                  'fields__id')[:to_fetch])
+    #    latest2 += [None] * (2 - len(latest2))
+    #    newer, older = latest2
+    #    if mark_changed:
+    #        newer.changed = (older is None) or newer.is_different(older)
+    #    ret.append(newer)
     return ret
 
 
