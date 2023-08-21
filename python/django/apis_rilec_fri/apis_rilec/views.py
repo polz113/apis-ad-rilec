@@ -1,7 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 from django.conf import settings
-from django.http import HttpResponse, JsonResponse, StreamingHttpResponse
+from django.http import HttpResponse, JsonResponse, StreamingHttpResponse, Http404
 from django.utils.datastructures import MultiValueDict
 from django.utils import timezone
 from itertools import chain
@@ -196,19 +196,21 @@ def ldapobject_detail(request, pk):
 @staff_member_required
 def ldapobject_save(request, pk, source): 
     obj = get_object_or_404(LDAPObject, pk=pk)
-    if source == 'ldap' or source == 'AD':
-        dn = obj.find_in_ldap()
-        if dn is None:
-            dn = obj.dn
-        save_ldap(ldap_conn=None, filterstr='(objectclass=*)', base=dn, scope=ldap.SCOPE_BASE)
-    elif source == 'rilec':
-        userdata = MergedUserData.objects.prefetch_related('data', 'data__fields', 'data__dataset__source').get()
-        save_rilec()
+    dn = obj.find_in_ldap()
+    if dn is None:
+        dn = obj.dn
+    save_ldap(ldap_conn=None, filterstr='(objectclass=*)', base=dn, scope=ldap.SCOPE_BASE)
     return redirect(reverse("apis_rilec:ldapobject_detail", kwargs={"pk": pk}))
 
 @staff_member_required
 def ldapobject_user_rilec_save(request, pk): 
     obj = get_object_or_404(LDAPObject, pk=pk)
+    if obj.uid is None:
+        raise Http404
+    muds = MergedUserData.objects.filter(uid=obj.uid)
+    if not muds.exists():
+        raise Http404
+    save_rilec(muds)
     return redirect(reverse("apis_rilec:ldapobject_detail", kwargs={"pk": pk}))
 
 @staff_member_required

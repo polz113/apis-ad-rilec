@@ -19,6 +19,7 @@ import re
 import string
 import itertools
 import ldap
+import ldap.filter
 from ldap.controls import SimplePagedResultsControl
 
 
@@ -1503,14 +1504,17 @@ class LDAPObject(models.Model):
                 base=self.dn
                 filterstr=None
             else:
-                filterstr = "({}={})".format(name, ldap.filter.escape_filter_chars(val))
-            ldap_obj = ldap_conn.search_s(base,
-                             scope=scope,
-                             filterstr=filterstr,
-                             attrlist=['distinguishedName'])
-            if len(ldap_obj) > 0:
-                real_dn = ldap_obj[0][0]
-                break
+                filterstr = "({}={})".format(name, ldap.filter.escape_filter_chars(val[0]))
+            try:
+                ldap_obj = ldap_conn.search_s(base,
+                                              scope=scope,
+                                              filterstr=filterstr,
+                                              attrlist=['distinguishedName'])
+                if len(ldap_obj) > 0:
+                    real_dn = ldap_obj[0][0]
+                    break
+            except:
+                pass
         return real_dn
 
     def field_dict(self):
