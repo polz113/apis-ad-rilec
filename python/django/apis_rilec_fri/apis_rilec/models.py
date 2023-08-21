@@ -1181,13 +1181,13 @@ def get_ad_user_dn(ldap_conn, user_fields):
 def autogroup_ldapobjects(timestamp=None):
     if timestamp is None:
         timestamp = timezone.now()
+    ret = list()
     for order, mixedcase_group in enumerate(get_groups(timestamp=timestamp)):
         group = dict()
         for k, v in mixedcase_group.items():
             group[k.upper()] = v
         # print(order, group)
         dn = group.pop('distinguishedName'.upper())[0]
-        # TODO: create ldapobject
         o = LDAPObject(dn=dn, timestamp=timestamp, source='rilec', objectType='group')
         o.save()
         for fieldname, values in group.items():
@@ -1196,6 +1196,8 @@ def autogroup_ldapobjects(timestamp=None):
                 f, created = LDAPField.objects.get_or_create(field=fieldname,
                                                              value=val)
                 o.fields.add(f)
+        ret.append(o)
+    return ret
 
 
 def _get_keep_fields(merge_rules):
