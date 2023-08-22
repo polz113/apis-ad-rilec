@@ -6,9 +6,15 @@ from django.utils.datastructures import MultiValueDict
 from django.utils import timezone
 from itertools import chain
 from django.contrib.admin.views.decorators import staff_member_required
-# from silk.profiling.profiler import silk_profile
 import logging
 import ldap
+
+if settings.DEBUG:
+    from silk.profiling.profiler import silk_profile
+else:
+    def silk_profile(*args, **kwargs):
+        return lambda func: func
+
 
 from .models import DataSource, MergedUserData, UserDataField,\
         LDAPObject,\
@@ -179,9 +185,10 @@ def translations(request):
     props = get_rules('TRANSLATIONS')
     return render(request, 'apis_rilec/translations.html', {'object_list': props})
 
+@silk_profile(name='ldapobject_list')
 @staff_member_required
 def ldapobject_list(request):
-    latest_objects = ldap_state()
+    latest_objects = ldap_state(mark_changed=True)
     return render(request, 'apis_rilec/ldapobject_list.html', {'object_list': latest_objects})
 
 @staff_member_required

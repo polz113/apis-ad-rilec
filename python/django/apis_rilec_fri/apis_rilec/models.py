@@ -1212,8 +1212,10 @@ def delete_old_userdata():
 
 
 def ldap_state(timestamp=None, dn_list=None, mark_changed=True):
+    t1 = timezone.now()
     if dn_list is None:
         dns = LDAPObject.objects.order_by('dn').values_list('dn', flat=True).distinct()
+    t2 = timezone.now()
     if timestamp is not None:
         objs = objs.filter(timestamp__lte=timestamp)
     if mark_changed:
@@ -1221,17 +1223,25 @@ def ldap_state(timestamp=None, dn_list=None, mark_changed=True):
     else:
         to_fetch = 1
     ret = list()
+    print(t2 - t1)
     for dn in dns:
-        latest2 = list(LDAPObject.objects.filter(dn=dn)\
-                .order_by('-timestamp')\
-                .prefetch_related('fields')\
-                .only('id', 'dn', 'timestamp', 'source', 'upn', 'uid', 'objectSid',
-                      'fields__id')[:to_fetch])
+        if mark_changed:
+            latest2 = list(LDAPObject.objects.filter(dn=dn)\
+                    .order_by('-timestamp')\
+                    # .prefetch_related('fields')\
+                    .only('id', 'dn', 'timestamp', 'source', 'upn', 'uid', 'objectSid',
+                          'fields__id')[:to_fetch])
+        else:
+            latest2 = list(LDAPObject.objects.filter(dn=dn)\
+                    .order_by('-timestamp')\
+                    .only('id', 'dn', 'timestamp', 'source', 'upn', 'uid', 'objectSid')[:to_fetch])
         latest2 += [None] * (2 - len(latest2))
         newer, older = latest2
         if mark_changed:
             newer.changed = (older is None) or newer.is_different(older)
         ret.append(newer)
+    t3 = timezone.now()
+    print(t3 - t2, " for ", len(ret), " = ", (t3 - t2) / len(ret))
     return ret
 
 
