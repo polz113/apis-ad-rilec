@@ -5,12 +5,15 @@ from django.http import HttpResponse, JsonResponse, StreamingHttpResponse, Http4
 from django.utils.datastructures import MultiValueDict
 from django.utils import timezone
 from itertools import chain
+from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
 import logging
 import ldap
 
 if settings.DEBUG:
     from silk.profiling.profiler import silk_profile
+    # def silk_profile(*args, **kwargs):
+    #     return lambda func: func
 else:
     def silk_profile(*args, **kwargs):
         return lambda func: func
@@ -76,12 +79,7 @@ def mergeduserdata_list(request):
     mudl = MergedUserData.objects.prefetch_related('data', 'data__fields').all()
     return render(request, 'apis_rilec/mergeduserdata_list.html', {'object_list': mudl})
 
-
-@staff_member_required
-def mergeduserdata_fields(request):
-    fieldnames = request.GET.getlist(
-            'fieldname',
-            ['OsebniPodatki__0002__0__ime', 'OsebniPodatki__0002__0__priimek', 'OsebniPodatki__kadrovskaSt'])
+def _mergeduserdata_fields_objs(request, fieldnames):
     objects = UserDataField.objects.select_related('userdata').filter(
             field__in=fieldnames).order_by('userdata__uid', 'userdata__id')
     object_list = []
@@ -90,13 +88,35 @@ def mergeduserdata_fields(request):
     fields = MultiValueDict()
     for o in objects:
         if old_id is not None and o.userdata.id != old_id:
-            object_list.append({"uid": old_uid, "id": old_id, "fields": fields})
+            d = {"uid": old_uid, "id": old_id}
+            d.update(fields)
+            object_list.append(d)
             fields = MultiValueDict()
         old_uid = o.userdata.uid
         old_id = o.userdata.id
         fields.appendlist(o.field, o.value)
     if len(fields):
-        object_list.append({"uid": o.userdata.uid, "id": o.userdata.id, "fields": fields})
+        d = {"uid": o.userdata.uid, "id": o.userdata.id}
+        d.update(fields)
+        object_list.append(d)
+    return object_list
+
+
+@login_required
+def mergeduserdata_fields_json(request):
+    fieldnames = request.GET.getlist(
+            'fieldname',
+            ['OsebniPodatki__0002__0__ime', 'OsebniPodatki__0002__0__priimek', 'OsebniPodatki__kadrovskaSt'])
+    object_list = _mergeduserdata_fields_objs(request, fieldnames)
+    return JsonResponse(object_list, safe=False)
+
+
+@login_required
+def mergeduserdata_fields(request):
+    fieldnames = request.GET.getlist(
+            'fieldname',
+            ['OsebniPodatki__0002__0__ime', 'OsebniPodatki__0002__0__priimek', 'OsebniPodatki__kadrovskaSt'])
+    object_list = _mergeduserdata_fields_objs(request, fieldnames)
     return render(request, 'apis_rilec/mergeduserdata_fields.html', {'object_list': object_list, "fieldnames": fieldnames})
 
 

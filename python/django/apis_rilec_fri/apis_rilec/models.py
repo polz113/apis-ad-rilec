@@ -1,5 +1,6 @@
 from django.db import models
-from django.db.models import Q
+from django.db.models import Q, F, Window
+from django.db.models.functions import DenseRank
 from django.utils import timezone
 from django.utils.datastructures import MultiValueDict
 from django.conf import settings
@@ -1182,13 +1183,13 @@ def get_ad_user_dn(ldap_conn, user_fields):
 def autogroup_ldapobjects(timestamp=None):
     if timestamp is None:
         timestamp = timezone.now()
+    ret = list()
     for order, mixedcase_group in enumerate(get_groups(timestamp=timestamp)):
         group = dict()
         for k, v in mixedcase_group.items():
             group[k.upper()] = v
         # print(order, group)
         dn = group.pop('distinguishedName'.upper())[0]
-        # TODO: create ldapobject
         o = LDAPObject(dn=dn, timestamp=timestamp, source='rilec', objectType='group')
         o.save()
         for fieldname, values in group.items():
@@ -1197,6 +1198,8 @@ def autogroup_ldapobjects(timestamp=None):
                 f, created = LDAPField.objects.get_or_create(field=fieldname,
                                                              value=val)
                 o.fields.add(f)
+        ret.append(o)
+    return ret
 
 
 def _get_keep_fields(merge_rules):
@@ -1213,9 +1216,9 @@ def delete_old_userdata():
 
 def ldap_state(timestamp=None, dn_list=None, mark_changed=True):
     t1 = timezone.now()
-    if dn_list is None:
-        dns = LDAPObject.objects.order_by('dn').values_list('dn', flat=True).distinct()
-    t2 = timezone.now()
+    objs = LDAPObject.objects
+    if dn_list is not None:
+        objs = objs.filter(dn__in=dn_list)
     if timestamp is not None:
         objs = objs.filter(timestamp__lte=timestamp)
     if mark_changed:
@@ -1223,25 +1226,36 @@ def ldap_state(timestamp=None, dn_list=None, mark_changed=True):
     else:
         to_fetch = 1
     ret = list()
-    print(t2 - t1)
-    for dn in dns:
+    dense_rank = Window(
+        expression=DenseRank(),
+        order_by='-timestamp',
+        partition_by=F('dn'),
+    )
+
+    latest2_ids = [i['id'] for i in 
+                            objs.annotate(rank=dense_rank).\
+                                order_by('dn').\
+                                only('id', 'dn', '-timestamp').\
+                                values('id', 'rank', 'dn', 'timestamp')
+                        if i['rank'] <= to_fetch]
+    latest2 = LDAPObject.objects.filter(id__in=latest2_ids).order_by('dn', '-timestamp')
+    if mark_changed:
+        latest2 = latest2.prefetch_related('ldapobjectfield_set')
+    old = None
+    old_old = None
+    for i in latest2:
         if mark_changed:
-            latest2 = list(LDAPObject.objects.filter(dn=dn)\
-                    .order_by('-timestamp')\
-                    # .prefetch_related('fields')\
-                    .only('id', 'dn', 'timestamp', 'source', 'upn', 'uid', 'objectSid',
-                          'fields__id')[:to_fetch])
+            if old is not None:
+                if i.dn == old.dn:
+                    old.changed = old.is_different(i)
+                ret.append(old)
+                old_old = old
+            old = i
         else:
-            latest2 = list(LDAPObject.objects.filter(dn=dn)\
-                    .order_by('-timestamp')\
-                    .only('id', 'dn', 'timestamp', 'source', 'upn', 'uid', 'objectSid')[:to_fetch])
-        latest2 += [None] * (2 - len(latest2))
-        newer, older = latest2
-        if mark_changed:
-            newer.changed = (older is None) or newer.is_different(older)
-        ret.append(newer)
-    t3 = timezone.now()
-    print(t3 - t2, " for ", len(ret), " = ", (t3 - t2) / len(ret))
+            ret.append(i)
+    if old_old is not None:
+        if old.dn != old_old.dn:
+            ret.append(old)
     return ret
 
 
@@ -1394,7 +1408,7 @@ class LDAPObject(models.Model):
     uid = models.CharField(max_length=64, blank=True, null=True)
     upn = models.CharField(max_length=256, blank=True, null=True)
     objectSid = models.BinaryField(max_length=28, blank=True, null=True)
-    fields = models.ManyToManyField('LDAPField')
+    fields = models.ManyToManyField('LDAPField', through='LDAPObjectField')
     
     def siblings(self):
         objs = LDAPObject.objects.all()
@@ -1460,9 +1474,13 @@ class LDAPObject(models.Model):
         if other is None:
             other = self.previous()
         if other is not None:
-            other_ids = set(other.fields.values_list('id', flat=True))
-            my_ids = set(self.fields.values_list('id', flat=True))
-            return len(my_ids.difference(other_ids)) > 0
+            # other_ids = set([i.id for i in other.fields.all()])
+            # my_ids = set([i.id for i in self.fields.all()])
+            other_ids = set([i.ldapfield_id for i in other.ldapobjectfield_set.all()])
+            my_ids = set([i.ldapfield_id for i in self.ldapobjectfield_set.all()])
+            # other_ids = set(other.ldapobjectfield_set.values_list('ldapfield_id', flat=True))
+            # my_ids = set(self.ldapobjectfield_set.values_list('ldapfield_id', flat=True))
+            return len(my_ids - other_ids) > 0
         return True
 
     def diff(self, other=None):
@@ -1603,3 +1621,11 @@ class LDAPField(models.Model):
     field = models.CharField(max_length=256)
     value = models.BinaryField()
 
+
+class LDAPObjectField(models.Model):
+    ldapobject = models.ForeignKey(LDAPObject, on_delete=models.CASCADE)
+    ldapfield = models.ForeignKey(LDAPField, on_delete=models.CASCADE)   
+
+    class Meta:
+         db_table = 'apis_rilec_ldapobject_fields'
+         unique_together = ('ldapobject_id', 'ldapfield_id')
