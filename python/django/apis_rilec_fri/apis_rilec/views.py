@@ -212,6 +212,11 @@ def ldapobject_list(request):
     return render(request, 'apis_rilec/ldapobject_list.html', {'object_list': latest_objects})
 
 @staff_member_required
+def latest_ldapobject(request, pk):
+    obj = get_object_or_404(LDAPObject, pk=pk) 
+    return redirect(reverse("apis_rilec:ldapobject_detail", kwargs={"pk": obj.latest_id()}))
+
+@staff_member_required
 def ldapobject_detail(request, pk):
     obj = get_object_or_404(LDAPObject, pk=pk)
     added, removed = obj.diff()
@@ -226,19 +231,22 @@ def ldapobject_save(request, pk, source):
     dn = obj.find_in_ldap()
     if dn is None:
         dn = obj.dn
-    save_ldap(ldap_conn=None, filterstr='(objectclass=*)', base=dn, scope=ldap.SCOPE_BASE)
-    return redirect(reverse("apis_rilec:ldapobject_detail", kwargs={"pk": pk}))
+    if source == 'ldap':
+        save_ldap(ldap_conn=None, filterstr='(objectclass=*)', base=dn, scope=ldap.SCOPE_BASE)
+    elif source == 'rilec':
+        if obj.uid is None:
+            raise Http404
+        muds = MergedUserData.objects.filter(uid=obj.uid)
+        if not muds.exists():
+            raise Http404
+        save_rilec(muds)
+    else:
+        save_ldap(ldap_conn=None, filterstr='(objectclass=*)', base=dn, scope=ldap.SCOPE_BASE)
+    return redirect(reverse("apis_rilec:latest_ldapobject", kwargs={"pk": pk}))
 
 @staff_member_required
-def ldapobject_user_rilec_save(request, pk): 
-    obj = get_object_or_404(LDAPObject, pk=pk)
-    if obj.uid is None:
-        raise Http404
-    muds = MergedUserData.objects.filter(uid=obj.uid)
-    if not muds.exists():
-        raise Http404
-    save_rilec(muds)
-    return redirect(reverse("apis_rilec:ldapobject_detail", kwargs={"pk": pk}))
+def ldapobject_user_rilec_save(request, pk):
+    return ldapobject_save(request, pk, 'rilec')
 
 @staff_member_required
 def ldapobject_to_ldap(request, pk): 
@@ -247,7 +255,7 @@ def ldapobject_to_ldap(request, pk):
     keep_fields = _get_keep_fields(merge_rules)
     autogroups=get_groups()
     obj.to_ldap(rename=True, keep_fields=keep_fields,
-                clean_group_set=autogroups, simulate=True)
+                clean_group_set=autogroups, simulate=False)
     return redirect(reverse("apis_rilec:ldapobject_detail", kwargs={"pk": pk}))
 
 @staff_member_required
@@ -260,6 +268,6 @@ def ldapobject_diff_to_ldap(request, pk):
     ignore_fields = set(obj.fields.values_list('field', flat=True)).difference(changed_fields)
     autogroups=get_groups()
     obj.to_ldap(rename=True, keep_fields=keep_fields, ignore_fields=ignore_fields,
-                clean_group_set=autogroups, simulate=True)
+                clean_group_set=autogroups, simulate=False)
     return redirect(reverse("apis_rilec:ldapobject_detail", kwargs={"pk": pk}))
   

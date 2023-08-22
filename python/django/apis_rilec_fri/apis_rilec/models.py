@@ -1586,13 +1586,18 @@ class LDAPObject(models.Model):
             groups_to_add = groups.difference(cur_groups)
         else:
             groups_to_add = groups
+        # encoded_real_dn = ldap.dn.escape_dn_chars(real_dn).encode('utf-8')
+        encoded_real_dn = real_dn.encode('utf-8')
         for bin_group in groups_to_add:
-            group = ldap.dn.escape_dn_chars(bin_group.decode('utf-8'))
-            op_dict[group].append((ldap.MOD_ADD, 'member', [real_dn]))
+            # group = ldap.dn.escape_dn_chars(bin_group.decode('utf-8'))
+            group = bin_group.decode('utf-8')
+            op_dict[group].append((ldap.MOD_ADD, 'member', [encoded_real_dn]))
+            # op_dict[group].append((ldap.MOD_ADD, 'member', []))
         for bin_group in groups_to_remove:
-            group = ldap.dn.escape_dn_chars(bin_group.decode('utf-8'))
+            # group = ldap.dn.escape_dn_chars(bin_group.decode('utf-8'))
+            group = bin_group.decode('utf-8')
             if clean_group_set is None or group in clean_group_set:
-                op_dict[group].append((ldap.MOD_DELETE, 'member', [real_dn]))
+                op_dict[group].append((ldap.MOD_DELETE, 'member', [encoded_real_dn]))
         # TODO find better way to skip read-only attributes
         for dn, op_list in op_dict.items():
             for op in op_list:
@@ -1600,8 +1605,9 @@ class LDAPObject(models.Model):
                     if simulate:
                         print("ACT: {}: {}".format(dn, op))
                     else:
-                        # ldap_conn.modify_s(dn, [op])
-                        print("ACT: {}: {}".format(dn, op))
+                        print("MODIFY: {}: {}".format(dn, op))
+                        ldap_conn.modify_s(dn, [op])
+                        print("  SUCCESS")
                 except Exception as e:
                     print("Failed to write {}: {}: {}".format(dn, op[1], e))
                     pass
