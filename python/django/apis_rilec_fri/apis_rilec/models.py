@@ -30,6 +30,12 @@ from urllib.request import Request, urlopen, quote
 
 FIELD_DELIMITER='__'
 DEFAULT_MERGE_RULES = {'pick': 'unique', "filters": []}
+DEFAULT_KEEP_FIELDS = []
+DEFAULT_IGNORE_FIELDS = [
+        'MEMBEROF',
+        'BADPASSWORDTIME',
+        'BADPWDCOUNT'
+    ]
 
 def _slugify_username_fn(s):
     return slugify(s)
@@ -881,15 +887,19 @@ class MergedUserData(models.Model):
         return dicts_to_ldapgroups(group_rules, datadicts)
 
 
-def get_groups(timestamp=None, group_rules=None, translations=None):
+def get_groups(timestamp=None, group_rules=None, translations=None, parents=False):
     if group_rules is None:
         group_rules = get_rules('GROUP_RULES')
     if translations is None:
         translations = get_rules('TRANSLATIONS')
     groups = list()
-    for field_dict, flags in group_rules:
+    for group_field_dict, flags in group_rules:
         create_sources = flags.get("create_sources", {})
         create_fields = flags.get("create_fields", {})
+        if parents and "parent_templates" in flags:
+            parent_templates = flags["parent_templates"]
+        else:
+            parent_templates = []
         # get a cartesian product of all translations for this dn_template
         props = list()
         propnames = list()
@@ -905,25 +915,35 @@ def get_groups(timestamp=None, group_rules=None, translations=None):
             props.append(vals)
             propnames.append(field_name)
         # print(propnames, props)
-        all_values = itertools.product(*props)
-        # create all possible groups
-        for vals in all_values:
-            d = dict()
-            for i, p in enumerate(propnames):
-                d[p] = vals[i]
-            group_dict = dict()
+        for field_dict in parent_templates + [group_field_dict]:
+            # print(" g:", field_dict)
+            # turn all templates into lists
+            fieldname_templatelists = dict()
+            used_fieldnames = set()
             for fieldname, templatex in field_dict.items():
                 if type(templatex) is not list:
                     templatel = [templatex]
                 else:
                     templatel = templatex
-                value_l = []
+                templates = list()
                 for template in templatel:
                     t1 = string.Template(template)
-                    d = _field_adder(d, extra_fields=create_fields, translations=translations)
-                    value_l.append(t1.substitute(d))
-                group_dict[fieldname] = value_l
-            groups.append(group_dict)
+                    templates.append(t1)
+                fieldname_templatelists[fieldname] = templates
+            # create all possible groups
+            for vals in itertools.product(*props):
+                d = dict()
+                for i, p in enumerate(propnames):
+                    d[p] = vals[i]
+                d = _field_adder(d, extra_fields=create_fields, translations=translations)
+                group_dict = dict()
+                for fieldname, templates in fieldname_templatelists.items():
+                    value_l = []
+                    for template in templates:
+                        value_l.append(template.substitute(d))
+                    group_dict[fieldname] = value_l
+                # print("  ->:", group_dict)
+                groups.append(group_dict)
     return groups
 
 
@@ -1184,12 +1204,17 @@ def autogroup_ldapobjects(timestamp=None):
     if timestamp is None:
         timestamp = timezone.now()
     ret = list()
-    for order, mixedcase_group in enumerate(get_groups(timestamp=timestamp)):
+    seen_groups = set()
+    for order, mixedcase_group in enumerate(get_groups(timestamp=timestamp, parents=True)):
         group = dict()
         for k, v in mixedcase_group.items():
             group[k.upper()] = v
         # print(order, group)
         dn = group.pop('distinguishedName'.upper())[0]
+        if dn in seen_groups:
+            print("  seen:", dn)
+            continue
+        print("  first:", dn)
         o = LDAPObject(dn=dn, timestamp=timestamp, source='rilec', objectType='group')
         o.save()
         for fieldname, values in group.items():
@@ -1198,6 +1223,7 @@ def autogroup_ldapobjects(timestamp=None):
                 f, created = LDAPField.objects.get_or_create(field=fieldname,
                                                              value=val)
                 o.fields.add(f)
+        seen_groups.add(dn)
         ret.append(o)
     return ret
 
@@ -1244,11 +1270,14 @@ def ldap_state(timestamp=None, dn_list=None, mark_changed=True):
     old = None
     old_old = None
     for i in latest2:
+        print("i: ", i)
         if mark_changed:
             if old is not None:
                 if i.dn == old.dn:
                     old.changed = old.is_different(i)
-                ret.append(old)
+                else:
+                    print("  - ret -> ", i, old)
+                    ret.append(old)
                 old_old = old
             old = i
         else:
@@ -1551,41 +1580,50 @@ class LDAPObject(models.Model):
             ret[field.field].append(field.value)
         return dict(ret)
 
-    def to_ldap(self, ldap_conn=None, 
-                find_by_fields=None, rename=True, clean_groups=True,
+    def to_ldap(self, ldap_conn=None,
+                find_by_fields=None, create=True, rename=True, clean_groups=True,
                 ignore_fields=None, keep_fields=None, clean_group_set=None, simulate=True):
         ldap_conn = try_init_ldap(ldap_conn)
+        op_dict = defaultdict(list)
         real_dn = self.find_in_ldap(ldap_conn, find_by_fields=find_by_fields)
+        field_dict = self.field_dict()
         if ignore_fields is None:
-            ignore_fields_set = set()
+            ignore_fields_set = set(DEFAULT_IGNORE_FIELDS)
         else:
             ignore_fields_set = set([i.upper() for i in ignore_fields])
+        if keep_fields is None:
+            keep_fields = DEFAULT_KEEP_FIELDS
         if real_dn is None:
             real_dn = self.dn
+            ops = list(field_dict.items())
+            if simulate:
+                print("ACT: {}: {}".format(real_dn, ops))
+            else:
+                print("ADD: {}: {}".format(real_dn, ops))
+                ldap_conn.add_s(real_dn, ops)
+                print("  SUCCESS")
         else:
             ignore_fields_set = ignore_fields_set.union(set([i.upper() for i in keep_fields]))
-        if rename and self.dn != real_dn:
-            ldap_conn.rename_s(real_dn, self.dn)
-            real_dn = self.dn
-        op_dict = defaultdict(list)
-        field_dict = self.field_dict()
+            if rename and real_dn != self.dn:
+                ldap_conn.rename_s(real_dn, self.dn)
+                real_dn = self.dn
+            for fieldname, vals in field_dict.items():
+                if fieldname.upper() not in ignore_fields_set:
+                    op_dict[real_dn].append((ldap.MOD_REPLACE, fieldname, vals))
         groups = set(field_dict.pop('MEMBEROF', []))
         groups_to_add = set()
         groups_to_remove = set()
-        for fieldname, vals in field_dict.items():
-            if fieldname.upper() not in ignore_fields_set:
-                op_dict[real_dn].append((ldap.MOD_REPLACE, fieldname, vals))
+        try:
+            # TODO: fix this
+            cur_groups = ldap_conn.search_s(real_dn, scope=ldap.SCOPE_BASE, attrlist=['MEMBEROF'])
+            cur_groups = set(list(cur_groups[0][1].values())[0])
+        except:
+            cur_groups = set()
+
         if clean_groups:
-            try:
-                # TODO: fix this
-                cur_groups = ldap_conn.search_s(real_dn, scope=ldap.SCOPE_BASE, attrlist=['MEMBEROF'])
-                cur_groups = set(list(cur_groups[0][1].values())[0])
-            except:
-                cur_groups = set()
             groups_to_remove = cur_groups.difference(groups)
-            groups_to_add = groups.difference(cur_groups)
         else:
-            groups_to_add = groups
+            groups_to_add = groups.difference(cur_groups)
         # encoded_real_dn = ldap.dn.escape_dn_chars(real_dn).encode('utf-8')
         encoded_real_dn = real_dn.encode('utf-8')
         for bin_group in groups_to_add:

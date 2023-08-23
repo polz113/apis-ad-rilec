@@ -253,7 +253,7 @@ def ldapobject_to_ldap(request, pk):
     obj = get_object_or_404(LDAPObject, pk=pk)
     merge_rules = get_rules('MERGE_RULES')
     keep_fields = _get_keep_fields(merge_rules)
-    autogroups=get_groups()
+    autogroups=get_groups(parents=False)
     obj.to_ldap(rename=True, keep_fields=keep_fields,
                 clean_group_set=autogroups, simulate=False)
     return redirect(reverse("apis_rilec:ldapobject_detail", kwargs={"pk": pk}))

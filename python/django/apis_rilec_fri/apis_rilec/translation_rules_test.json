@@ -392,7 +392,7 @@
         "OU": "${ou_name}"
     },
     "GROUP_RULES": [
-        [
+	[
             {
                 "objectClass": ["top", "organizationalUnit"],
                 "sAMAccountName": "users",
@@ -400,6 +400,13 @@
                 "groupType": ["${group_type}"]
             }, {
                 "main_ou": true,
+                "parent_templates":[
+                    {
+                        "objectClass": ["top", "organizationalUnit"],
+                        "distinguishedName": "OU=${clanica_prefix},${clanica_domena}"
+                    }
+                ],
+
                 "create_fields": [
                     ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
                     ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
@@ -422,11 +429,14 @@
             {
                 "parent_templates":[
                     {
-                        "objectClass": "top; organizationalUnit",
-                        "distinguishedName": "${clanica_domena},OU=${clanica_prefix},OU=avtopravice,OU=oddelki,${apis_oupart}"
+                        "objectClass": ["top", "organizationalUnit"],
+                	"distinguishedName": "${apis_oupart},OU=oddelki,OU=avtopravice,OU=${clanica_prefix},${clanica_domena}"
                     }, {
-                        "objectClass": "top; organizationalUnit",
-                        "distinguishedName": "${clanica_domena},OU=${clanica_prefix},OU=avtopravice,OU=oddelki"
+                        "objectClass": ["top", "organizationalUnit"],
+                	"distinguishedName": "OU=oddelki,OU=avtopravice,OU=${clanica_prefix},${clanica_domena}"
+                    }, {
+                        "objectClass": ["top", "organizationalUnit"],
+                	"distinguishedName": "OU=${clanica_prefix},${clanica_domena}"
                     }
                 ],
                 "create_fields": [
@@ -452,6 +462,15 @@
                 "sAMAccountName": "${vrsta_zaposlitve}",
                 "name": "${vrsta_zaposlitve}"
             }, {
+                "parent_templates":[
+                    {
+                        "objectClass": ["top", "organizationalUnit"],
+                	"distinguishedName": "OU=zaposlitev,OU=avtopravice,OU=${clanica_prefix},${clanica_domena}"
+		    }, {
+                        "objectClass": ["top", "organizationalUnit"],
+                	"distinguishedName": "OU=avtopravice,OU=${clanica_prefix},${clanica_domena}"
+		    }
+		],
                 "create_fields": [
                     ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
                     ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
@@ -474,6 +493,15 @@
                 "sAMAccountName": "${habilitacija_txt}",
                 "name": "${habilitacija_txt}"
             }, {
+                "parent_templates":[
+                    {
+                        "objectClass": ["top", "organizationalUnit"],
+                	"distinguishedName": "OU=avtopravice,OU=${clanica_prefix},${clanica_domena}"
+		    }, {
+                        "objectClass": ["top", "organizationalUnit"],
+                	"distinguishedName": "OU=habilitacija,OU=avtopravice,OU=${clanica_prefix},${clanica_domena}"
+		    }
+		],
                 "create_fields": [
                     ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
                     ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
@@ -495,6 +523,15 @@
                 "sAMAccountName": "${habilitacija_txt}",
                 "name": "${habilitacija_txt}"
             }, {
+		"parent_templates":[
+                    {
+                        "objectClass": ["top", "organizationalUnit"],
+                	"distinguishedName": "OU=habilitacija,OU=avtopravice,OU=${clanica_prefix},${clanica_domena}"
+		    }, {
+                        "objectClass": ["top", "organizationalUnit"],
+                	"distinguishedName": "OU=avtopravice,OU=${clanica_prefix},${clanica_domena}"
+		    }
+		],
                 "create_fields": [
                     ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
                     ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
@@ -516,6 +553,12 @@
                 "sAMAccountName": "${studisavtomatika_skupina}",
                 "groupType": "${group_type}"
             }, {
+		"parent_templates":[
+                    {
+                        "objectClass": ["top", "organizationalUnit"],
+                	"distinguishedName": "OU=StudisAvtomatika,OU=${clanica_prefix},${clanica_domena}"
+		    }
+		],
                 "create_fields": [
                     ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
                     ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
@@ -537,6 +580,12 @@
                 "groupType": "${group_type}",
                 "name": "${studis__oddelek_name}"
             }, {
+		"parent_templates":[
+                    {
+                        "objectClass": ["top", "organizationalUnit"],
+                	"distinguishedName": "OU=Organizacija,OU=StudisAvtomatika,OU=${clanica_prefix},${clanica_domena}"
+		    }
+		],
                 "create_fields": [
                     ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
                     ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
@@ -551,6 +600,5 @@
                 }
             }
         ]
-
     ]
 }
