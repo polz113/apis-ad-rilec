@@ -1203,7 +1203,9 @@ def get_ad_user_dn(ldap_conn, user_fields):
 def autogroup_ldapobjects(timestamp=None):
     if timestamp is None:
         timestamp = timezone.now()
-    ret = list()
+    batch = LDAPObjectBatch(name="autogroup_ldapobjects @{}".format(timestamp), timestamp=timestamp)
+    batch.save()
+    objs = list()
     seen_groups = set()
     for order, mixedcase_group in enumerate(get_groups(timestamp=timestamp, parents=True)):
         group = dict()
@@ -1212,20 +1214,26 @@ def autogroup_ldapobjects(timestamp=None):
         # print(order, group)
         dn = group.pop('distinguishedName'.upper())[0]
         if dn in seen_groups:
-            print("  seen:", dn)
             continue
-        print("  first:", dn)
-        o = LDAPObject(dn=dn, timestamp=timestamp, source='rilec', objectType='group')
-        o.save()
+        obj = LDAPObject(dn=dn, timestamp=timestamp, source='rilec', objectType='group')
+        # o.save()
+        fields = list()
         for fieldname, values in group.items():
             for chr_val in values:
                 val = chr_val.encode('utf-8')
                 f, created = LDAPField.objects.get_or_create(field=fieldname,
                                                              value=val)
-                o.fields.add(f)
+                fields.append(f)
+        objs.append((obj, fields))
         seen_groups.add(dn)
-        ret.append(o)
-    return ret
+    LDAPObject.objects.bulk_create([i[0] for i in objs])
+    all_fields = list()
+    for obj, fields in objs:
+        batch.ldapobjects.add(obj)
+        for field in fields:
+            all_fields.append(LDAPObjectField(ldapobject = obj, ldapfield = field))
+    LDAPObjectField.objects.bulk_create(all_fields)
+    return batch
 
 
 def _get_keep_fields(merge_rules):
@@ -1317,6 +1325,9 @@ def save_ldap(ldap_conn=None, object_type=None, filterstr=None,\
     fielddict = dict()
     for f, v, i in LDAPField.objects.values_list('field', 'value', 'id'):
         fielddict[(f, v)] = i
+    batch = LDAPObjectBatch(name="save_ldap @{}".format(timestamp), timestamp=timestamp)
+    batch.save()
+    objs = list()
     for ad_dn, ad_obj in infinite_search(ldap_conn, base=base, scope=scope, filterstr=filterstr):
         icase_obj = dict()
         for k, v in ad_obj.items():
@@ -1333,7 +1344,7 @@ def save_ldap(ldap_conn=None, object_type=None, filterstr=None,\
                 upn = upn,
                 objectSid = icase_obj.get('objectSid'.upper(), [None])[0],
                 )
-        db_obj.save()
+        # db_obj.save()
         fields_to_add=list()
         for fieldname, val_list in icase_obj.items():
             for val in val_list:
@@ -1345,7 +1356,16 @@ def save_ldap(ldap_conn=None, object_type=None, filterstr=None,\
                                                              value=val)
                     fields_to_add.append(f.id)
                     fielddict[(fieldname, val)] = f.id
-        db_obj.fields.add(*fields_to_add)
+        objs.append((db_obj, fields_to_add))
+        # db_obj.fields.add(*fields_to_add)
+    LDAPObject.objects.bulk_create([i[0] for i in objs])
+    all_fields = list()
+    for obj, field_ids in objs:
+        batch.ldapobjects.add(obj)
+        for field_id in field_ids:
+            all_fields.append(LDAPObjectField(ldapobject = obj, ldapfield_id = field_id))
+    LDAPObjectField.objects.bulk_create(all_fields)
+    return batch
 
 
 def save_rilec(userdata_set, timestamp=None):
@@ -1362,6 +1382,9 @@ def save_rilec(userdata_set, timestamp=None):
     fielddict = dict()
     for f, v, i in LDAPField.objects.values_list('field', 'value', 'id'):
         fielddict[(f, v)] = i
+    batch = LDAPObjectBatch(name="save_rilec @{}".format(timestamp), timestamp=timestamp)
+    batch.save()
+    objs = list()
     for userdata in userdata_set:
         uid = userdata.uid
         default_group_dn, groups_to_join = userdata.groups_at(timestamp, translations=translations, group_rules=group_rules)
@@ -1370,13 +1393,13 @@ def save_rilec(userdata_set, timestamp=None):
                                         extra_fields=extra_fields,
                                         users_by_uid=users_by_uid)
         default_dn="CN={},{}".format(ldap.dn.escape_dn_chars(user_fields['CN'][0]), default_group_dn)
-        o = LDAPObject(timestamp=timestamp, source='rilec', 
+        obj = LDAPObject(timestamp=timestamp, source='rilec', 
                 dn=default_dn, 
                 objectType='user',
                 uid=user_fields.get('EMPLOYEEID', [None])[0],
                 upn=user_fields.get('USERPRINCIPALNAME', [None])[0]
             )
-        o.save()
+        # o.save()
         fields_to_add = list()
         for fieldname, vals in user_fields.items():
             for val in vals:
@@ -1396,7 +1419,15 @@ def save_rilec(userdata_set, timestamp=None):
             else:
                 field, created = LDAPField.objects.get_or_create(field='MEMBEROF', value=value)
                 fields_to_add.append(field.id)
-        o.fields.add(*fields_to_add)
+        objs.append((obj, fields_to_add))
+    LDAPObject.objects.bulk_create([i[0] for i in objs])
+    all_fields = list()
+    for obj, field_ids in objs:
+        batch.ldapobjects.add(obj)
+        for field_id in field_ids:
+            all_fields.append(LDAPObjectField(ldapobject = obj, ldapfield_id = field_id))
+    LDAPObjectField.objects.bulk_create(all_fields)
+    return batch
 
 
 class LDAPObject(models.Model):
@@ -1673,3 +1704,14 @@ class LDAPObjectField(models.Model):
     class Meta:
          db_table = 'apis_rilec_ldapobject_fields'
          unique_together = ('ldapobject_id', 'ldapfield_id')
+
+class LDAPObjectBatch(models.Model):
+    def __str__(self):
+        return "{} ({})".format(self.name, self.timestamp)
+    
+    def get_absolute_url(self):
+        return reverse("apis_rilec:ldapobjectbatch_detail", kwargs={"pk": self.pk})
+
+    timestamp = models.DateTimeField(auto_now=True)
+    name = models.TextField()
+    ldapobjects = models.ManyToManyField('LDAPObject')

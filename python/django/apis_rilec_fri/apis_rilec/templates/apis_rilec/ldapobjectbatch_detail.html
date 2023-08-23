@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block title %}Nabor objektov - {{obj}}{% endblock %}
+{% block body %}
+<h1>{{object}}</h1>
+<div>
+<ul>
+	{% for i in object.ldapobjects.all %}
+	<li><a href="{{i.get_absolute_url}}">{{i.dn}} ({{i.source}}@{{i.timestamp}})</a></li>
+	{% endfor %}
+</ul>
+</div>
+{% endblock %}

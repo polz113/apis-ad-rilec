@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}Nabori objektov v LDAP{% endblock %}
+{% block body %}
+<h1>Nabori objektov v LDAP</h1>
+<div>
+	<a href="{% url "apis_rilec:user_rilec_save"%}">Pripravi prenos za uporabnike</a>
+	<a href="{% url "apis_rilec:save_ldap"%}">Backup LDAP</a>
+	<a href="{% url "apis_rilec:autogroup_ldapobjects"%}">Ustvari avtomatične skupine</a>
+</div>
+<div>
+<ul>
+	{% for i in object_list %}
+	<li><a href="{{i.get_absolute_url}}">{{i}})</a></li>
+	{% endfor %}
+</ul>
+</div>
+{% endblock %}

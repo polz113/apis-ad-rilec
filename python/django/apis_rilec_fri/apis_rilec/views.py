@@ -20,7 +20,7 @@ else:
 
 
 from .models import DataSource, MergedUserData, UserDataField,\
-        LDAPObject,\
+        LDAPObject, LDAPObjectBatch,\
         dicts_to_ldapuser, dicts_to_ldapgroups, ldap_state,\
         get_rules, _get_keep_fields,\
         get_groups,\
@@ -78,6 +78,7 @@ def get_data_studis_view(request):
 def mergeduserdata_list(request):
     mudl = MergedUserData.objects.prefetch_related('data', 'data__fields').all()
     return render(request, 'apis_rilec/mergeduserdata_list.html', {'object_list': mudl})
+
 
 def _mergeduserdata_fields_objs(request, fieldnames):
     objects = UserDataField.objects.select_related('userdata').filter(
@@ -154,24 +155,24 @@ def user_rilec_save_view(request):
     # if request.method == 'PUT' or request.method == 'POST':
     # TODO fix CSRF vulnerability here
     userdata = MergedUserData.objects.prefetch_related('data', 'data__fields', 'data__dataset__source').all()
-    save_rilec(userdata)
-    return redirect(reverse("apis_rilec:ldapobject_list"))
+    batch = save_rilec(userdata)
+    return redirect(reverse("apis_rilec:ldapobjectbatch_detail", kwargs={'pk': batch.pk}))
 
 
 @staff_member_required
 def save_ldap_view(request):
     # if request.method == 'PUT' or request.method == 'POST':
     # TODO fix base, filterstr to something that will actually work
-    save_ldap()
-    return redirect(reverse("apis_rilec:ldapobject_list"))
+    batch = save_ldap()
+    return redirect(reverse("apis_rilec:ldapobjectbatch_detail", kwargs={'pk': batch.pk}))
 
 
 @staff_member_required
 def autogroup_ldapobjects_view(request, t=None):
     # if request.method == 'PUT' or request.method == 'POST':
     # TODO fix CSRF vulnerability here
-    autogroup_ldapobjects()
-    return redirect(reverse("apis_rilec:ldapobject_list"))
+    batch = autogroup_ldapobjects()
+    return redirect(reverse("apis_rilec:ldapobjectbatch_detail", kwargs={'pk': batch.pk}))
 
 #@staff_member_required
 def userproperty_list(request):
@@ -270,4 +271,33 @@ def ldapobject_diff_to_ldap(request, pk):
     obj.to_ldap(rename=True, keep_fields=keep_fields, ignore_fields=ignore_fields,
                 clean_group_set=autogroups, simulate=False)
     return redirect(reverse("apis_rilec:ldapobject_detail", kwargs={"pk": pk}))
-  
+
+@silk_profile(name='ldapobjectbatch_list')
+@staff_member_required
+def ldapobjectbatch_list(request):
+    objs = LDAPObjectBatch.objects.order_by('-timestamp')
+    return render(request, 'apis_rilec/ldapobjectbatch_list.html', {'object_list': objs})
+
+@staff_member_required
+def ldapobjectbatch_detail(request, pk):
+    obj = get_object_or_404(LDAPObjectBatch, pk=pk)
+    return render(request, 'apis_rilec/ldapobjectbatch_detail.html',
+                  {'object': obj})
+
+@staff_member_required
+def ldapobjectbatch_diff(request, pk, pk2):
+    obj1 = get_object_or_404(LDAPObjectBatch, pk=pk)
+    obj2 = get_object_or_404(LDAPObjectBatch, pk=pk2)
+    return render(request, 'apis_rilec/ldapobjectbatch_diff.html',
+            {'object': obj1, 'object2': obj2})
+
+@staff_member_required
+def ldapobjectbatch_to_ldap(request, pk):
+    obj1 = get_object_or_404(LDAPObjectBatch, pk=pk)
+    return redirect(reverse("apis_rilec:ldapobjectbatch_list"))
+
+@staff_member_required
+def ldapobjectbatch_diff_to_ldap(request, pk, pk2):
+    obj1 = get_object_or_404(LDAPObjectBatch, pk=pk)
+    obj2 = get_object_or_404(LDAPObjectBatch, pk=pk2)
+    return redirect(reverse("apis_rilec:ldapobjectbatch_list"))
