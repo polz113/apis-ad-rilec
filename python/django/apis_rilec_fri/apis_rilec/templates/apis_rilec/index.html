@@ -7,10 +7,8 @@ Vmesnik za prenos podatkov iz SAP / Studis v AD.
 Funkcionalnost:
 <ul>
 	<li><a href="{% url "apis_rilec:datasources_to_datasets" %}">Pretvori podatke iz SAP/Studis</a></li>
-	<li><a href="{% url "apis_rilec:user_rilec_save"%}">Pripravi prenos za uporabnike</a></li>
-	<li><a href="{% url "apis_rilec:save_ldap"%}">Backup LDAP</a></li>
-	<li><a href="{% url "apis_rilec:autogroup_ldapobjects"%}">Ustvari avtomatične skupine</a></li>
-	<li><a href="{% url "apis_rilec:ldapobject_list" %}">Podatki v LDAP</a></li>
+	<li><a href="{% url "apis_rilec:ldapobjectbatch_list" %}">Nabori podatkov v LDAP</a></li>
+	<li><a href="{% url "apis_rilec:ldapobject_list" %}">Vsi podatki v/iz LDAP</a></li>
 	<li><a href="{% url "apis_rilec:mergeduserdata_list" %}">Podatki o zaposlenih</a></li>
 	<li><a href="{% url "apis_rilec:delete_old_userdata" %}">Izbriši neuporabljene podatke zaposlenih</a></li>
 	<li><a href="{% url "apis_rilec:userproperty_list" %}">Dostopne lastnosti</a></li>
