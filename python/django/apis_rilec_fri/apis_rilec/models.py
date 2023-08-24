@@ -30,7 +30,11 @@ from urllib.request import Request, urlopen, quote
 
 FIELD_DELIMITER='__'
 DEFAULT_MERGE_RULES = {'pick': 'unique', "filters": []}
-DEFAULT_KEEP_FIELDS = []
+DEFAULT_KEEP_FIELDS = [
+        'MEMBEROF',
+        'BADPASSWORDTIME',
+        'BADPWDCOUNT'
+    ]
 DEFAULT_IGNORE_FIELDS = [
         'MEMBEROF',
         'BADPASSWORDTIME',
@@ -1278,13 +1282,13 @@ def ldap_state(timestamp=None, dn_list=None, mark_changed=True):
     old = None
     old_old = None
     for i in latest2:
-        print("i: ", i)
+        # print("i: ", i)
         if mark_changed:
             if old is not None:
                 if i.dn == old.dn:
                     old.changed = old.is_different(i)
                 else:
-                    print("  - ret -> ", i, old)
+                    # print("  - ret -> ", i, old)
                     ret.append(old)
                 old_old = old
             old = i
@@ -1349,21 +1353,28 @@ def save_ldap(ldap_conn=None, object_type=None, filterstr=None,\
         for fieldname, val_list in icase_obj.items():
             for val in val_list:
                 fid = fielddict.get((fieldname, val), None)
-                if fid is not None:
-                    fields_to_add.append(fid)
-                else:
+                if fid is None:
                     f, created = LDAPField.objects.get_or_create(field=fieldname,
                                                              value=val)
-                    fields_to_add.append(f.id)
                     fielddict[(fieldname, val)] = f.id
+                    fid = f.id
+                fields_to_add.append(fid)
         objs.append((db_obj, fields_to_add))
         # db_obj.fields.add(*fields_to_add)
     LDAPObject.objects.bulk_create([i[0] for i in objs])
     all_fields = list()
     for obj, field_ids in objs:
         batch.ldapobjects.add(obj)
-        for field_id in field_ids:
-            all_fields.append(LDAPObjectField(ldapobject = obj, ldapfield_id = field_id))
+        field_count = dict()
+        for field_id in field_ids: 
+            # According to some random post on the Internet, attributes in a multi-value field should be unique.
+            # According to Microsoft, this is not so, causing a crash.
+            # TODO: maybe add a counter to LDAPObjectField, defaulting to 1.
+            fc = field_count.get(field_id, 0) + 1
+            field_count[field_id] = fc
+            if fc == 1:
+                f = LDAPObjectField(ldapobject_id = obj.id, ldapfield_id = field_id)
+                all_fields.append(f)
     LDAPObjectField.objects.bulk_create(all_fields)
     return batch
 
@@ -1624,10 +1635,12 @@ class LDAPObject(models.Model):
             ignore_fields_set = set([i.upper() for i in ignore_fields])
         if keep_fields is None:
             keep_fields = DEFAULT_KEEP_FIELDS
+        groups = set(field_dict.pop('MEMBEROF', []))
         if real_dn is None:
             real_dn = self.dn
-            ops = list(field_dict.items())
+            ops = [i for i in field_dict.items() if i[0] not in ignore_fields_set]
             if simulate:
+                pass
                 print("ACT: {}: {}".format(real_dn, ops))
             else:
                 print("ADD: {}: {}".format(real_dn, ops))
@@ -1641,7 +1654,6 @@ class LDAPObject(models.Model):
             for fieldname, vals in field_dict.items():
                 if fieldname.upper() not in ignore_fields_set:
                     op_dict[real_dn].append((ldap.MOD_REPLACE, fieldname, vals))
-        groups = set(field_dict.pop('MEMBEROF', []))
         groups_to_add = set()
         groups_to_remove = set()
         try:
@@ -1650,11 +1662,13 @@ class LDAPObject(models.Model):
             cur_groups = set(list(cur_groups[0][1].values())[0])
         except:
             cur_groups = set()
-
+        #print("groups:", groups)
+        #print("  cur:", cur_groups)
         if clean_groups:
             groups_to_remove = cur_groups.difference(groups)
-        else:
-            groups_to_add = groups.difference(cur_groups)
+        groups_to_add = groups.difference(cur_groups)
+        #print("  add:", groups_to_add)
+        #print("  remove:", groups_to_remove)
         # encoded_real_dn = ldap.dn.escape_dn_chars(real_dn).encode('utf-8')
         encoded_real_dn = real_dn.encode('utf-8')
         for bin_group in groups_to_add:
@@ -1700,6 +1714,9 @@ class LDAPField(models.Model):
 class LDAPObjectField(models.Model):
     ldapobject = models.ForeignKey(LDAPObject, on_delete=models.CASCADE)
     ldapfield = models.ForeignKey(LDAPField, on_delete=models.CASCADE)   
+
+    def __str__(self):
+        return "{}: {}".format(self.ldapobject, self.ldapfield)
 
     class Meta:
          db_table = 'apis_rilec_ldapobject_fields'

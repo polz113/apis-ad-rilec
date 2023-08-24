@@ -228,6 +228,7 @@ def ldapobject_detail(request, pk):
 
 @staff_member_required
 def ldapobject_save(request, pk, source): 
+    # TODO POST ONLY
     obj = get_object_or_404(LDAPObject, pk=pk)
     dn = obj.find_in_ldap()
     if dn is None:
@@ -247,10 +248,12 @@ def ldapobject_save(request, pk, source):
 
 @staff_member_required
 def ldapobject_user_rilec_save(request, pk):
+    # TODO POST ONLY
     return ldapobject_save(request, pk, 'rilec')
 
 @staff_member_required
 def ldapobject_to_ldap(request, pk): 
+    # TODO POST ONLY
     obj = get_object_or_404(LDAPObject, pk=pk)
     merge_rules = get_rules('MERGE_RULES')
     keep_fields = _get_keep_fields(merge_rules)
@@ -261,12 +264,14 @@ def ldapobject_to_ldap(request, pk):
 
 @staff_member_required
 def ldapobject_diff_to_ldap(request, pk): 
+    # TODO POST ONLY
     obj = get_object_or_404(LDAPObject, pk=pk)
     merge_rules = get_rules('MERGE_RULES')
     keep_fields = _get_keep_fields(merge_rules)
     changed, removed = obj.diff()
     changed_fields = set(changed.values_list('field', flat=True))
     ignore_fields = set(obj.fields.values_list('field', flat=True)).difference(changed_fields)
+    ignore_fields += set(DEFAULT_IGNORE_FIELDS)
     autogroups=get_groups()
     obj.to_ldap(rename=True, keep_fields=keep_fields, ignore_fields=ignore_fields,
                 clean_group_set=autogroups, simulate=False)
@@ -293,11 +298,21 @@ def ldapobjectbatch_diff(request, pk, pk2):
 
 @staff_member_required
 def ldapobjectbatch_to_ldap(request, pk):
-    obj1 = get_object_or_404(LDAPObjectBatch, pk=pk)
+    # TODO POST ONLY
+    batch = get_object_or_404(LDAPObjectBatch, pk=pk)
+    merge_rules = get_rules('MERGE_RULES')
+    keep_fields = _get_keep_fields(merge_rules)
+    autogroups=get_groups(parents=False)
+    for obj in batch.ldapobjects.all():
+        obj.to_ldap(rename=True, keep_fields=keep_fields,
+                clean_group_set=autogroups, simulate=False)
     return redirect(reverse("apis_rilec:ldapobjectbatch_list"))
 
 @staff_member_required
 def ldapobjectbatch_diff_to_ldap(request, pk, pk2):
+    # TODO POST ONLY
     obj1 = get_object_or_404(LDAPObjectBatch, pk=pk)
     obj2 = get_object_or_404(LDAPObjectBatch, pk=pk2)
+    # TODO prepare object pairs
+    # TODO write to ldap
     return redirect(reverse("apis_rilec:ldapobjectbatch_list"))

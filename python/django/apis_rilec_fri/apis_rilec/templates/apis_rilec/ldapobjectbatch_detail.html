@@ -4,6 +4,9 @@
 {% block body %}
 <h1>{{object}}</h1>
 <div>
+	<a href="{% url "apis_rilec:ldapobjectbatch_to_ldap" object.id %}">Zapiši vse v LDAP</a>
+</div>
+<div>
 <ul>
 	{% for i in object.ldapobjects.all %}
 	<li><a href="{{i.get_absolute_url}}">{{i.dn}} ({{i.source}}@{{i.timestamp}})</a></li>

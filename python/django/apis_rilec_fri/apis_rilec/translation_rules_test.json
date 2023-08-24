@@ -15,10 +15,10 @@
             ["${priimek}", ["unidecode", "remove_whitespace"]]
         ]],
         ["default_username", [
-            ["${sluggy_ime}.${sluggy_priimek}", []]
+            ["${sluggy_ime}.${sluggy_priimek}", ["first_20_chars"]]
         ]],
         ["default_samaccount", [
-            ["$default_username", ["lower", "first_20_chars"]]
+            ["$default_username", ["lower"]]
         ]],
         ["celoime", [
             ["${priimek}, ${ime}", []]
@@ -33,10 +33,6 @@
         ["ad_lokacija", [
             ["${lokacija}", ["studis_sifrant_lokacije"]],
             ["${Komunikacija__0105__9005__vrednostNaziv}", []]
-        ]],
-        ["userPrincipalName", [
-            ["${Komunikacija__0105__9007__vrednostNaziv}", []],
-            ["${upn}", []]
         ]],
         ["telefon", [
             ["${Komunikacija__0105__0020__vrednostNaziv}", []]
@@ -87,6 +83,16 @@
                 ["clanica_domena_repl"]],
             ["${zavod}",
                 ["zavod_domena_repl"]]
+        ]],
+        ["clanica_dotdomena", [
+            ["${Ukrep__clanica_Id}",
+                ["clanica_dotdomena_repl"]],
+            ["${zavod}",
+                ["zavod_dotdomena_repl"]]
+        ]],
+
+        ["userPrincipalName", [
+	    ["$default_username@$clanica_dotdomena", []]
         ]],
         ["clanica_prefix", [
             ["${Ukrep__clanica_Id}", ["clanica_prefix_repl"]],
@@ -197,6 +203,18 @@
             "type": "dict",
             "rules": [
                 [ "63", "DC=test,DC=nodomain"]
+            ]
+        },
+        "clanica_dotdomena_repl": {
+            "type": "dict",
+            "rules": [
+                [ "2300", "test.nodomain"]
+            ]
+        },
+        "zavod_dotdomena_repl": {
+            "type": "dict",
+            "rules": [
+                [ "63", "test.nodomain"]
             ]
         },
         "clanica_prefix_repl": {
@@ -346,6 +364,7 @@
         "objectCategory": {"pick": "unique", "filters": ["keep_ldap"]},
         "sAMAccountName": {"pick": "first", "filters": ["keep_ldap"]},
         "userPrincipalName": {"pick": "first", "filters": ["keep_ldap"]},
+        "memberOf": {"pick": "first", "filters": ["keep_ldap"]},
         "schacExpiryDate": {"pick": "first", "order": "${account_expires_iso}"},
         "physicalDeliveryOfficeName": {"pick": "last", "order": "${dataset__source}"},
         "eduPersonPrincipalName": {"pick": "first"},
@@ -422,7 +441,7 @@
             {
                 "objectClass": ["top", "group"],
                 "distinguishedName": "CN=${vrsta_zaposlitve},${apis_oupart},OU=oddelki,OU=avtopravice,OU=${clanica_prefix},${clanica_domena}",
-                "sAMAccountName": "${vrsta_zaposlitve}",
+                "sAMAccountName": "${vrsta_zaposlitve}-${group_uid}",
                 "groupType": ["${group_type}"],
                 "name": ["${vrsta_zaposlitve}"]
             },
