@@ -2,11 +2,18 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 from django.conf import settings
 from django.http import HttpResponse, JsonResponse, StreamingHttpResponse, Http404
+from django.db.models import F
 from django.utils.datastructures import MultiValueDict
 from django.utils import timezone
 from itertools import chain
 from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
+
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
+from rest_framework_api_key.permissions import HasAPIKey
+from rest_framework.response import Response
+
 import logging
 import ldap
 
@@ -85,6 +92,9 @@ def mergeduserdata_list(request):
 def _mergeduserdata_fields_objs(request, fieldnames):
     objects = UserDataField.objects.select_related('userdata').filter(
             field__in=fieldnames).order_by('userdata__uid', 'userdata__id')
+    uids = request.GET.getlist('uid')
+    if len(uids):
+        objects = objects.filter(userdata__uid__in=uids)
     object_list = []
     old_id = None
     old_uid = None
@@ -103,6 +113,25 @@ def _mergeduserdata_fields_objs(request, fieldnames):
         d.update(fields)
         object_list.append(d)
     return object_list
+
+
+
+class MergedUserdataFieldsView(APIView):
+    permission_classes = [HasAPIKey | IsAuthenticated]
+    def get(self, request, format=None):
+        """
+        Return the filtered fields
+        """
+        fieldnames = request.GET.getlist(
+            'fieldname',
+            ['OsebniPodatki__0002__0__ime', 'OsebniPodatki__0002__0__priimek', 'OsebniPodatki__kadrovskaSt'])
+        uids = request.GET.getlist('uid')
+        objects = UserDataField.objects.select_related('userdata').\
+                filter(field__in=fieldnames).\
+                annotate(uid=F('userdata__uid'))
+        if len(uids):
+            objects = objects.filter(userdata__uid__in=uids)
+        return Response(objects.values("field", "value", "uid").order_by("uid").distinct())
 
 
 @login_required

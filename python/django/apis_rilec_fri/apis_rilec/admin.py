@@ -9,6 +9,7 @@ from .models import DataSource, DataSet,\
     LDAPApply, LDAPApplyBatch,\
     TranslationTable, TranslationRule
 
+
 # Register your models here.
 class DataSourceAdmin(admin.ModelAdmin):
     actions = ['to_datasets']
@@ -25,13 +26,16 @@ class DataSourceAdmin(admin.ModelAdmin):
         for i in queryset.all():
             i.to_datasets()
 
+
 class TranslationRuleInline(admin.TabularInline):
     model = TranslationRule
+
 
 class TranslationTableAdmin(admin.ModelAdmin):
     inlines = [
         TranslationRuleInline,
     ]
+
 
 class UserDataFieldInline(admin.TabularInline):
     model = UserDataField

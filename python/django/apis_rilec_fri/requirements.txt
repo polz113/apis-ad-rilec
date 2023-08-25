@@ -1,5 +1,6 @@
 django
 django-environ
+djangorestframework
 djangorestframework-api-key
 unidecode
 python-ldap
