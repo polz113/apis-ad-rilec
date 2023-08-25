@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Prenos v LDAP - {{object.ldapobject.dn}}{% endblock %}
+{% block body %}
+<h1>{{object.ldapobject.dn}}</h1>
+<div>
+    <a href="{{object.batch.get_absolute_url}}">Batch {{object.batch}}</a>
+</div>
+<div>
+    <a href="{{object.ldapobject.get_absolute_url}}">LDAPObject {{object.ldapobject}}</a>
+</div>
+<div>
+	<pre>
+	{{object.messages}}
+	</pre>
+</div>
+{% endblock %}

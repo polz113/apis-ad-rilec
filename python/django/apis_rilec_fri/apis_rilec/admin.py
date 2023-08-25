@@ -5,7 +5,8 @@ from django.utils.translation import gettext_lazy as _
 
 from .models import DataSource, DataSet,\
     OUData, OURelation, MergedUserData, UserData, UserDataField,\
-    LDAPObject,\
+    LDAPObject, LDAPObjectBatch,\
+    LDAPApply, LDAPApplyBatch,\
     TranslationTable, TranslationRule
 
 # Register your models here.
@@ -96,4 +97,7 @@ admin.site.register(OUData)
 admin.site.register(TranslationTable, TranslationTableAdmin)
 admin.site.register(UserData, UserDataAdmin)
 admin.site.register(MergedUserData, MergedUserDataAdmin)
-admin.site.register(LDAPObject, LDAPObjectAdmin)
+admin.site.register(LDAPObject)
+admin.site.register(LDAPObjectBatch)
+admin.site.register(LDAPApply)
+admin.site.register(LDAPApplyBatch)

@@ -21,12 +21,14 @@ else:
 
 from .models import DataSource, MergedUserData, UserDataField,\
         LDAPObject, LDAPObjectBatch,\
+        LDAPApply, LDAPApplyBatch,\
         dicts_to_ldapuser, dicts_to_ldapgroups, ldap_state,\
         get_rules, _get_keep_fields,\
         get_groups,\
         delete_old_userdata,\
         save_rilec, save_ldap, autogroup_ldapobjects,\
-        get_data_studis, apis_to_translations, try_init_ldap
+        get_data_studis, apis_to_translations, try_init_ldap,\
+        DEFAULT_IGNORE_FIELDS, DEFAULT_KEEP_FIELDS
 
 # Create your views here
 
@@ -58,7 +60,7 @@ def hrmaster_replicate(request):
     return JsonResponse({'result': 'UNSUPPORTED METHOD'})
         
 
-# @silk_profile(name='datasources_to_datasets')
+@silk_profile(name='datasources_to_datasets')
 @staff_member_required
 def datasources_to_datasets(request):
     for i in DataSource.objects.filter(dataset=None):
@@ -258,9 +260,13 @@ def ldapobject_to_ldap(request, pk):
     merge_rules = get_rules('MERGE_RULES')
     keep_fields = _get_keep_fields(merge_rules)
     autogroups=get_groups(parents=False)
-    obj.to_ldap(rename=True, keep_fields=keep_fields,
+    applybatch = LDAPApplyBatch(name="object to ldap")
+    applybatch.save()
+    apply = obj.to_ldap(rename=True, keep_fields=keep_fields,
                 clean_group_set=autogroups, simulate=False)
-    return redirect(reverse("apis_rilec:ldapobject_detail", kwargs={"pk": pk}))
+    apply.batch = applybatch
+    apply.save()
+    return redirect(reverse("apis_rilec:ldapapplybatch_detail", kwargs={"pk": applybatch.id}))
 
 @staff_member_required
 def ldapobject_diff_to_ldap(request, pk): 
@@ -271,11 +277,15 @@ def ldapobject_diff_to_ldap(request, pk):
     changed, removed = obj.diff()
     changed_fields = set(changed.values_list('field', flat=True))
     ignore_fields = set(obj.fields.values_list('field', flat=True)).difference(changed_fields)
-    ignore_fields += set(DEFAULT_IGNORE_FIELDS)
+    ignore_fields = set(DEFAULT_IGNORE_FIELDS).union(ignore_fields)
     autogroups=get_groups()
-    obj.to_ldap(rename=True, keep_fields=keep_fields, ignore_fields=ignore_fields,
+    applybatch = LDAPApplyBatch(name="object diff to ldap")
+    applybatch.save()
+    apply = obj.to_ldap(rename=True, keep_fields=keep_fields, ignore_fields=ignore_fields,
                 clean_group_set=autogroups, simulate=False)
-    return redirect(reverse("apis_rilec:ldapobject_detail", kwargs={"pk": pk}))
+    apply.batch = applybatch
+    apply.save()
+    return redirect(reverse("apis_rilec:ldapapplybatch_detail", kwargs={"pk": applybatch.id}))
 
 @silk_profile(name='ldapobjectbatch_list')
 @staff_member_required
@@ -302,11 +312,17 @@ def ldapobjectbatch_to_ldap(request, pk):
     batch = get_object_or_404(LDAPObjectBatch, pk=pk)
     merge_rules = get_rules('MERGE_RULES')
     keep_fields = _get_keep_fields(merge_rules)
-    autogroups=get_groups(parents=False)
+    autogroups = get_groups(parents=False)
+    applybatch = LDAPApplyBatch(name="batch to ldap")
+    applybatch.save()
+    applies = list()
     for obj in batch.ldapobjects.all():
-        obj.to_ldap(rename=True, keep_fields=keep_fields,
-                clean_group_set=autogroups, simulate=False)
-    return redirect(reverse("apis_rilec:ldapobjectbatch_list"))
+        applies.append(obj.to_ldap(rename=True, keep_fields=keep_fields,
+                clean_group_set=autogroups, simulate=False))
+    for a in applies:
+        a.batch = applybatch
+    LDAPApply.objects.bulk_create(applies)
+    return redirect(reverse("apis_rilec:ldapapplybatch_detail", kwargs={"pk": applybatch.id}))
 
 @staff_member_required
 def ldapobjectbatch_diff_to_ldap(request, pk, pk2):
@@ -315,4 +331,22 @@ def ldapobjectbatch_diff_to_ldap(request, pk, pk2):
     obj2 = get_object_or_404(LDAPObjectBatch, pk=pk2)
     # TODO prepare object pairs
     # TODO write to ldap
-    return redirect(reverse("apis_rilec:ldapobjectbatch_list"))
+    return redirect(reverse("apis_rilec:ldapapplybatch_detail", kwargs={"pk": pk}))
+
+@silk_profile(name='ldapapplybatch_list')
+@staff_member_required
+def ldapapplybatch_list(request):
+    objs = LDAPApplyBatch.objects.order_by('-timestamp')
+    return render(request, 'apis_rilec/ldapapplybatch_list.html', {'object_list': objs})
+
+@staff_member_required
+def ldapapplybatch_detail(request, pk):
+    obj = get_object_or_404(LDAPApplyBatch, pk=pk)
+    return render(request, 'apis_rilec/ldapapplybatch_detail.html',
+                  {'object': obj})
+
+@staff_member_required
+def ldapapply_detail(request, pk):
+    obj = get_object_or_404(LDAPApply, pk=pk)
+    return render(request, 'apis_rilec/ldapapply_detail.html',
+                  {'object': obj})

@@ -33,5 +33,9 @@ urlpatterns = [
     path('ldapobject/<int:pk>/save_<slug:source>', views.ldapobject_save, name='ldapobject_save'),
     path('ldapobject/<int:pk>/toldap', views.ldapobject_to_ldap, name='ldapobject_to_ldap'),
     path('ldapobject/<int:pk>/difftoldap', views.ldapobject_diff_to_ldap, name='ldapobject_diff_to_ldap'),
+    path('ldapapplybatch/', views.ldapapplybatch_list, name='ldapapplybatch_list'),
+    path('ldapapplybatch/<int:pk>', views.ldapapplybatch_detail, name='ldapapplybatch_detail'),
+    path('ldapapply/<int:pk>', views.ldapapply_detail, name='ldapapply_detail'),
+ 
 ]
 

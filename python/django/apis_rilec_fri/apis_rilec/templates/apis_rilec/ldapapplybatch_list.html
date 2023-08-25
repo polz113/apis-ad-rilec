@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block title %}Prenosi v LDAP{% endblock %}
+{% block body %}
+Prenosi
+<div>
+<ul>
+	{% for i in object_list %}
+	<li><a href="{{i.get_absolute_url}}">{{i.name}}@{{i.timestamp}}</a></li>
+	{% endfor %}
+</ul>
+</div>
+
+{% endblock %}

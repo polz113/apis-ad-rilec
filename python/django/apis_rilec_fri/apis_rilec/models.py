@@ -964,7 +964,7 @@ class UserDataField(models.Model):
     valid_to = models.DateTimeField(null=True)
     changed_t = models.DateTimeField(null=True)
     fieldgroup = models.IntegerField(null=True)
-    field = models.CharField(max_length=256)
+    field = models.CharField(max_length=255)
     value = models.CharField(max_length=512)
 
 
@@ -1444,15 +1444,22 @@ def save_rilec(userdata_set, timestamp=None):
 class LDAPObject(models.Model):
     class Meta:
         indexes = [
-                models.Index(fields=['timestamp', 'dn']),
-                models.Index(fields=['timestamp', 'objectSid']),
-                models.Index(fields=['timestamp', 'uid']),
-                models.Index(fields=['timestamp', 'upn']),
-                # models.Index(fields=['timestamp']),
-                models.Index(fields=['dn']),
-                models.Index(fields=['uid']),
-                models.Index(fields=['upn']),
-                models.Index(fields=['objectSid']),
+                # models.Index(fields=['timestamp', 'dn']),
+                # MySQL chokes on BLOBS as indexes, regardless of max length
+                # models.Index(fields=['timestamp', 'objectSid']),
+                # models.Index(fields=['timestamp', 'uid']),
+                # models.Index(fields=['timestamp', 'upn']),
+                models.Index(fields=['timestamp']),
+                # models.Index(fields=['dn']),
+                # models.Index(fields=['uid']),
+                # models.Index(fields=['upn']),
+                # models.Index(fields=['objectSid']),
+        ]
+        constraints = [
+            models.UniqueConstraint(name="timestamp_dn_unique", fields=['timestamp', 'dn']),
+            models.UniqueConstraint(name="timestamp_objectsid_unique", fields=['timestamp', 'objectSid']),
+            models.UniqueConstraint(name="timestamp_uid_unique", fields=['timestamp', 'uid']),
+            models.UniqueConstraint(name="timestamp_upn_unique", fields=['timestamp', 'upn']),
         ]
 
     SOURCE_TYPES=[
@@ -1625,75 +1632,73 @@ class LDAPObject(models.Model):
     def to_ldap(self, ldap_conn=None,
                 find_by_fields=None, create=True, rename=True, clean_groups=True,
                 ignore_fields=None, keep_fields=None, clean_group_set=None, simulate=True):
-        ldap_conn = try_init_ldap(ldap_conn)
-        op_dict = defaultdict(list)
-        real_dn = self.find_in_ldap(ldap_conn, find_by_fields=find_by_fields)
-        field_dict = self.field_dict()
-        if ignore_fields is None:
-            ignore_fields_set = set(DEFAULT_IGNORE_FIELDS)
-        else:
-            ignore_fields_set = set([i.upper() for i in ignore_fields])
-        if keep_fields is None:
-            keep_fields = DEFAULT_KEEP_FIELDS
-        groups = set(field_dict.pop('MEMBEROF', []))
-        if real_dn is None:
-            real_dn = self.dn
-            ops = [i for i in field_dict.items() if i[0] not in ignore_fields_set]
-            if simulate:
-                pass
-                print("ACT: {}: {}".format(real_dn, ops))
-            else:
-                print("ADD: {}: {}".format(real_dn, ops))
-                ldap_conn.add_s(real_dn, ops)
-                print("  SUCCESS")
-        else:
-            ignore_fields_set = ignore_fields_set.union(set([i.upper() for i in keep_fields]))
-            if rename and real_dn != self.dn:
-                ldap_conn.rename_s(real_dn, self.dn)
-                real_dn = self.dn
-            for fieldname, vals in field_dict.items():
-                if fieldname.upper() not in ignore_fields_set:
-                    op_dict[real_dn].append((ldap.MOD_REPLACE, fieldname, vals))
-        groups_to_add = set()
-        groups_to_remove = set()
+        messages = ""
+        error = False
         try:
-            # TODO: fix this
-            cur_groups = ldap_conn.search_s(real_dn, scope=ldap.SCOPE_BASE, attrlist=['MEMBEROF'])
-            cur_groups = set(list(cur_groups[0][1].values())[0])
-        except:
-            cur_groups = set()
-        #print("groups:", groups)
-        #print("  cur:", cur_groups)
-        if clean_groups:
-            groups_to_remove = cur_groups.difference(groups)
-        groups_to_add = groups.difference(cur_groups)
-        #print("  add:", groups_to_add)
-        #print("  remove:", groups_to_remove)
-        # encoded_real_dn = ldap.dn.escape_dn_chars(real_dn).encode('utf-8')
-        encoded_real_dn = real_dn.encode('utf-8')
-        for bin_group in groups_to_add:
-            # group = ldap.dn.escape_dn_chars(bin_group.decode('utf-8'))
-            group = bin_group.decode('utf-8')
-            op_dict[group].append((ldap.MOD_ADD, 'member', [encoded_real_dn]))
-            # op_dict[group].append((ldap.MOD_ADD, 'member', []))
-        for bin_group in groups_to_remove:
-            # group = ldap.dn.escape_dn_chars(bin_group.decode('utf-8'))
-            group = bin_group.decode('utf-8')
-            if clean_group_set is None or group in clean_group_set:
-                op_dict[group].append((ldap.MOD_DELETE, 'member', [encoded_real_dn]))
-        # TODO find better way to skip read-only attributes
-        for dn, op_list in op_dict.items():
-            for op in op_list:
-                try:
-                    if simulate:
-                        print("ACT: {}: {}".format(dn, op))
-                    else:
-                        print("MODIFY: {}: {}".format(dn, op))
-                        ldap_conn.modify_s(dn, [op])
-                        print("  SUCCESS")
-                except Exception as e:
-                    print("Failed to write {}: {}: {}".format(dn, op[1], e))
-                    pass
+            ldap_conn = try_init_ldap(ldap_conn)
+            op_dict = defaultdict(list)
+            real_dn = self.find_in_ldap(ldap_conn, find_by_fields=find_by_fields)
+            field_dict = self.field_dict()
+            if ignore_fields is None:
+                ignore_fields_set = set(DEFAULT_IGNORE_FIELDS)
+            else:
+                ignore_fields_set = set([i.upper() for i in ignore_fields])
+            if keep_fields is None:
+                keep_fields = DEFAULT_KEEP_FIELDS
+            groups = set(field_dict.pop('MEMBEROF', []))
+            if real_dn is None:
+                real_dn = self.dn
+                ops = [i for i in field_dict.items() if i[0] not in ignore_fields_set]
+                if simulate:
+                    messages += f"ACT: {real_dn}: {ops}\n"
+                else:
+                    messages += f"ADD: {real_dn}: {ops}\n"
+                    ldap_conn.add_s(real_dn, ops)
+                    messages += "  SUCCESS\n"
+            else:
+                ignore_fields_set = ignore_fields_set.union(set([i.upper() for i in keep_fields]))
+                if rename and real_dn != self.dn:
+                    ldap_conn.rename_s(real_dn, self.dn)
+                    real_dn = self.dn
+                for fieldname, vals in field_dict.items():
+                    if fieldname.upper() not in ignore_fields_set:
+                        op_dict[real_dn].append((ldap.MOD_REPLACE, fieldname, vals))
+            groups_to_add = set()
+            groups_to_remove = set()
+            try:
+                # TODO: fix this
+                cur_groups = ldap_conn.search_s(real_dn, scope=ldap.SCOPE_BASE, attrlist=['MEMBEROF'])
+                cur_groups = set(list(cur_groups[0][1].values())[0])
+            except:
+                cur_groups = set()
+            if clean_groups:
+                groups_to_remove = cur_groups.difference(groups)
+            groups_to_add = groups.difference(cur_groups)
+            encoded_real_dn = real_dn.encode('utf-8')
+            for bin_group in groups_to_add:
+                group = bin_group.decode('utf-8')
+                op_dict[group].append((ldap.MOD_ADD, 'member', [encoded_real_dn]))
+            for bin_group in groups_to_remove:
+                group = bin_group.decode('utf-8')
+                if clean_group_set is None or group in clean_group_set:
+                    op_dict[group].append((ldap.MOD_DELETE, 'member', [encoded_real_dn]))
+            for dn, op_list in op_dict.items():
+                for op in op_list:
+                    try:
+                        if simulate:
+                            messages += f"ACT: {dn}: {op}\n"
+                        else:
+                            messages += f"MODIFY: {dn}: {op}\n"
+                            ldap_conn.modify_s(dn, [op])
+                            messages += "  SUCCESS\n"
+                    except Exception as e:
+                        error = True
+                        messages += "Failed to write {}: {}: {}\n".format(dn, op[1], e)
+        except Exception as e:
+            error = True
+            messages += str(e)
+        return LDAPApply(ldapobject=self, messages=messages, error=error)
+
 
 
 class LDAPField(models.Model):
@@ -1702,7 +1707,7 @@ class LDAPField(models.Model):
     class Meta:
         indexes = [
                 # models.Index(fields=['field']),
-                models.Index(fields=['field', 'value']),
+                # models.Index(fields=['field', 'value']),
         ]
         constraints = [
             models.UniqueConstraint(name="field_value_unique", fields=['field', 'value'])
@@ -1722,6 +1727,7 @@ class LDAPObjectField(models.Model):
          db_table = 'apis_rilec_ldapobject_fields'
          unique_together = ('ldapobject_id', 'ldapfield_id')
 
+
 class LDAPObjectBatch(models.Model):
     def __str__(self):
         return "{} ({})".format(self.name, self.timestamp)
@@ -1732,3 +1738,29 @@ class LDAPObjectBatch(models.Model):
     timestamp = models.DateTimeField(auto_now=True)
     name = models.TextField()
     ldapobjects = models.ManyToManyField('LDAPObject')
+
+
+class LDAPApplyBatch(models.Model):
+    def __str__(self):
+        return "{} ({})".format(self.name, self.timestamp)
+    
+    def get_absolute_url(self):
+        return reverse("apis_rilec:ldapapplybatch_detail", kwargs={"pk": self.pk})
+
+    timestamp = models.DateTimeField(auto_now=True)
+    name = models.TextField()
+    ldapapplies = models.ManyToManyField('LDAPApply')
+
+
+class LDAPApply(models.Model):
+    def __str__(self):
+        return "{} - {}".format(self.batch, self.ldapobject)
+    
+    def get_absolute_url(self):
+        return reverse("apis_rilec:ldapapply_detail", kwargs={"pk": self.pk})
+
+    batch = models.ForeignKey('LDAPApplyBatch', on_delete=models.CASCADE)
+    error = models.BooleanField(default=False)
+    ldapobject = models.ForeignKey('LDAPObject', null=True, on_delete=models.SET_NULL)
+    messages = models.TextField()
+

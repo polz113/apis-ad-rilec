@@ -65,5 +65,14 @@
         {% endfor %}
     </ul>
     </div>
+    <div>
+        <h2>Prenosi</h2>
+	<ul>
+	{% for apply in object.ldapapply_set.all %}
+	    <li><a href="{{apply.get_absolute_url}}">{{apply}}</a></li>
+	{% endfor %}
+	</ul>
+    </div>
+
 </body>
 </html>
