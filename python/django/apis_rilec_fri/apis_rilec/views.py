@@ -328,12 +328,60 @@ def ldapobjectbatch_detail(request, pk):
     return render(request, 'apis_rilec/ldapobjectbatch_detail.html',
                   {'object': obj})
 
+@silk_profile(name='ldapobjectbatch_diff')
 @staff_member_required
 def ldapobjectbatch_diff(request, pk, pk2):
-    obj1 = get_object_or_404(LDAPObjectBatch, pk=pk)
-    obj2 = get_object_or_404(LDAPObjectBatch, pk=pk2)
+    batch1 = get_object_or_404(LDAPObjectBatch, pk=pk)
+    batch2 = get_object_or_404(LDAPObjectBatch, pk=pk2)
+    objects1 = batch1.ldapobjects.all().prefetch_related('fields')
+    objects2 = batch2.ldapobjects.order_by('dn').prefetch_related('fields')
+    obj1_dict = dict()
+    for obj1 in objects1:
+        obj1_dict[obj1.dn] = obj1
+    missing_objs = list()
+    added_obj_dns = set(obj1_dict.keys())
+    changed_objs = []
+    unchanged_objs = []
+    for obj2 in objects2:
+        dn = obj2.dn
+        obj1 = obj1_dict.get(dn, None)
+        if obj1 is None:
+            obj1 = obj2.siblings().filter(ldapobjectbatch=batch1)
+            if obj1.exists():
+                obj1 = obj1[0]
+        if obj1 is not None:
+            added_obj_dns.discard(obj1.dn)
+            changed, removed = obj1.diff(obj2)
+            changed_fields = set(changed.values_list('field', flat=True))
+            unchanged_fields = set(obj1.fields.values_list('field', flat=True))
+            unchanged_fields.difference_update(changed_fields)
+            ignore_fields = set(DEFAULT_IGNORE_FIELDS)
+            changed_fields.difference_update(ignore_fields)
+            unchanged_fields.difference_update(ignore_fields)
+            changed = obj1.fields.filter(field__in=changed_fields)
+            unchanged = obj1.fields.filter(field__in=unchanged_fields)
+            ignore = obj1.fields.filter(field__in=ignore_fields)
+            if len(changed_fields) > 0:
+                changed_objs.append({"obj": obj1, "obj2": obj2,
+                                     "changed": changed,
+                                     "unchanged": unchanged,
+                                     "ignore": ignore})
+            else:
+                unchanged_objs.append({"obj": obj1, "obj2": obj2,
+                                     "changed": changed,
+                                     "unchanged": unchanged,
+                                     "ignore": ignore})
+        else:
+            missing_objs.append(obj2)
+    added_objs = []
+    for dn in sorted(added_obj_dns):
+        new_objs.append(obj1_dict[dn])
     return render(request, 'apis_rilec/ldapobjectbatch_diff.html',
-            {'object': obj1, 'object2': obj2})
+                  {'added_objs': added_objs,
+                   'changed_objs': changed_objs,
+                   'unchanged_objs': unchanged_objs,
+                   'missing_objs': missing_objs,
+                   })
 
 @staff_member_required
 def ldapobjectbatch_to_ldap(request, pk):
