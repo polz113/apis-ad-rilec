@@ -14,11 +14,34 @@
         </ul>
     </div>
     <div><h2>Spremenjeni</h2>
-        <ul>
         {% for obj in changed_objs %}
-          <li>{{ obj }}</li>
-        {% endfor %}
+	<h3>{{obj.obj.dn}}</h3>
+	<div>
+	<h4>Spremenjeni</h4>
+            {% for chfield in obj.changed %}
+	<ul>
+	    <li>{{ chfield.field }}: {{chfield.value}}</li>
         </ul>
+            {% endfor %}
+	</div>
+	<div>
+	<h4>Ignorirani</h4>
+            {% for ignfield in obj.ignore %}
+	<ul>
+	    <li>{{ ignfield.field }}: {{ignfield.value}}</li>
+        </ul>
+            {% endfor %}
+	</div>
+	<div>
+	<h4>Nespremenjeni</h4>
+            {% for unchfield in obj.unchanged %}
+	<ul>
+	    <li>{{ unchfield.field }}: {{unchfield.value}}</li>
+        </ul>
+            {% endfor %}
+	</div>
+
+        {% endfor %}
     </div>
     <div><h2>Odstranjeni</h2>
         <ul>
@@ -28,11 +51,26 @@
         </ul>
     </div>
     <div><h2>Nespremenjeni</h2>
-        <ul>
         {% for obj in unchanged_objs %}
-          <li>{{ obj }}</li>
-        {% endfor %}
+	<h3>{{obj.obj1.dn}}</h3>
+	<div>
+	<h4>Ignorirani</h4>
+            {% for ignfield in obj.ignore %}
+	<ul>
+	    <li>{{ ignfield.field }}: {{ignfield.value}}</li>
         </ul>
+            {% endfor %}
+	</div>
+	<div>
+	<h4>Nespremenjeni</h4>
+            {% for unchfield in obj.unchanged %}
+	<ul>
+	    <li>{{ unchfield.field }}: {{unchfield.value}}</li>
+        </ul>
+            {% endfor %}
+	</div>
+
+        {% endfor %}
     </div>
 
 </body>

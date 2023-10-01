@@ -375,7 +375,7 @@ def ldapobjectbatch_diff(request, pk, pk2):
             missing_objs.append(obj2)
     added_objs = []
     for dn in sorted(added_obj_dns):
-        new_objs.append(obj1_dict[dn])
+        added_objs.append(obj1_dict[dn])
     return render(request, 'apis_rilec/ldapobjectbatch_diff.html',
                   {'added_objs': added_objs,
                    'changed_objs': changed_objs,
