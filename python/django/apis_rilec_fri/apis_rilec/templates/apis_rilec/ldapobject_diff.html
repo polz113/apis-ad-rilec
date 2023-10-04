@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+      <meta charset="utf-8">
+      <title>Podrobnosti</title>
+</head>
+<body>
+    <a href="{% url "apis_rilec:ldapobject_list" %}">Nazaj na seznam</a>
+    <div>
+	<h1>{{object.source}} - {{object.timestamp}}</h1>
+	<h2>{{object.dn}}</h2>
+        <h2>{{object.upn}}</h2>
+        <h2><a href="{% url "apis_rilec:mergeduserdata_detail" object.uid %}">{{object.uid}}</a></h2>
+    </div>
+    <div>
+        {% if object.previous_id is not None %}
+	    <a href="{% url "apis_rilec:ldapobject_detail" object.previous_id %}">Starejši</a>
+        {% endif %}
+        {% if object.next_id is not None %}
+	    <a href="{% url "apis_rilec:ldapobject_detail" object.next_id %}">Novejši</a>
+        {% endif %}
+	{% with latest_id=object.latest_id %}
+            {% if object.id != latest_id %}
+	    <a href="{% url "apis_rilec:ldapobject_detail" object.latest_id %}">Najnovejši</a>
+	    {% endif %}
+	{% endwith %}
+    </div>
+    <div>
+        <a href="{% url "apis_rilec:ldapobject_save" object.id 'ldap' %}">Preberi iz LDAP</a>
+        <a href="{% url "apis_rilec:ldapobject_save" object.id 'rilec' %}">Preberi iz rilca</a>
+    </div>
+    {% if object.previous %}
+    <div>
+        <h2>Dodana polja</h2>
+        <form method="post">{% csrf_token %}
+            <button formaction="{% url "apis_rilec:ldapobject_diff_to_ldap" object.id object.previous.id %}" type="submit">Zapiši v LDAP</button>
+        </form>
+        <ul>
+        {% for field in added %}
+        <li>
+            {{field.field}}: {{field.as_utf}}
+        </li>
+        {% endfor %}
+        </ul>
+    </div>
+    <div>
+        <h2>Odstranjena/spremenjena polja</h2>
+        <ul>
+        {% for field in removed %}
+        <li>
+            {{field.field}}: {{field.as_utf}}
+        </li>
+        {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+    <div>
+    <h2>Vrednosti polj</h2>
+    <form method="post">{% csrf_token %}
+        <button formaction="{% url "apis_rilec:ldapobject_to_ldap" object.id %}" type="submit">Zapiši v LDAP</button>
+    </form> 
+    <ul>
+        {% for field in object.fields.all|dictsort:"field" %}
+        <li>
+            {{field.field}}: {{field.as_utf}}
+        </li>
+        {% endfor %}
+    </ul>
+    </div>
+    <div>
+        <h2>Prenosi</h2>
+	<ul>
+	{% for apply in object.ldapapply_set.all %}
+	    <li><a href="{{apply.get_absolute_url}}">{{apply}}</a></li>
+	{% endfor %}
+	</ul>
+    </div>
+
+</body>
+</html>

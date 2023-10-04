@@ -250,11 +250,19 @@ def latest_ldapobject(request, pk):
 
 @staff_member_required
 def ldapobject_detail(request, pk):
+    return ldapobject_diff(request, pk)
+
+@staff_member_required
+def ldapobject_diff(request, pk, pk2=None):
     obj = get_object_or_404(LDAPObject, pk=pk)
-    added, removed = obj.diff()
+    if pk2 is None:
+        obj2 = obj.previous()
+    else:
+        obj2 = get_object_or_404(LDAPObject, pk=pk2)
+    added, removed = obj.diff(obj2)
     added = added.order_by('field')
     removed = removed.order_by('field')
-    return render(request, 'apis_rilec/ldapobject_detail.html',
+    return render(request, 'apis_rilec/ldapobject_diff.html',
                   {'object': obj, 'added': added, 'removed': removed})
 
 @staff_member_required
@@ -298,12 +306,13 @@ def ldapobject_to_ldap(request, pk):
     return redirect(reverse("apis_rilec:ldapapplybatch_detail", kwargs={"pk": applybatch.id}))
 
 @staff_member_required
-def ldapobject_diff_to_ldap(request, pk): 
+def ldapobject_diff_to_ldap(request, pk, pk2): 
     # TODO POST ONLY
     obj = get_object_or_404(LDAPObject, pk=pk)
+    obj2 = get_object_or_404(LDAPObject, pk=pk2)
     merge_rules = get_rules('MERGE_RULES')
     keep_fields = _get_keep_fields(merge_rules)
-    changed, removed = obj.diff()
+    changed, removed = obj.diff(obj2)
     changed_fields = set(changed.values_list('field', flat=True))
     ignore_fields = set(obj.fields.values_list('field', flat=True)).difference(changed_fields)
     ignore_fields = set(DEFAULT_IGNORE_FIELDS).union(ignore_fields)

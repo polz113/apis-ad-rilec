@@ -1711,6 +1711,8 @@ class LDAPField(models.Model):
         constraints = [
             models.UniqueConstraint(name="field_value_unique", fields=['field', 'value'])
         ]
+    def as_utf(self):
+        return self.value.decode('utf-8')
     field = models.CharField(max_length=256)
     value = models.BinaryField()
 
