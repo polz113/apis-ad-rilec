@@ -328,7 +328,7 @@ def ldapobjectbatch_detail(request, pk):
     older = LDAPObjectBatch.objects.filter(timestamp__lt=obj.timestamp).order_by('-timestamp')
     prev_rilec = older.filter(name__startswith='save_rilec').first()
     prev_ldap = older.filter(name__startswith='save_ldap').first()
-    source = obj.name.split(" ", 1)
+    source = obj.name.split(" ", 1)[0]
     prev_same = older.filter(name__startswith=source).first()
     return render(request, 'apis_rilec/ldapobjectbatch_detail.html',
                   {'object': obj,
