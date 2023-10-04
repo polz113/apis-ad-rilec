@@ -325,8 +325,16 @@ def ldapobjectbatch_list(request):
 @staff_member_required
 def ldapobjectbatch_detail(request, pk):
     obj = get_object_or_404(LDAPObjectBatch, pk=pk)
+    older = LDAPObjectBatch.objects.filter(timestamp__lt=obj.timestamp).order_by('-timestamp')
+    prev_rilec = older.filter(name__startswith='save_rilec').first()
+    prev_ldap = older.filter(name__startswith='save_ldap').first()
+    source = obj.name.split(" ", 1)
+    prev_same = older.filter(name__startswith=source).first()
     return render(request, 'apis_rilec/ldapobjectbatch_detail.html',
-                  {'object': obj})
+                  {'object': obj,
+                   'prev_ldap': prev_ldap,
+                   'prev_rilec': prev_rilec,
+                   'prev_same': prev_same})
 
 @silk_profile(name='ldapobjectbatch_diff')
 @staff_member_required
@@ -349,6 +357,8 @@ def ldapobjectbatch_diff(request, pk, pk2):
             obj1 = obj2.siblings().filter(ldapobjectbatch=batch1)
             if obj1.exists():
                 obj1 = obj1[0]
+            else:
+                obj1 = None
         if obj1 is not None:
             added_obj_dns.discard(obj1.dn)
             changed, removed = obj1.diff(obj2)
@@ -375,7 +385,7 @@ def ldapobjectbatch_diff(request, pk, pk2):
             missing_objs.append(obj2)
     added_objs = []
     for dn in sorted(added_obj_dns):
-        new_objs.append(obj1_dict[dn])
+        added_objs.append(obj1_dict[dn])
     return render(request, 'apis_rilec/ldapobjectbatch_diff.html',
                   {'added_objs': added_objs,
                    'changed_objs': changed_objs,
