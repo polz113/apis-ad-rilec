@@ -5,38 +5,43 @@
       <title>Razlika</title>
 </head>
 <body>
-    <a href="{% url "apis_rilec:ldapobject_list" %}">Nazaj na seznam</a>
+    <a href="{% url "apis_rilec:ldapobjectbatch_list" %}">Nazaj na seznam</a>
     <div><h2>Dodani</h2>
-        <ul>
         {% for obj in added_objs %}
-          <li>{{ obj }}</li>
-        {% endfor %}
+        <h3>{{obj.dn}}</h3>
+	    <div>
+            {% for field in obj.fields.all|dictsort:"field" %}
+	    <ul>
+	        <li>{{ field.field }}: {{field.as_utf}}</li>
         </ul>
+            {% endfor %}
+	    </div>
+        {% endfor %}
     </div>
     <div><h2>Spremenjeni</h2>
         {% for obj in changed_objs %}
 	<h3>{{obj.obj.dn}}</h3>
 	<div>
-	<h4>Spremenjeni</h4>
+	<h4>Spremenjeno</h4>
             {% for chfield in obj.changed %}
 	<ul>
-	    <li>{{ chfield.field }}: {{chfield.value}}</li>
+	    <li>{{ chfield.field }}: {{chfield.as_utf}}</li>
         </ul>
             {% endfor %}
 	</div>
 	<div>
-	<h4>Ignorirani</h4>
+	<h4>Ignorirano</h4>
             {% for ignfield in obj.ignore %}
 	<ul>
-	    <li>{{ ignfield.field }}: {{ignfield.value}}</li>
+	    <li>{{ ignfield.field }}: {{ignfield.as_utf}}</li>
         </ul>
             {% endfor %}
 	</div>
 	<div>
-	<h4>Nespremenjeni</h4>
+	<h4>Nespremenjeno</h4>
             {% for unchfield in obj.unchanged %}
 	<ul>
-	    <li>{{ unchfield.field }}: {{unchfield.value}}</li>
+	    <li>{{ unchfield.field }}: {{unchfield.as_utf}}</li>
         </ul>
             {% endfor %}
 	</div>
@@ -52,20 +57,20 @@
     </div>
     <div><h2>Nespremenjeni</h2>
         {% for obj in unchanged_objs %}
-	<h3>{{obj.obj1.dn}}</h3>
+	<h3>{{obj.obj.dn}}</h3>
 	<div>
-	<h4>Ignorirani</h4>
+	<h4>Ignorirano</h4>
             {% for ignfield in obj.ignore %}
 	<ul>
-	    <li>{{ ignfield.field }}: {{ignfield.value}}</li>
+	    <li>{{ ignfield.field }}: {{ignfield.as_utf}}</li>
         </ul>
             {% endfor %}
 	</div>
 	<div>
-	<h4>Nespremenjeni</h4>
+	<h4>Nespremenjeno</h4>
             {% for unchfield in obj.unchanged %}
 	<ul>
-	    <li>{{ unchfield.field }}: {{unchfield.value}}</li>
+	    <li>{{ unchfield.field }}: {{unchfield.as_utf}}</li>
         </ul>
             {% endfor %}
 	</div>
