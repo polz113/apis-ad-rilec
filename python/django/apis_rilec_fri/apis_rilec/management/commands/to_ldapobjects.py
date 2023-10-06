@@ -13,7 +13,7 @@ class Command(BaseCommand):
                             help="Convert SAP/Studis data to datasets")
 
     def handle(self, *args, **options):
-        if options['get_studis':
+        if options['get_studis']:
             get_data_studis()
         if options['convert_datasets']:
             for i in DataSource.objects.filter(dataset=None):
