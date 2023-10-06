@@ -7,15 +7,15 @@
 	<a href="{% url "apis_rilec:ldapobjectbatch_to_ldap" object.id %}">Zapiši vse v LDAP</a>
 </div>
 <div>
-    Primerjaj z:
+    Primerjaj s:
     {% if prev_rilec %}
-    <a href="{% url "apis_rilec:ldapobjectbatch_diff" object.id prev_rilec.id %}">Prejšnjimi iz SAP</a>
+    || <a href="{% url "apis_rilec:ldapobjectbatch_diff" object.id prev_rilec.id %}">Prejšnjimi iz SAP</a>
     {% endif %}
     {% if prev_ldap %}
-    <a href="{% url "apis_rilec:ldapobjectbatch_diff" object.id prev_ldap.id %}">Prejšnjimi iz LDAP</a>
+    || <a href="{% url "apis_rilec:ldapobjectbatch_diff" object.id prev_ldap.id %}">Prejšnjimi iz LDAP</a>
     {% endif %}
     {% if prev_same %}
-    <a href="{% url "apis_rilec:ldapobjectbatch_diff" object.id prev_same.id %}">Prejšnjimi istega tipa</a>
+    || <a href="{% url "apis_rilec:ldapobjectbatch_diff" object.id prev_same.id %}">Prejšnjimi istega tipa</a>
     {% endif %}
 </div>
 <div>
