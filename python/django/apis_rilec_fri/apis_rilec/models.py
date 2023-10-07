@@ -1403,7 +1403,11 @@ def save_rilec(userdata_set, timestamp=None):
                                         merge_rules=merge_rules, translations=translations, 
                                         extra_fields=extra_fields,
                                         users_by_uid=users_by_uid)
-        default_dn="CN={},{}".format(ldap.dn.escape_dn_chars(user_fields.get('CN', ['Nobody'])[0]), default_group_dn)
+        try:
+            default_dn="CN={},{}".format(ldap.dn.escape_dn_chars(user_fields['CN'][0]), default_group_dn)
+        except:
+            print(user_fields)
+            continue
         obj = LDAPObject(timestamp=timestamp, source='rilec', 
                 dn=default_dn, 
                 objectType='user',
