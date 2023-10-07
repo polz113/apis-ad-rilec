@@ -1333,6 +1333,7 @@ def save_ldap(ldap_conn=None, object_type=None, filterstr=None,\
     batch.save()
     objs = list()
     for ad_dn, ad_obj in infinite_search(ldap_conn, base=base, scope=scope, filterstr=filterstr):
+        timestamp = timezone.now()
         icase_obj = dict()
         for k, v in ad_obj.items():
             icase_obj[k.upper()] = v
