@@ -1407,7 +1407,6 @@ def save_rilec(userdata_set, timestamp=None):
                                         merge_rules=merge_rules, translations=translations, 
                                         extra_fields=extra_fields,
                                         users_by_uid=users_by_uid)
-<<<<<<< HEAD
         default_upn=user_fields.get('USERPRINCIPALNAME', [None])[0]
         unique_upn = default_upn
         default_cn = user_fields.get('CN', ['Nobody'])[0]
@@ -1418,7 +1417,7 @@ def save_rilec(userdata_set, timestamp=None):
             i += 1
             if default_upn in seen_upns:
                 unique_upn = upn + str(i)
-            if default_dn in seen_upns:
+            if default_dn in seen_dns:
                 unique_dn="CN={},{}".format(ldap.dn.escape_dn_chars(default_cn + " " + str(i)), default_group_dn)
         seen_dns.add(unique_dn)
         seen_upns.add(unique_upn)
