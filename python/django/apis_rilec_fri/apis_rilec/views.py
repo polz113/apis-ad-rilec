@@ -421,6 +421,19 @@ def ldapobjectbatch_to_ldap(request, pk):
     return redirect(reverse("apis_rilec:ldapapplybatch_detail", kwargs={"pk": applybatch.id}))
 
 @staff_member_required
+def ldapobjectbatch_latest_diff(request):
+    batches = LDAPObjectBatch.objects.order_by('-timestamp')
+    latest_rilec = batches.filter(name__startswith='save_rilec').first()
+    latest_ldap = batches.filter(name__startswith='save_ldap').first()
+    if latest_ldap is None:
+        latest_ldap = save_ldap()
+    if latest_rilec is None:
+        userdata = MergedUserData.objects.prefetch_related('data', 'data__fields', 'data__dataset__source').all()
+        latest_rilec = save_rilec(userdata)
+    pk, pk2 = latest_rilec.id, latest_ldap.id
+    return redirect(reverse("apis_rilec:ldapobjectbatch_diff", kwargs={"pk": pk, "pk2": pk2}))
+
+@staff_member_required
 def ldapobjectbatch_diff_to_ldap(request, pk, pk2):
     # TODO POST ONLY
     obj1 = get_object_or_404(LDAPObjectBatch, pk=pk)

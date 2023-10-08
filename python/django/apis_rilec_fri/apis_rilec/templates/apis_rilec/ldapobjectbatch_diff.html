@@ -9,74 +9,74 @@
     <div><h2>Dodani</h2>
         {% for obj in added_objs %}
         <h3>{{obj.dn}}</h3>
-	    <div>
+        <div>
             {% for field in obj.fields.all|dictsort:"field" %}
-	    <ul>
-	        <li>{{ field.field }}: {{field.as_utf}}</li>
+        <ul>
+            <li>{{ field.field }}: {{field.as_utf}}</li>
         </ul>
             {% endfor %}
-	    </div>
+        </div>
         {% endfor %}
     </div>
-    <div><h2>Spremenjeni</h2>
+    <div>
+        <h2>Spremenjeni</h2>
         {% for obj in changed_objs %}
-	<h3>{{obj.obj.dn}}</h3>
-	<div>
-	<h4>Spremenjeno</h4>
+        <h3><a href="{% url "apis_rilec:ldapobject_diff" obj.obj.id obj.obj2.id %}">{{obj.obj.dn}}</a></h3>
+        <div>
+            <h4>Spremenjeno</h4>
             {% for chfield in obj.changed %}
-	<ul>
-	    <li>{{ chfield.field }}: {{chfield.as_utf}}</li>
-        </ul>
+            <ul>
+                <li>{{ chfield.field }}: {{chfield.as_utf}}</li>
+            </ul>
             {% endfor %}
-	</div>
-	<div>
-	<h4>Ignorirano</h4>
+        </div>
+        <div>
+            <h4>Ignorirano</h4>
             {% for ignfield in obj.ignore %}
-	<ul>
-	    <li>{{ ignfield.field }}: {{ignfield.as_utf}}</li>
-        </ul>
+            <ul>
+                <li>{{ ignfield.field }}: {{ignfield.as_utf}}</li>
+            </ul>
             {% endfor %}
-	</div>
-	<div>
-	<h4>Nespremenjeno</h4>
+        </div>
+        <div>
+            <h4>Nespremenjeno</h4>
             {% for unchfield in obj.unchanged %}
-	<ul>
-	    <li>{{ unchfield.field }}: {{unchfield.as_utf}}</li>
-        </ul>
+            <ul>
+                <li>{{ unchfield.field }}: {{unchfield.as_utf}}</li>
+            </ul>
             {% endfor %}
-	</div>
-
+        </div>
         {% endfor %}
     </div>
-    <div><h2>Odstranjeni</h2>
+    <div>
+        <h2>Odstranjeni</h2>
         <ul>
         {% for obj in missing_objs %}
-          <li>{{ obj }}</li>
+            <li><a href="{% url "apis_rilec:ldapobject_detail" obj.id %}">{{ obj }}</a></li>
         {% endfor %}
         </ul>
     </div>
-    <div><h2>Nespremenjeni</h2>
+    <div>
+        <h2>Nespremenjeni</h2>
         {% for obj in unchanged_objs %}
-	<h3>{{obj.obj.dn}}</h3>
-	<div>
-	<h4>Ignorirano</h4>
+        <h3><a href="{% url "apis_rilec:ldapobject_diff" obj.obj.id obj.obj2.id %}">{{obj.obj.dn}}</a></h3>
+        <div>
+            <h4>Ignorirano</h4>
             {% for ignfield in obj.ignore %}
-	<ul>
-	    <li>{{ ignfield.field }}: {{ignfield.as_utf}}</li>
-        </ul>
+            <ul>
+                <li>{{ ignfield.field }}: {{ignfield.as_utf}}</li>
+            </ul>
             {% endfor %}
-	</div>
-	<div>
-	<h4>Nespremenjeno</h4>
+        </div>
+        <div>
+            <h4>Nespremenjeno</h4>
             {% for unchfield in obj.unchanged %}
-	<ul>
-	    <li>{{ unchfield.field }}: {{unchfield.as_utf}}</li>
-        </ul>
+            <ul>
+                <li>{{ unchfield.field }}: {{unchfield.as_utf}}</li>
+            </ul>
             {% endfor %}
-	</div>
-
+        </div>
         {% endfor %}
     </div>
-
 </body>
 </html>

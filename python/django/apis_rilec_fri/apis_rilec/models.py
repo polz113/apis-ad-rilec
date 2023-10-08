@@ -362,7 +362,6 @@ class DataSource(models.Model):
                   'changed_t': timestamp,
                   'valid_from': _tzdate(valid_from_d),
                   'valid_to': _tzdate(valid_to_d) }
-            # print(d)
             datadicts.append(d)
         for fieldgroup, subitem in enumerate(dataitem.get('data', [])):
             subprefix = FIELD_DELIMITER.join([prefix, infotip, podtip])
@@ -734,15 +733,17 @@ class UserData(models.Model):
         by_fieldgroup = defaultdict(MultiValueDict)
         by_fieldgroup[None] = common_d
         for f in self.fields.all():
-            if f.valid_from > timestamp or f.valid_to < timestamp:
-                continue
             d = by_fieldgroup[f.fieldgroup]
-            d.appendlist(f.field, f.value)
             if f.fieldgroup is not None:
+                if f.valid_from > timestamp or f.valid_to < timestamp:
+                    continue
+                d.appendlist(f.field, f.value)
                 if f.valid_from is not None:
                     d.appendlist(f.field + FIELD_DELIMITER + 'valid_from', f.valid_from)
                 if f.valid_to is not None:
                     d.appendlist(f.field + FIELD_DELIMITER + 'valid_to', f.valid_to)
+            else:
+                d.appendlist(f.field, f.value)
         default_d = by_fieldgroup[None]
         for k, d in by_fieldgroup.items():
             d.update(default_d)
@@ -1397,6 +1398,8 @@ def save_rilec(userdata_set, timestamp=None):
     batch = LDAPObjectBatch(name="save_rilec @{}".format(timestamp), timestamp=timestamp)
     batch.save()
     objs = list()
+    seen_dns = set()
+    seen_upns = set()
     for userdata in userdata_set:
         uid = userdata.uid
         default_group_dn, groups_to_join = userdata.groups_at(timestamp, translations=translations, group_rules=group_rules)
@@ -1404,12 +1407,25 @@ def save_rilec(userdata_set, timestamp=None):
                                         merge_rules=merge_rules, translations=translations, 
                                         extra_fields=extra_fields,
                                         users_by_uid=users_by_uid)
-        default_dn="CN={},{}".format(ldap.dn.escape_dn_chars(user_fields.get('CN', ['Nobody'])[0]), default_group_dn)
+        default_upn=user_fields.get('USERPRINCIPALNAME', [None])[0]
+        unique_upn = default_upn
+        default_cn = user_fields.get('CN', ['Nobody'])[0]
+        default_dn = "CN={},{}".format(ldap.dn.escape_dn_chars(default_cn), default_group_dn)
+        unique_dn = default_dn
+        i = 0
+        while unique_upn in seen_upns or unique_dn in seen_dns:
+            i += 1
+            if default_upn in seen_upns:
+                unique_upn = upn + str(i)
+            if default_dn in seen_upns:
+                unique_dn="CN={},{}".format(ldap.dn.escape_dn_chars(default_cn + " " + str(i)), default_group_dn)
+        seen_dns.add(unique_dn)
+        seen_upns.add(unique_upn)
         obj = LDAPObject(timestamp=timestamp, source='rilec', 
-                dn=default_dn, 
+                dn=unique_dn, 
                 objectType='user',
                 uid=user_fields.get('EMPLOYEEID', [None])[0],
-                upn=user_fields.get('USERPRINCIPALNAME', [None])[0]
+                upn=unique_upn
             )
         fields_to_add = list()
         for fieldname, vals in user_fields.items():

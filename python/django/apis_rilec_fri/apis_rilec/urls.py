@@ -23,6 +23,7 @@ urlpatterns = [
     path('rules/GROUP_RULES', views.group_rules, name='group_rules'),
     path('rules/<str:rules_part>', views.generic_rule_detail, name='generic_rule_detail'),
     path('ldapobjectbatch/', views.ldapobjectbatch_list, name='ldapobjectbatch_list'),
+    path('ldapobjectbatch/latest_diff', views.ldapobjectbatch_latest_diff, name='ldapobjectbatch_latest_diff'),
     path('ldapobjectbatch/<int:pk>', views.ldapobjectbatch_detail, name='ldapobjectbatch_detail'),
     path('ldapobjectbatch/<int:pk>/diff/<int:pk2>', views.ldapobjectbatch_diff, name='ldapobjectbatch_diff'),
     path('ldapobjectbatch/<int:pk>/diff/<int:pk2>/toldap', views.ldapobjectbatch_diff_to_ldap, name='ldapobjectbatch_diff_to_ldap'),
