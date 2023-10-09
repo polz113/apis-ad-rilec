@@ -36,8 +36,8 @@
             ["${Komunikacija__0105__9005__vrednostNaziv}", ["upper"]]
         ]],
         ["userPrincipalName", [
-            ["${Komunikacija__0105__9007__vrednostNaziv}", []],
-            ["${upn}", []]
+            ["${Komunikacija__0105__9007__vrednostNaziv}", ["lower"]],
+            ["${upn}", ["lower"]]
         ]],
         ["telefon", [
             ["${Komunikacija__0105__0020__vrednostNaziv}", []]
@@ -430,10 +430,10 @@
         [
             {
                 "objectClass": ["top", "group"],
-                "distinguishedName": "CN=${vrsta_zaposlitve},${apis_oupart},OU=oddelki,OU=avtopravice,OU=${clanica_prefix},${clanica_domena}",
-                "sAMAccountName": "${vrsta_zaposlitve}",
+                "distinguishedName": "CN=Clani,${apis_oupart},OU=oddelki,OU=avtopravice,OU=${clanica_prefix},${clanica_domena}",
+                "sAMAccountName": "frilab-${avtomatika_lab}",
                 "groupType": ["${group_type}"],
-                "name": ["${vrsta_zaposlitve}"]
+                "name": ["frilab-${avtomatika_lab}"]
             },
             {
                 "parent_templates":[
@@ -449,6 +449,7 @@
                     }
                 ],
                 "create_fields": [
+                    ["avtomatika_lab", [["${group_uid}", ["apis_ou__shortname"]]]],
                     ["apis_oupart", [["${group_uid}", ["apis_ou_parts"]]]],
                     ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
                     ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
