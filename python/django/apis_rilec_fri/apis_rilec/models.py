@@ -1416,7 +1416,7 @@ def save_rilec(userdata_set, timestamp=None):
         while unique_upn in seen_upns or unique_dn in seen_dns:
             i += 1
             if default_upn in seen_upns:
-                unique_upn = upn + str(i)
+                unique_upn = default_upn + str(i)
             if default_dn in seen_dns:
                 unique_dn="CN={},{}".format(ldap.dn.escape_dn_chars(default_cn + " " + str(i)), default_group_dn)
         seen_dns.add(unique_dn)
