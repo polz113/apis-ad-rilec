@@ -6,24 +6,15 @@
 </head>
 <body>
     <a href="{% url "apis_rilec:ldapobjectbatch_list" %}">Nazaj na seznam</a>
-    <div><h2>Dodani</h2>
-        {% for obj in added_objs %}
-        <h3>{{obj.dn}}</h3>
-        <div>
-            {% for field in obj.fields.all|dictsort:"field" %}
-        <ul>
-            <li>{{ field.field }}: {{field.as_utf}}</li>
-        </ul>
-            {% endfor %}
-        </div>
-        {% endfor %}
-    </div>
     <div>
         <h2>Spremenjeni</h2>
         {% for obj in changed_objs %}
-        <h3><a href="{% url "apis_rilec:ldapobject_diff" obj.obj.id obj.obj2.id %}">{{obj.obj.dn}}</a></h3>
         <div>
+            <h3><a href="{% url "apis_rilec:ldapobject_diff" obj.obj.id obj.obj2.id %}">{{obj.obj.dn}}</a></h3>
             <h4>Spremenjeno</h4>
+            <form method="post">{% csrf_token %}
+                <button formaction="{% url "apis_rilec:ldapobject_diff_to_ldap" obj.obj.id obj.obj2.id %}" type="submit">Zapiši v LDAP</button>
+            </form>
             {% for chfield in obj.changed %}
             <ul>
                 <li>{{ chfield.field }}: {{chfield.as_utf}}</li>
@@ -48,6 +39,19 @@
         </div>
         {% endfor %}
     </div>
+    <div><h2>Dodani</h2>
+        {% for obj in added_objs %}
+        <h3>{{obj.dn}}</h3>
+        <div>
+            {% for field in obj.fields.all|dictsort:"field" %}
+        <ul>
+            <li>{{ field.field }}: {{field.as_utf}}</li>
+        </ul>
+            {% endfor %}
+        </div>
+        {% endfor %}
+    </div>
+
     <div>
         <h2>Odstranjeni</h2>
         <ul>

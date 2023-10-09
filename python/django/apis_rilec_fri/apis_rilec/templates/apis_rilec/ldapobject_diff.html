@@ -8,7 +8,8 @@
     <a href="{% url "apis_rilec:ldapobject_list" %}">Nazaj na seznam</a>
     <div>
 	<h1>{{object.source}} - {{object.timestamp}}</h1>
-	<h2>{{object.dn}}</h2>
+	<h1>
+        <h2>{{object.dn}} (<a href="{% url "apis_rilec:ldapobject_detail" object2.id %}">{{object2.source}} - {{object2.timestamp}}</a>)</h2>
         <h2>{{object.upn}}</h2>
         <h2><a href="{% url "apis_rilec:mergeduserdata_detail" object.uid %}">{{object.uid}}</a></h2>
     </div>

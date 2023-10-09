@@ -263,7 +263,8 @@ def ldapobject_diff(request, pk, pk2=None):
     added = added.order_by('field')
     removed = removed.order_by('field')
     return render(request, 'apis_rilec/ldapobject_diff.html',
-                  {'object': obj, 'added': added, 'removed': removed})
+                  {'object': obj, 'object2': obj2,
+                   'added': added, 'removed': removed})
 
 @staff_member_required
 def ldapobject_save(request, pk, source): 
