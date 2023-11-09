@@ -10,7 +10,7 @@
         <h2>Spremenjeni</h2>
         {% for obj in changed_objs %}
         <div>
-            <h3><a href="{% url "apis_rilec:ldapobject_diff" obj.obj.id obj.obj2.id %}">{{obj.obj.dn}}</a></h3>
+            <h3><a href="{% url "apis_rilec:ldapobject_detail" obj.obj.id %}">{{ obj.obj }}</a></h3>
             <h4>Spremenjeno</h4>
             <form method="post">{% csrf_token %}
                 <button formaction="{% url "apis_rilec:ldapobject_diff_to_ldap" obj.obj.id obj.obj2.id %}" type="submit">Zapiši v LDAP</button>
@@ -21,27 +21,15 @@
             </ul>
             {% endfor %}
         </div>
-        <div>
-            <h4>Ignorirano</h4>
-            {% for ignfield in obj.ignore %}
-            <ul>
-                <li>{{ ignfield.field }}: {{ignfield.as_utf}}</li>
-            </ul>
-            {% endfor %}
-        </div>
-        <div>
-            <h4>Nespremenjeno</h4>
-            {% for unchfield in obj.unchanged %}
-            <ul>
-                <li>{{ unchfield.field }}: {{unchfield.as_utf}}</li>
-            </ul>
-            {% endfor %}
-        </div>
-        {% endfor %}
+	{% endfor %}
     </div>
     <div><h2>Dodani</h2>
         {% for obj in added_objs %}
-        <h3>{{obj.dn}}</h3>
+        <h3><a href="{% url "apis_rilec:ldapobject_detail" obj.id %}">{{ obj }}</a></h3>
+
+        <form method="post">{% csrf_token %}
+            <button formaction="{% url "apis_rilec:ldapobject_to_ldap" obj.id %}" type="submit">Zapiši v LDAP</button>
+        </form>
         <div>
             {% for field in obj.fields.all|dictsort:"field" %}
         <ul>
@@ -59,28 +47,6 @@
             <li><a href="{% url "apis_rilec:ldapobject_detail" obj.id %}">{{ obj }}</a></li>
         {% endfor %}
         </ul>
-    </div>
-    <div>
-        <h2>Nespremenjeni</h2>
-        {% for obj in unchanged_objs %}
-        <h3><a href="{% url "apis_rilec:ldapobject_diff" obj.obj.id obj.obj2.id %}">{{obj.obj.dn}}</a></h3>
-        <div>
-            <h4>Ignorirano</h4>
-            {% for ignfield in obj.ignore %}
-            <ul>
-                <li>{{ ignfield.field }}: {{ignfield.as_utf}}</li>
-            </ul>
-            {% endfor %}
-        </div>
-        <div>
-            <h4>Nespremenjeno</h4>
-            {% for unchfield in obj.unchanged %}
-            <ul>
-                <li>{{ unchfield.field }}: {{unchfield.as_utf}}</li>
-            </ul>
-            {% endfor %}
-        </div>
-        {% endfor %}
     </div>
 </body>
 </html>

@@ -29,30 +29,6 @@
         <a href="{% url "apis_rilec:ldapobject_save" object.id 'ldap' %}">Preberi iz LDAP</a>
         <a href="{% url "apis_rilec:ldapobject_save" object.id 'rilec' %}">Preberi iz rilca</a>
     </div>
-    <div>
-        <h2>Dodana polja</h2>
-        <form method="post">{% csrf_token %}
-            <button formaction="{% url "apis_rilec:ldapobject_diff_to_ldap" object.id %}" type="submit">Zapiši v LDAP</button>
-        </form>
-        <ul>
-        {% for field in added %}
-        <li>
-            {{field.field}}: {{field.value}}
-        </li>
-        {% endfor %}
-        </ul>
-    </div>
-    <div>
-        <h2>Odstranjena/spremenjena polja</h2>
-        <ul>
-        {% for field in removed %}
-        <li>
-            {{field.field}}: {{field.value}}
-        </li>
-        {% endfor %}
-        </ul>
-    </div>
-    <div>
     <h2>Vrednosti polj</h2>
     <form method="post">{% csrf_token %}
         <button formaction="{% url "apis_rilec:ldapobject_to_ldap" object.id %}" type="submit">Zapiši v LDAP</button>
@@ -66,13 +42,12 @@
     </ul>
     </div>
     <div>
-        <h2>Prenosi</h2>
+        <h2>Pretekla zapisovanja v AD</h2>
 	<ul>
 	{% for apply in object.ldapapply_set.all %}
 	    <li><a href="{{apply.get_absolute_url}}">{{apply}}</a></li>
 	{% endfor %}
 	</ul>
     </div>
-
 </body>
 </html>

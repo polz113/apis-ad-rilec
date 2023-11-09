@@ -6,18 +6,18 @@ Vmesnik za prenos podatkov iz SAP / Studis v AD.
 
 <h2>Osnovna funkcionalnost</h2>
 <ul>
-	<li><a href="{% url "apis_rilec:ldapobjectbatch_latest_diff" %}">Zadnja razlika SAP &lt-&gt AD </a></li>
-	<li><a href="{% url "apis_rilec:ldapobjectbatch_list" %}">Nabori podatkov za prenos v LDAP</a> (iz SAP, Studis ali AD)</li>
-	<li><a href="{% url "apis_rilec:mergeduserdata_list" %}">Surovi podatki o zaposlenih</a> (naravnost iz SAP in Studis)</li>
-	<li><a href="{% url "apis_rilec:userproperty_list" %}">Dostopne lastnosti</a></li>
-	<li><a href="{% url "apis_rilec:rule_list" %}">Pravila</a></li>
+	<li><a href="{% url "apis_rilec:ldapobjectbatch_latest_diff" %}">Pregled in vpis podatkov v AD</a></li>
 </ul>
 <h2>Dodatna funkcionalnost</h2>
 <ul>
 	<li><a href="{% url "apis_rilec:get_data_studis" %}">Pridobi podatke iz Studis</a></li>
 	<li><a href="{% url "apis_rilec:datasources_to_datasets" %}">Pretvori podatke iz SAP/Studis</a> (2x/dan se izvede avtomatično)</li>
-	<li><a href="{% url "apis_rilec:mergeduserdata_list" %}">Surovi podatki o zaposlenih</a></li>
 	<li><a href="{% url "apis_rilec:ldapobject_list" %}">Vsi podatki v/iz LDAP po DN</a></li>
 	<li><a href="{% url "apis_rilec:delete_old_userdata" %}">Izbriši neuporabljene surove podatke zaposlenih</a></li>
+	<li><a href="{% url "apis_rilec:ldapobjectbatch_list" %}">Nabori podatkov za prenos v LDAP</a> (iz SAP, Studis ali AD)</li>
+	<li><a href="{% url "apis_rilec:mergeduserdata_list" %}">Surovi podatki o zaposlenih</a> (naravnost iz SAP in Studis)</li>
+	<li><a href="{% url "apis_rilec:userproperty_list" %}">Dostopne lastnosti</a></li>
+	<li><a href="{% url "apis_rilec:rule_list" %}">Pravila</a></li>
+
 </ul>
 {% endblock %}

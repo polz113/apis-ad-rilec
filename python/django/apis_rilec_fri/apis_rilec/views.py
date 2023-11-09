@@ -250,7 +250,9 @@ def latest_ldapobject(request, pk):
 
 @staff_member_required
 def ldapobject_detail(request, pk):
-    return ldapobject_diff(request, pk)
+    obj = get_object_or_404(LDAPObject, pk=pk)
+    return render(request, 'apis_rilec/ldapobject_detail.html',
+                  {'object': obj})
 
 @staff_member_required
 def ldapobject_diff(request, pk, pk2=None):
