@@ -377,7 +377,7 @@ def ldapobjectbatch_diff(request, pk, pk2):
             changed_fields = set(changed.values_list('field', flat=True))
             unchanged_fields = set(obj1.fields.values_list('field', flat=True))
             unchanged_fields.difference_update(changed_fields)
-            ignore_fields = set(DEFAULT_IGNORE_FIELDS)
+            ignore_fields = set(DEFAULT_IGNORE_FIELDS) - set('MEMBEROF')
             changed_fields.difference_update(ignore_fields)
             unchanged_fields.difference_update(ignore_fields)
             changed = obj1.fields.filter(field__in=changed_fields)
