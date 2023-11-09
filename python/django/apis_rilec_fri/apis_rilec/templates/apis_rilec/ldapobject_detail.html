@@ -25,10 +25,6 @@
 	    {% endif %}
 	{% endwith %}
     </div>
-    <div>
-        <a href="{% url "apis_rilec:ldapobject_save" object.id 'ldap' %}">Preberi iz LDAP</a>
-        <a href="{% url "apis_rilec:ldapobject_save" object.id 'rilec' %}">Preberi iz rilca</a>
-    </div>
     <h2>Vrednosti polj</h2>
     <form method="post">{% csrf_token %}
         <button formaction="{% url "apis_rilec:ldapobject_to_ldap" object.id %}" type="submit">Zapiši v LDAP</button>
