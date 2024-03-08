@@ -322,7 +322,7 @@ def ldapobject_diff_to_ldap(request, pk, pk2):
     autogroups=get_groups()
     applybatch = LDAPApplyBatch(name="object diff to ldap")
     applybatch.save()
-    apply = obj.to_ldap(rename=True, keep_fields=keep_fields, ignore_fields=ignore_fields,
+    apply = obj.to_ldap(rename=False, keep_fields=keep_fields, ignore_fields=ignore_fields,
                 clean_group_set=autogroups, simulate=False)
     apply.batch = applybatch
     apply.save()

@@ -352,7 +352,8 @@
         "physicalDeliveryOfficeName": {"pick": "last", "order": "${dataset__source}"},
         "eduPersonPrincipalName": {"pick": "last"},
         "telephoneNumber": {"order": "${dataset__source}", "pick": "first"},
-        "mail": {"order": "${dataset__source}", "pick": "first", "filters": ["keep_ldap"]}
+        "mail": {"order": "${dataset__source}", "pick": "first", "filters": ["keep_ldap"]},
+	"extensionAttribute13": {"filters": ["keep_ldap"]}
     },
     "USER_RULES": {
         "objectClass": ["top","person","organizationalPerson","user"],
@@ -387,6 +388,7 @@
         "schacHomeOrganization": "${clanica_dnsdomena}",
         "accountExpires":"${account_expires_timestamp}",
         "eduPersonAffiliation": "staff",
+	"extensionAttribute13": "O365_FRI",
         "eduPersonPrimaryAffiliation": "staff",
         "schacHomeOrganization":"fri1.uni-lj.si",
         "schacExpiryDate":"${account_expires_schac}",

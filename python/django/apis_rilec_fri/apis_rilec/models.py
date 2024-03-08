@@ -1184,7 +1184,7 @@ def apis_to_translations(timestamp=None,
 
 
 def get_ad_user_dn(ldap_conn, user_fields):
-    for i in ['employeeId', 'userPrincipalName']:
+    for i in ['employeeId', 'userPrincipalName', 'SAMAccountName']:
         i = i.upper()
         ret = None
         try:
@@ -1619,14 +1619,14 @@ class LDAPObject(models.Model):
                 if bin_val is not None:
                     val = "".join(["\\{0:02x}".format(j) for j in bin_val])
                 continue
-            base = settings.LDAP_USER_SEARCH_BASE,
-            scope = settings.LDAP_USER_SEARCH_SCOPE,
+            base = settings.LDAP_USER_SEARCH_BASE
+            scope = settings.LDAP_USER_SEARCH_SCOPE
             if name == 'distinguishedName'.upper():
                 scope=ldap.SCOPE_BASE
                 base=self.dn
                 filterstr=None
             else:
-                filterstr = "({}={})".format(name, ldap.filter.escape_filter_chars(val[0]))
+                filterstr = "({}={})".format(name, ldap.filter.escape_filter_chars(val))
             try:
                 ldap_obj = ldap_conn.search_s(base,
                                               scope=scope,
@@ -1635,7 +1635,7 @@ class LDAPObject(models.Model):
                 if len(ldap_obj) > 0:
                     real_dn = ldap_obj[0][0]
                     break
-            except:
+            except Exception as e:
                 pass
         return real_dn
 
@@ -1646,7 +1646,7 @@ class LDAPObject(models.Model):
         return dict(ret)
 
     def to_ldap(self, ldap_conn=None,
-                find_by_fields=None, create=True, rename=True, clean_groups=True,
+                find_by_fields=None, create=True, rename=False, clean_groups=True,
                 ignore_fields=None, keep_fields=None, clean_group_set=None, simulate=True):
         messages = ""
         error = False
@@ -1674,19 +1674,23 @@ class LDAPObject(models.Model):
             else:
                 ignore_fields_set = ignore_fields_set.union(set([i.upper() for i in keep_fields]))
                 if rename and real_dn != self.dn:
+                    messages += f"Renaming {real_dn} to {self.dn}\n"
                     ldap_conn.rename_s(real_dn, self.dn)
                     real_dn = self.dn
+                    messages += "  SUCCESS\n"
                 for fieldname, vals in field_dict.items():
                     if fieldname.upper() not in ignore_fields_set:
                         op_dict[real_dn].append((ldap.MOD_REPLACE, fieldname, vals))
             groups_to_add = set()
             groups_to_remove = set()
+            print("About to read groups")
             try:
                 # TODO: fix this
                 cur_groups = ldap_conn.search_s(real_dn, scope=ldap.SCOPE_BASE, attrlist=['MEMBEROF'])
                 cur_groups = set(list(cur_groups[0][1].values())[0])
             except:
                 cur_groups = set()
+            print("Groups: ", cur_groups)
             if clean_groups:
                 groups_to_remove = cur_groups.difference(groups)
             groups_to_add = groups.difference(cur_groups)
@@ -1699,6 +1703,7 @@ class LDAPObject(models.Model):
                 if clean_group_set is None or group in clean_group_set:
                     op_dict[group].append((ldap.MOD_DELETE, 'member', [encoded_real_dn]))
             for dn, op_list in op_dict.items():
+                print("About to apply:", op_list)
                 for op in op_list:
                     try:
                         if simulate:
