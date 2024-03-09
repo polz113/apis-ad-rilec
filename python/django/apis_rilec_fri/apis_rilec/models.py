@@ -13,7 +13,7 @@ from unidecode import unidecode
 import traceback
 
 import codecs
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 import json
 import os
 import re
@@ -1591,6 +1591,39 @@ class LDAPObject(models.Model):
         removed_fields = LDAPField.objects.filter(id__in=removed_ids)
         return changed_fields, removed_fields
 
+    def difflist(self, other=None):
+        if other is None:
+            other = self.previous()
+        field_i = iter(self.fields.order_by('-field', '-value'))
+        other_field_i = iter(other.fields.order_by('-field', '-value'))
+        ret = []
+        only_in_this, only_in_other, in_both = [], [], []
+        Field = namedtuple("Field", ["field", "value"])
+        field = next(field_i, Field('', ''))
+        other_field = next(other_field_i, Field('', ''))
+        while not (field.field == '' and other_field.field == ''):
+            f = (field.field, field.value)
+            of = (other_field.field, other_field.value)
+            if f > of:
+                only_in_this.append(field.value)
+                name = field.field
+                field = next(field_i, Field('', ''))
+            elif f < of:
+                only_in_other.append(other_field.value)
+                name = other_field.field
+                other_field = next(other_field_i, Field('', ''))
+            else:
+                in_both.append(field.value)
+                name = field.field
+                field = next(field_i, Field('', ''))
+                other_field = next(other_field_i, Field('', ''))
+            nextname = max(field.field, other_field.field)
+            # print(f, of, nextname, name, ":\n    ", only_in_this, only_in_other, in_both)
+            if name != nextname:
+                ret.append((name, only_in_this, only_in_other, in_both))
+                only_in_this, only_in_other, in_both = [], [], []
+        return reversed(ret)
+    
     def find_in_ldap(self, ldap_conn=None, find_by_fields=None):
         if find_by_fields is None:
             find_by_fields = [
