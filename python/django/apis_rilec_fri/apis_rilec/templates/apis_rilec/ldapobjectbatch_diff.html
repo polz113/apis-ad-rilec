@@ -17,7 +17,11 @@
             </form>
             {% for chfield in obj.changed %}
             <ul>
-                <li>{{ chfield.field }}: {{chfield.as_utf}}</li>
+                <li>{{ chfield.0 }}:
+                    <span class="new_val">{{ chfield.1 | join:"</span><span class=\"new_val\">"}}</span>; 
+                    <span class="old_val">{{ chfield.2 | join:"</span><span class=\"old_val\">"}}</span>; 
+                    <span class="unchanged_val">{{ chfield.3 | join:"</span><span class=\"unchanged_val\">"}}</span>
+                </li>
             </ul>
             {% endfor %}
         </div>

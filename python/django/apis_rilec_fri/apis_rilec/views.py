@@ -261,7 +261,7 @@ def ldapobject_diff(request, pk, pk2=None):
         obj2 = obj.previous()
     else:
         obj2 = get_object_or_404(LDAPObject, pk=pk2)
-    added, removed = obj.diff(obj2)
+    added, removed, unchanged = obj.diff(obj2)
     added = added.order_by('field')
     removed = removed.order_by('field')
     return render(request, 'apis_rilec/ldapobject_diff.html',
@@ -315,7 +315,7 @@ def ldapobject_diff_to_ldap(request, pk, pk2):
     obj2 = get_object_or_404(LDAPObject, pk=pk2)
     merge_rules = get_rules('MERGE_RULES')
     keep_fields = _get_keep_fields(merge_rules)
-    changed, removed = obj.diff(obj2)
+    changed, removed, unchanged = obj.diff(obj2)
     changed_fields = set(changed.values_list('field', flat=True))
     ignore_fields = set(obj.fields.values_list('field', flat=True)).difference(changed_fields)
     ignore_fields = set(DEFAULT_IGNORE_FIELDS).union(ignore_fields)
@@ -351,6 +351,15 @@ def ldapobjectbatch_detail(request, pk):
 @silk_profile(name='ldapobjectbatch_diff')
 @staff_member_required
 def ldapobjectbatch_diff(request, pk, pk2):
+    def __to_utf(x):
+        l = []
+        for i in x:
+            try:
+                i = i.decode('utf-8')
+            except:
+                i = str(i)
+            l.append(i)
+        return l
     batch1 = get_object_or_404(LDAPObjectBatch, pk=pk)
     batch2 = get_object_or_404(LDAPObjectBatch, pk=pk2)
     objects1 = batch1.ldapobjects.all().prefetch_related('fields')
@@ -358,6 +367,7 @@ def ldapobjectbatch_diff(request, pk, pk2):
     obj1_dict = dict()
     for obj1 in objects1:
         obj1_dict[obj1.dn] = obj1
+    ignore_fields = set(DEFAULT_IGNORE_FIELDS) - set('MEMBEROF')
     missing_objs = list()
     added_obj_dns = set(obj1_dict.keys())
     changed_objs = []
@@ -373,17 +383,20 @@ def ldapobjectbatch_diff(request, pk, pk2):
                 obj1 = None
         if obj1 is not None:
             added_obj_dns.discard(obj1.dn)
-            changed, removed = obj1.diff(obj2)
-            changed_fields = set(changed.values_list('field', flat=True))
-            unchanged_fields = set(obj1.fields.values_list('field', flat=True))
-            unchanged_fields.difference_update(changed_fields)
-            ignore_fields = set(DEFAULT_IGNORE_FIELDS) - set('MEMBEROF')
-            changed_fields.difference_update(ignore_fields)
-            unchanged_fields.difference_update(ignore_fields)
-            changed = obj1.fields.filter(field__in=changed_fields)
-            unchanged = obj1.fields.filter(field__in=unchanged_fields)
-            ignore = obj1.fields.filter(field__in=ignore_fields)
-            if len(changed_fields) > 0:
+            changelist = obj1.difflist(obj2, noqueries=True)
+            changed, removed, unchanged, ignore = [], [], [], []
+            for i in changelist:
+                name, in_this, in_other, in_both = i
+                i = i[0], __to_utf(i[1]), __to_utf(i[2]), __to_utf(i[3])
+                if name in ignore_fields:
+                    ignore.append(i)
+                elif len(in_this) > 0 or (len(in_both) > 0 and len(in_other) > 0):
+                    changed.append(i)
+                elif len(in_other) > 0:
+                    removed.append(i)
+                else:
+                    unchanged.append(i)
+            if len(changed) > 0:
                 changed_objs.append({"obj": obj1, "obj2": obj2,
                                      "changed": changed,
                                      "unchanged": unchanged,

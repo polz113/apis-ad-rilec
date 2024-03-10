@@ -1585,20 +1585,30 @@ class LDAPObject(models.Model):
         if other is not None:
             cur_ids = new_ids
             other_ids = set(other.fields.values_list('id', flat=True))
-            new_ids = cur_ids.difference(other_ids)
-            removed_ids = other_ids.difference(cur_ids)
-        changed_fields = LDAPField.objects.filter(id__in=new_ids)
-        removed_fields = LDAPField.objects.filter(id__in=removed_ids)
-        return changed_fields, removed_fields
+            only_in_this_ids = cur_ids.difference(other_ids)
+            only_in_other_ids = other_ids.difference(cur_ids)
+            in_both_ids = other_ids.intersection(cur_ids)
+        only_in_this = LDAPField.objects.filter(id__in=only_in_this_ids)
+        only_in_other = LDAPField.objects.filter(id__in=only_in_other_ids)
+        in_both = LDAPField.objects.filter(id__in=in_both_ids)
+        return only_in_this, only_in_other, in_both
 
-    def difflist(self, other=None):
+    def difflist(self, other=None, noqueries=False):
         if other is None:
             other = self.previous()
-        field_i = iter(self.fields.order_by('-field', '-value'))
-        other_field_i = iter(other.fields.order_by('-field', '-value'))
+        Field = namedtuple("Field", ["field", "value"])
+        if noqueries:
+            field_i = iter(
+                reversed(
+                    sorted([Field(f.field, f.value) for f in self.fields.all()])))
+            other_field_i = iter(
+                reversed(
+                    sorted([Field(f.field, f.value) for f in other.fields.all()])))
+        else:
+            field_i = iter(self.fields.order_by('-field', '-value'))
+            other_field_i = iter(other.fields.order_by('-field', '-value'))
         ret = []
         only_in_this, only_in_other, in_both = [], [], []
-        Field = namedtuple("Field", ["field", "value"])
         field = next(field_i, Field('', ''))
         other_field = next(other_field_i, Field('', ''))
         while not (field.field == '' and other_field.field == ''):
