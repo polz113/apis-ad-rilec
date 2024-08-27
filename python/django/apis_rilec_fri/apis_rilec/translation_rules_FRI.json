@@ -72,6 +72,11 @@
         ["izobrazba_prefix", [
             ["${OsebniPodatki__0002__0__nazivPredImenom}", []]
         ]],
+        ["sluggy_sist_dm", [
+            [ "${Razporeditev__1001__B008__sistemiziranoMesto}",
+                ["unidecode", "remove_whitespace", "lower"]
+	    ]
+        ]],
         ["izobrazba_suffix", [
         ]],
         ["personal_position", [
@@ -114,6 +119,12 @@
                 ["studis__nazivdelavca__full_title__sl"]
             ]
         ]],
+        ["habilitacija_slug", [
+            [
+                "${habilitacija_txt}",
+                ["remove_whitespace"]
+            ]
+        ]],
         ["vrsta_zaposlitve", [
             [
                 "${OrgDodelitev__0001__0__skupinaZaposlenih}.${OrgDodelitev__0001__0__podskupinaZaposlenih}",
@@ -126,7 +137,7 @@
                 ["apis_ou_parts", "sap_ou_shortnames"]
             ]
         ]],
-        ["studisavtomatika_skupina", [
+        ["studis_funkcijavoddelku", [
             [
                 "${oddelek_funkcija__funkcija_v_oddelku_id}",
                 ["funkcijavoddelku_grrepl"]
@@ -135,7 +146,7 @@
         ["apis_lab", [
             [
                 "${OrgDodelitev__0001__0__glavnaOrganizacijskaEnota_Id}",
-                ["apis_ou__shortname"]
+                ["apis_ou__shortname", "sap_ou_shortnames"]
             ]
         ]],
         ["studisavtomatika_lab",[
@@ -262,13 +273,13 @@
         "funkcija_sap_grrepl": {
             "type": "dict",
             "rules": [
-                ["017", "FRI-PredstojnikiLaboratorijev"],
-                ["008", "FRI-SkrbnikiProgramov"],
-                ["002", "prodekani"],
-                ["013", "predsedniki_uo"],
-                ["012", "FRI-ClaniUO"],
-                ["018", "koordinatorji"],
-                ["019", "projekti_pdp"]
+                ["017", "predstojnik_laboratorija"],
+                ["008", "skrbnik_programov"],
+                ["002", "prodekan"],
+                ["013", "predsednik_uo"],
+                ["012", "clan_uo"],
+                ["018", "koordinator"],
+                ["019", "projekt_pdp"]
             ]
         },
 
@@ -432,36 +443,31 @@
         [
             {
                 "objectClass": ["top", "group"],
-                "distinguishedName": "CN=Clani,${apis_oupart},OU=oddelki,OU=avtopravice,OU=${clanica_prefix},${clanica_domena}",
-                "sAMAccountName": "frilab-${avtomatika_lab}",
+                "distinguishedName": "FRI-ORG-${apis_lab},OU=Groups,OU=${clanica_prefix},${clanica_domena}",
+                "sAMAccountName": "FRI-ORG-${apis_lab}",
                 "groupType": ["${group_type}"],
-                "name": ["frilab-${avtomatika_lab}"]
+                "mail": ["FRI-ORG-${apis_lab}@fri.uni-lj.si"],
+                "name": ["FRI-ORG-${apis_lab}"]
             },
             {
                 "parent_templates":[
                     {
                         "objectClass": ["top", "organizationalUnit"],
-                	"distinguishedName": "${apis_oupart},OU=oddelki,OU=avtopravice,OU=${clanica_prefix},${clanica_domena}"
+                        "distinguishedName": "OU=Groups,OU=${clanica_prefix},${clanica_domena}"
                     }, {
                         "objectClass": ["top", "organizationalUnit"],
-                	"distinguishedName": "OU=oddelki,OU=avtopravice,OU=${clanica_prefix},${clanica_domena}"
-                    }, {
-                        "objectClass": ["top", "organizationalUnit"],
-                	"distinguishedName": "OU=${clanica_prefix},${clanica_domena}"
+                        "distinguishedName": "OU=${clanica_prefix},${clanica_domena}"
                     }
                 ],
                 "create_fields": [
-                    ["avtomatika_lab", [["${group_uid}", ["apis_ou__shortname"]]]],
-                    ["apis_oupart", [["${group_uid}", ["apis_ou_parts"]]]],
+                    ["apis_lab", [["${apis_lab_id}", ["apis_ou__shortname", "sap_ou_shortnames"]]]],
                     ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
                     ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
-                    ["vrsta_zaposlitve", [["${vrsta_zaposlitve_id}", ["vrsta_zaposlitve_repl"]]]],
                     ["group_type", [["${group_type}", ["group_types"]]]]
                 ],
                 "create_sources": {
+                    "apis_lab_id": ["translate_keys", ["apis_ou__shortname"]],
                     "clanica_id": ["translate_keys", ["clanica_domena_repl"]],
-                    "vrsta_zaposlitve_id": ["translate_keys", ["vrsta_zaposlitve_repl"]],
-                    "group_uid": ["translate_keys", ["apis_ou_parts"]],
                     "group_type": ["constant", ["global security"]]
                 }
             }
@@ -469,29 +475,30 @@
         [
             {
                 "objectClass": ["top", "group"],
-                "distinguishedName": "CN=${vrsta_zaposlitve},OU=zaposlitev,OU=avtopravice,OU=${clanica_prefix},${clanica_domena}",
+                "distinguishedName": "FRI-ZAP-${vrsta_zaposlitve},OU=Groups,OU=${clanica_prefix},${clanica_domena}",
                 "groupType": "${group_type}",
-                "sAMAccountName": "${vrsta_zaposlitve}",
-                "name": "${vrsta_zaposlitve}"
+                "sAMAccountName": "FRI-ZAP-${vrsta_zaposlitve}",
+                "mail": "FRI-ZAP-${vrsta_zaposlitve}@fri.uni-lj.si",
+                "name": "FRI-ZAP-${vrsta_zaposlitve}"
             }, {
                 "parent_templates":[
                     {
                         "objectClass": ["top", "organizationalUnit"],
-                	"distinguishedName": "OU=zaposlitev,OU=avtopravice,OU=${clanica_prefix},${clanica_domena}"
-		    }, {
+                        "distinguishedName": "OU=Groups,OU=${clanica_prefix},${clanica_domena}"
+                    }, {
                         "objectClass": ["top", "organizationalUnit"],
-                	"distinguishedName": "OU=avtopravice,OU=${clanica_prefix},${clanica_domena}"
-		    }
-		],
+                        "distinguishedName": "OU=${clanica_prefix},${clanica_domena}"
+                    }
+                ],
                 "create_fields": [
+                    ["vrsta_zaposlitve", [["vrsta_zaposlitve_id", ["vrsta_zaposlitve_repl"]]]],
                     ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
                     ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
-                    ["vrsta_zaposlitve", [["${vrsta_zaposlitve_id}", ["vrsta_zaposlitve_repl"]]]],
                     ["group_type", [["${group_type}", ["group_types"]]]]
                 ],
                 "create_sources": {
-                    "clanica_id": ["translate_keys", ["clanica_domena_repl"]],
                     "vrsta_zaposlitve_id": ["translate_keys", ["vrsta_zaposlitve_repl"]],
+                    "clanica_id": ["translate_keys", ["clanica_domena_repl"]],
                     "group_type": ["constant", ["global security"]]
                 }
             }
@@ -500,118 +507,33 @@
 
             {
                 "objectClass": ["top", "group"],
-                "distinguishedName": "CN=${habilitacija_txt},OU=habilitacija,OU=avtopravice,OU=${clanica_prefix},${clanica_domena}", 
+                "distinguishedName": "CN=FRI-HAB-${habilitacija_slug},OU=Groups,OU=${clanica_prefix},${clanica_domena}", 
                 "groupType": "${group_type}",
-                "sAMAccountName": "${habilitacija_txt}",
-                "name": "${habilitacija_txt}"
+                "sAMAccountName": "FRI-HAB-${habilitacija_slug}",
+                "mail": "FRI-HAB-${habilitacija_slug}@fri.uni-lj.si",
+                "name": "FRI-HAB-${habilitacija_slug}"
             }, {
                 "parent_templates":[
                     {
                         "objectClass": ["top", "organizationalUnit"],
-                	"distinguishedName": "OU=avtopravice,OU=${clanica_prefix},${clanica_domena}"
-		    }, {
+                        "distinguishedName": "OU=Groups,OU=${clanica_prefix},${clanica_domena}"
+                    }, {
                         "objectClass": ["top", "organizationalUnit"],
-                	"distinguishedName": "OU=habilitacija,OU=avtopravice,OU=${clanica_prefix},${clanica_domena}"
-		    }
-		],
+                        "distinguishedName": "OU=${clanica_prefix},${clanica_domena}"
+                    }
+                ],
                 "create_fields": [
+                    ["habilitacija_slug", [["${habilitacija_id}", ["habilitacija_repl", "remove_whitespace"]]]],
                     ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
                     ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
-                    ["habilitacija_txt", [["${habilitacija_id}", ["habilitacija_repl"]]]],
                     ["group_type", [["${group_type}", ["group_types"]]]]
                 ],
                 "create_sources": {
-                    "clanica_id": ["translate_keys", ["clanica_domena_repl"]],
                     "habilitacija_id": ["translate_keys", ["habilitacija_repl"]],
-                    "group_type": ["constant", ["global security"]]
-                }
-            }
-        ],
-        [
-            {
-                "objectClass": ["top", "group"],
-                "distinguishedName": "CN=${habilitacija_txt},OU=habilitacija,OU=avtopravice,OU=${clanica_prefix},${clanica_domena}", 
-                "groupType": "${group_type}",
-                "sAMAccountName": "${habilitacija_txt}",
-                "name": "${habilitacija_txt}"
-            }, {
-		"parent_templates":[
-                    {
-                        "objectClass": ["top", "organizationalUnit"],
-                	"distinguishedName": "OU=habilitacija,OU=avtopravice,OU=${clanica_prefix},${clanica_domena}"
-		    }, {
-                        "objectClass": ["top", "organizationalUnit"],
-                	"distinguishedName": "OU=avtopravice,OU=${clanica_prefix},${clanica_domena}"
-		    }
-		],
-                "create_fields": [
-                    ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
-                    ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
-                    ["habilitacija_txt", [["${habilitacija}", []]]],
-                    ["group_type", [["${group_type}", ["group_types"]]]]
-                ],
-                "create_sources": {
                     "clanica_id": ["translate_keys", ["clanica_domena_repl"]],
-                    "habilitacija": ["translate_values", ["studis__nazivdelavca__full_title__sl"]],
-                    "group_type": ["constant", ["global security"]]
-                }
-            }
-        ],
-
-        [
-            {
-                "objectClass": ["top", "group"],
-                "distinguishedName": "CN=${studisavtomatika_skupina},OU=StudisAvtomatika,OU=${clanica_prefix},${clanica_domena}",
-                "sAMAccountName": "${studisavtomatika_skupina}",
-                "groupType": "${group_type}"
-            }, {
-		"parent_templates":[
-                    {
-                        "objectClass": ["top", "organizationalUnit"],
-                	"distinguishedName": "OU=StudisAvtomatika,OU=${clanica_prefix},${clanica_domena}"
-		    }
-		],
-                "create_fields": [
-                    ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
-                    ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
-                    ["studisavtomatika_skupina", [["${studisavtomatika_skupina}", []]]],
-                    ["group_type", [["${group_type}", ["group_types"]]]]
-                ],
-                "create_sources": {
-                    "clanica_id": ["translate_keys", ["clanica_domena_repl"]],
-                    "studisavtomatika_skupina": ["translate_values", ["funkcijavoddelku_grrepl"]],
-                    "group_type": ["constant", ["global security"]]
-                }
-            }
-        ],
-        [
-            {
-                "objectClass": ["top", "group"],
-                "distinguishedName": "CN=${avtomatika_lab},OU=Organizacija,OU=StudisAvtomatika,OU=${clanica_prefix},${clanica_domena}",
-                "sAMAccountName": "${avtomatika_lab}",
-                "groupType": "${group_type}",
-                "name": "${studis__oddelek_name}"
-            }, {
-		"parent_templates":[
-                    {
-                        "objectClass": ["top", "organizationalUnit"],
-                	"distinguishedName": "OU=Organizacija,OU=StudisAvtomatika,OU=${clanica_prefix},${clanica_domena}"
-		    }
-		],
-                "create_fields": [
-                    ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
-                    ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
-                    ["studis__oddelek_name", [["${studis_oddelek_id}", ["studis__oddelek__title__en"]]]],
-                    ["avtomatika_lab", [["${studis_oddelek_id}", ["studis__oddelek__abbreviation"]]]],
-                    ["group_type", [["${group_type}", ["group_types"]]]]
-                ],
-                "create_sources": {
-                    "clanica_id": ["translate_keys", ["clanica_domena_repl"]],
-                    "studis_oddelek_id": ["translate_values", ["studis__oddelek__abbreviation"]],
                     "group_type": ["constant", ["global security"]]
                 }
             }
         ]
-
     ]
 }
