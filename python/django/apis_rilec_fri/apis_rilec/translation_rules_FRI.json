@@ -443,7 +443,7 @@
         [
             {
                 "objectClass": ["top", "group"],
-                "distinguishedName": "FRI-ORG-${apis_lab},OU=Groups,OU=${clanica_prefix},${clanica_domena}",
+                "distinguishedName": "CN=FRI-ORG-${apis_lab},OU=Groups,OU=${clanica_prefix},${clanica_domena}",
                 "sAMAccountName": "FRI-ORG-${apis_lab}",
                 "groupType": ["${group_type}"],
                 "mail": ["FRI-ORG-${apis_lab}@fri.uni-lj.si"],
@@ -475,7 +475,7 @@
         [
             {
                 "objectClass": ["top", "group"],
-                "distinguishedName": "FRI-ZAP-${vrsta_zaposlitve},OU=Groups,OU=${clanica_prefix},${clanica_domena}",
+                "distinguishedName": "CN=FRI-ZAP-${vrsta_zaposlitve},OU=Groups,OU=${clanica_prefix},${clanica_domena}",
                 "groupType": "${group_type}",
                 "sAMAccountName": "FRI-ZAP-${vrsta_zaposlitve}",
                 "mail": "FRI-ZAP-${vrsta_zaposlitve}@fri.uni-lj.si",
