@@ -50,6 +50,9 @@ def _dotty_username_fn(s, **kwargs):
 def _remove_whitespace(s, **kwargs):
     return re.sub(r'\s', '', s)
 
+def _whitespace_to_dash(s, **kwargs):
+    return re.sub(r'\s+', '-', s)
+
 def _unidecode_fn(s, **kwargs):
     return unidecode(s)
 
@@ -145,6 +148,7 @@ def starts_with_zero_strip(s, **kwargs):
 TRANSLATOR_FUNCTIONS = {
     'default_username': _dotty_username_fn,
     'remove_whitespace': _remove_whitespace,
+    'whitespace_to_dash': _whitespace_to_dash,
     'unidecode': _unidecode_fn,
     'first_20_chars': _first_20_chars,
     'capitalize_mail': _capitalize_mail,
