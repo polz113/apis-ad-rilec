@@ -131,6 +131,13 @@
                 ["vrsta_zaposlitve_repl"]
             ]
         ]],
+       ["vrsta_zaposlitve_slug", [
+            [
+                "${vrsta_zaposlitve}",
+                ["unidecode", "remove_whitespace"]
+            ]
+        ]],
+
         ["apis_oupart", [
             [
                 "${OrgDodelitev__0001__0__glavnaOrganizacijskaEnota_Id}",
@@ -476,11 +483,11 @@
         [
             {
                 "objectClass": ["top", "group"],
-                "distinguishedName": "CN=FRI-ZAP-${vrsta_zaposlitve},OU=Groups,OU=${clanica_prefix},${clanica_domena}",
+                "distinguishedName": "CN=FRI-ZAP-${vrsta_zaposlitve_slug},OU=Groups,OU=${clanica_prefix},${clanica_domena}",
                 "groupType": "${group_type}",
-                "sAMAccountName": "FRI-ZAP-${vrsta_zaposlitve}",
-                "mail": "FRI-ZAP-${vrsta_zaposlitve}@fri.uni-lj.si",
-                "name": "FRI-ZAP-${vrsta_zaposlitve}"
+                "sAMAccountName": "FRI-ZAP-${vrsta_zaposlitve_slug}",
+                "mail": "FRI-ZAP-${vrsta_zaposlitve_slug}@fri.uni-lj.si",
+                "name": "FRI-ZAP-${vrsta_zaposlitve_slug}"
             }, {
                 "parent_templates":[
                     {
@@ -492,7 +499,7 @@
                     }
                 ],
                 "create_fields": [
-                    ["vrsta_zaposlitve", [["vrsta_zaposlitve_id", ["vrsta_zaposlitve_repl"]]]],
+                    ["vrsta_zaposlitve_slug", [["${vrsta_zaposlitve_id}", ["vrsta_zaposlitve_repl", "remove_whitespace", "unidecode"]]]],
                     ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
                     ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
                     ["group_type", [["${group_type}", ["group_types"]]]]
