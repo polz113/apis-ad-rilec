@@ -523,7 +523,7 @@
                     }
                 ],
                 "create_fields": [
-                    ["habilitacija_slug", [["${habilitacija_id}", ["habilitacija_repl", "remove_whitespace"]]]],
+                    ["habilitacija_slug", [["${habilitacija_id}", ["habilitacija_repl", "unidecode", "remove_whitespace"]]]],
                     ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
                     ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
                     ["group_type", [["${group_type}", ["group_types"]]]]
