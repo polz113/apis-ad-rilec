@@ -74,7 +74,7 @@
         ]],
         ["sluggy_sist_dm", [
             [ "${Razporeditev__1001__B008__sistemiziranoMesto}",
-                ["unidecode", "remove_whitespace", "lower"]
+                ["unidecode", "lower", "whitespace_to_dash"]
 	    ]
         ]],
         ["izobrazba_suffix", [
@@ -122,7 +122,7 @@
         ["habilitacija_slug", [
             [
                 "${habilitacija_txt}",
-                ["unidecode", "remove_whitespace"]
+                ["unidecode", "lower", "whitespace_to_dash"]
             ]
         ]],
         ["vrsta_zaposlitve", [
@@ -134,7 +134,7 @@
        ["vrsta_zaposlitve_slug", [
             [
                 "${vrsta_zaposlitve}",
-                ["unidecode", "remove_whitespace"]
+                ["unidecode", "lower", "whitespace_to_dash"]
             ]
         ]],
 
@@ -499,7 +499,7 @@
                     }
                 ],
                 "create_fields": [
-                    ["vrsta_zaposlitve_slug", [["${vrsta_zaposlitve_id}", ["vrsta_zaposlitve_repl", "remove_whitespace", "unidecode"]]]],
+                    ["vrsta_zaposlitve_slug", [["${vrsta_zaposlitve_id}", ["vrsta_zaposlitve_repl", "unidecode", "lower", "whitespace_to_dash"]]]],
                     ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
                     ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
                     ["group_type", [["${group_type}", ["group_types"]]]]
@@ -531,7 +531,7 @@
                     }
                 ],
                 "create_fields": [
-                    ["habilitacija_slug", [["${habilitacija_id}", ["habilitacija_repl", "unidecode", "remove_whitespace"]]]],
+                    ["habilitacija_slug", [["${habilitacija_id}", ["habilitacija_repl", "unidecode", "lower", "whitespace_to_dash"]]]],
                     ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
                     ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
                     ["group_type", [["${group_type}", ["group_types"]]]]
