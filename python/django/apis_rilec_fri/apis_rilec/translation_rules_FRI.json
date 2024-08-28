@@ -122,7 +122,7 @@
         ["habilitacija_slug", [
             [
                 "${habilitacija_txt}",
-                ["remove_whitespace"]
+                ["unidecode", "remove_whitespace"]
             ]
         ]],
         ["vrsta_zaposlitve", [
@@ -146,7 +146,7 @@
         ["apis_lab", [
             [
                 "${OrgDodelitev__0001__0__glavnaOrganizacijskaEnota_Id}",
-                ["apis_ou__shortname", "sap_ou_shortnames"]
+                ["apis_ou__shortname"]
             ]
         ]],
         ["studisavtomatika_lab",[
@@ -156,8 +156,8 @@
             ]
         ]],
         ["avtomatika_lab", [
-            [ "${apis_lab}", ["sap_ou_shortnames"]],
-            [ "${studisavtomatika_lab}", []]
+            [ "${apis_lab}", ["sap_ou_shortnames", "unidecode"]],
+            [ "${studisavtomatika_lab}", ["unidecode"]]
         ]],
         ["studisvrstamesta", [
 
@@ -443,11 +443,11 @@
         [
             {
                 "objectClass": ["top", "group"],
-                "distinguishedName": "CN=FRI-ORG-${apis_lab},OU=Groups,OU=${clanica_prefix},${clanica_domena}",
-                "sAMAccountName": "FRI-ORG-${apis_lab}",
+		"distinguishedName": "CN=FRI-ORG-${avtomatika_lab},OU=Groups,OU=${clanica_prefix},${clanica_domena}",
+		"sAMAccountName": "FRI-ORG-${avtomatika_lab}",
                 "groupType": ["${group_type}"],
-                "mail": ["FRI-ORG-${apis_lab}@fri.uni-lj.si"],
-                "name": ["FRI-ORG-${apis_lab}"]
+                "mail": ["FRI-ORG-${avtomatika_lab}@fri.uni-lj.si"],
+                "name": ["FRI-ORG-${avtomatika_lab}"]
             },
             {
                 "parent_templates":[
@@ -460,7 +460,7 @@
                     }
                 ],
                 "create_fields": [
-                    ["apis_lab", [["${apis_lab_id}", ["apis_ou__shortname", "sap_ou_shortnames"]]]],
+                    ["avtomatika_lab", [["${apis_lab_id}", ["apis_ou__shortname", "sap_ou_shortnames", "unidecode"]]]],
                     ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
                     ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
                     ["group_type", [["${group_type}", ["group_types"]]]]
