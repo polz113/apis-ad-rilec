@@ -11,10 +11,15 @@ from .models import DataSource, DataSet,\
 
 
 # Register your models here.
+class DataSetAdmin(admin.ModelAdmin):
+    raw_id_fields = ('source',)
+    readonly_fields = ('source',)
+
 class DataSourceAdmin(admin.ModelAdmin):
-    actions = ['to_datasets']
+    actions = ('to_datasets',)
     # list_display = ['str_data']
-    readonly_fields = ['str_data']
+    readonly_fields = ('str_data',)
+    
     
     @admin.display(description="Raw data")
     def str_data(self, instance):
@@ -32,6 +37,8 @@ class TranslationRuleInline(admin.TabularInline):
 
 
 class TranslationTableAdmin(admin.ModelAdmin):
+    raw_id_fields = ('dataset',)
+    readonly_fields = ('dataset',)
     inlines = [
         TranslationRuleInline,
     ]
@@ -76,6 +83,8 @@ class OldUserdataFilter(admin.SimpleListFilter):
 
 
 class UserDataAdmin(admin.ModelAdmin):
+    raw_id_fields = ('dataset',)
+    readonly_fields = ('dataset',)
     inlines = [
         UserDataFieldInline,
     ]
@@ -83,7 +92,13 @@ class UserDataAdmin(admin.ModelAdmin):
 
 
 class LDAPObjectAdmin(admin.ModelAdmin):
-    pass
+    raw_id_fields = ('dataset',)
+    readonly_fields = ('dataset',)
+
+
+class OUDataAdmin(admin.ModelAdmin):
+    raw_id_fields = ('dataset',)
+    readonly_fields = ('dataset',)
 
 
 class MergedUserDataAdmin(admin.ModelAdmin):
@@ -96,8 +111,8 @@ class MergedUserDataAdmin(admin.ModelAdmin):
 
 
 admin.site.register(DataSource, DataSourceAdmin)
-admin.site.register(DataSet)
-admin.site.register(OUData)
+admin.site.register(DataSet, DataSetAdmin)
+admin.site.register(OUData, OUDataAdmin)
 admin.site.register(TranslationTable, TranslationTableAdmin)
 admin.site.register(UserData, UserDataAdmin)
 admin.site.register(MergedUserData, MergedUserDataAdmin)
