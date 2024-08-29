@@ -99,11 +99,7 @@ def uid_to_dn(uid, users_by_uid=None, **kwargs):
             user_data = users_by_uid.get(uid, {'DISTINGUISHEDNAME': None})
             dn = user_data.get('DISTINGUISHEDNAME', None)
         if dn is None:
-            dns = LDAPObject.objects.filter(uid=uid).order_by('-timestamp').values_list('dn', flat=True)
-            try:
-                dn = dns[0]
-            except:
-                dn = None
+            dn = LDAPObject.objects.filter(uid=uid).order_by('-source', '-timestamp').first().values_list('dn', flat=True)
     except Exception as e:
         # print("Uid_to_dn: ", e)
         dn = None
