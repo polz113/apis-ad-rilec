@@ -137,7 +137,6 @@
                 ["unidecode", "lower", "whitespace_to_dash"]
             ]
         ]],
-
         ["apis_oupart", [
             [
                 "${OrgDodelitev__0001__0__glavnaOrganizacijskaEnota_Id}",
@@ -164,7 +163,10 @@
         ]],
         ["avtomatika_lab", [
             [ "${apis_lab}", ["sap_ou_shortnames", "unidecode"]],
-            [ "${studisavtomatika_lab}", ["unidecode"]]
+            [ "${studisavtomatika_lab}", ["sap_ou_shortnames", "unidecode"]]
+        ]],
+        ["avtomatika_lab_mail", [
+            [ "${avtomatika_lab}", ["lower"]]
         ]],
         ["studisvrstamesta", [
 
@@ -452,7 +454,7 @@
             {
                 "objectClass": ["top", "group"],
 		"distinguishedName": "CN=FRI-ORG-${avtomatika_lab},OU=Groups,OU=${clanica_prefix},${clanica_domena}",
-		"sAMAccountName": "FRI-ORG-${avtomatika_lab}",
+		"sAMAccountName": "FRI-ORG-${avtomatika_lab_mail}",
                 "groupType": ["${group_type}"],
                 "mail": ["FRI-ORG-${avtomatika_lab}@fri.uni-lj.si"],
                 "name": ["FRI-ORG-${avtomatika_lab}"]
@@ -469,6 +471,7 @@
                 ],
                 "create_fields": [
                     ["avtomatika_lab", [["${apis_lab_id}", ["apis_ou__shortname", "sap_ou_shortnames", "unidecode"]]]],
+                    ["avtomatika_lab_mail", [["${avtomatika_lab}", ["lower"]]]],
                     ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
                     ["clanica_prefix", [["${clanica_id}", ["clanica_prefix_repl"]]]],
                     ["group_type", [["${group_type}", ["group_types"]]]]
