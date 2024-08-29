@@ -45,7 +45,7 @@ def _slugify_username_fn(s):
     return slugify(s)
 
 def _dotty_username_fn(s, **kwargs):
-    return ".".join([slugify(i) for i in re.split('[^\w]', s)])
+    return ".".join([slugify(i) for i in re.split(r'[^\w]', s)])
 
 def _remove_whitespace(s, **kwargs):
     return re.sub(r'\s', '', s)
@@ -57,13 +57,13 @@ def _unidecode_fn(s, **kwargs):
     return unidecode(s)
 
 def _letter_and_surname_fn(s, **kwargs):
-    l = [slugify(i) for i in re.split('[^\w]', s)]
+    l = [slugify(i) for i in re.split(r'[^\w]', s)]
     if len(l) > 1:
         l = [l[0][0]] + l[1:]
     return "".join(l)
 
 def _name_and_letters_fn(s, **kwargs):
-    l = [slugify(i) for i in re.split('[^\w]', s)]
+    l = [slugify(i) for i in re.split(r'[^\w]', s)]
     if len(l) > 1:
         l = l[0:1] + [i[0] for i in l[1:]]
     return "".join(l)
