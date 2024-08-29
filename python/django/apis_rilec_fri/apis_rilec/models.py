@@ -99,7 +99,7 @@ def uid_to_dn(uid, users_by_uid=None, **kwargs):
             user_data = users_by_uid.get(uid, {'DISTINGUISHEDNAME': None})
             dn = user_data.get('DISTINGUISHEDNAME', None)
         if dn is None:
-            dn = LDAPObject.objects.filter(uid=uid).order_by('-source', '-timestamp').first().values_list('dn', flat=True)
+            dn = LDAPObject.objects.filter(source='AD', uid=uid).order_by('-timestamp').first().values_list('dn', flat=True)
     except Exception as e:
         # print("Uid_to_dn: ", e)
         dn = None
@@ -1467,7 +1467,8 @@ class LDAPObject(models.Model):
                 # models.Index(fields=['timestamp', 'upn']),
                 models.Index(fields=['timestamp']),
                 # models.Index(fields=['dn']),
-                # models.Index(fields=['uid']),
+                models.Index(fields=['uid']),
+                models.Index(fields=['source']),
                 # models.Index(fields=['upn']),
                 # models.Index(fields=['objectSid']),
         ]
