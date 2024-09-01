@@ -8,6 +8,7 @@ from django.utils import timezone
 from itertools import chain
 from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
+from django.forms.models import model_to_dict
 
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
@@ -360,27 +361,34 @@ def ldapobjectbatch_diff(request, pk, pk2):
                 i = str(i)
             l.append(i)
         return l
+    id_dict_list = ("dn", "objectSid", "upn", "uid")
     batch1 = get_object_or_404(LDAPObjectBatch, pk=pk)
     batch2 = get_object_or_404(LDAPObjectBatch, pk=pk2)
     objects1 = batch1.ldapobjects.all().prefetch_related('fields')
     objects2 = batch2.ldapobjects.order_by('dn').prefetch_related('fields')
-    obj1_dict = dict()
+    obj1_dicts = {}
+    for key in id_dict_list:
+        obj1_dicts[key] = dict()
     for obj1 in objects1:
-        obj1_dict[obj1.dn] = obj1
-    ignore_fields = set(DEFAULT_IGNORE_FIELDS) - set('MEMBEROF')
+        d = model_to_dict(obj1, fields=id_dict_list)
+        for key in id_dict_list:
+            obj1_dicts[key][d.get(key, None)] = obj1
+    for key in id_dict_list:
+        obj1_dicts[key][None] = None
+    ignore_fields = set(DEFAULT_IGNORE_FIELDS)
+    ignore_fields.discard('MEMBEROF')
+    ignore_fields.add('SAMACCOUNTNAME')
     missing_objs = list()
-    added_obj_dns = set(obj1_dict.keys())
+    added_obj_dns = set(obj1_dicts["dn"].keys())
+    added_obj_dns.discard(None)
     changed_objs = []
     unchanged_objs = []
     for obj2 in objects2:
-        dn = obj2.dn
-        obj1 = obj1_dict.get(dn, None)
-        if obj1 is None:
-            obj1 = obj2.siblings().filter(ldapobjectbatch=batch1)
-            if obj1.exists():
-                obj1 = obj1[0]
-            else:
-                obj1 = None
+        obj2_dict = model_to_dict(obj2, fields=id_dict_list)
+        for key in id_dict_list:
+            obj1 = obj1_dicts[key].get(obj2_dict.get(key, None), None)
+            if obj1 is not None:
+                break
         if obj1 is not None:
             added_obj_dns.discard(obj1.dn)
             changelist = obj1.difflist(obj2, noqueries=True)
@@ -410,7 +418,7 @@ def ldapobjectbatch_diff(request, pk, pk2):
             missing_objs.append(obj2)
     added_objs = []
     for dn in sorted(added_obj_dns):
-        added_objs.append(obj1_dict[dn])
+        added_objs.append(obj1_dicts["dn"][dn])
     return render(request, 'apis_rilec/ldapobjectbatch_diff.html',
                   {'added_objs': added_objs,
                    'changed_objs': changed_objs,
