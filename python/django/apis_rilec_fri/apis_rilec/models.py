@@ -574,10 +574,11 @@ class DataSource(models.Model):
                 else:
                     rules[table_name].append(TranslationRule(pattern = pattern, replacement = v))
         for table_name, rule_list in rules.items():
-            t, created = TranslationTable.objects.get_or_create(name=table_name, dataset=dataset, 
-                    defaults={"type": 'defaultdict'})
+            t, created = TranslationTable.objects.get_or_create(name=table_name,
+                                                                defaults={"type": 'defaultdict', "dataset": dataset})
             if not created:
                 t.rules.all().delete()
+                t.dataset = dataset
             for i, r in enumerate(rule_list):
                 r.table = t
                 r.order = i
