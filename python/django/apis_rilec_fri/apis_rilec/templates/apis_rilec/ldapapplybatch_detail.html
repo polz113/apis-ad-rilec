@@ -7,7 +7,6 @@
 <h2>Zapisi</h2>
 <ul>
 	{% for i in object.ldapapply_set.all %}
-	{% with i.error as %}
 	<li class="{{i.error|yesno:"ldap_write_error,ldap_write_ok"}}"><a href="{{i.get_absolute_url}}">{{i.ldapobject.dn}} - {{i.error|yesno:"?,vse OK" }}</a></li>
 	{% endfor %}
 </ul>
