@@ -199,6 +199,7 @@ def save_ldap_view(request):
     return redirect(reverse("apis_rilec:ldapobjectbatch_detail", kwargs={'pk': batch.pk}))
 
 
+@silk_profile(name='autogroup_ldapobjects')
 @staff_member_required
 def autogroup_ldapobjects_view(request, t=None):
     # if request.method == 'PUT' or request.method == 'POST':
@@ -211,6 +212,7 @@ def userproperty_list(request):
     props = UserDataField.objects.values_list('field', flat=True).distinct()
     return render(request, 'apis_rilec/userproperty_list.html', {'object_list': props})
 
+@silk_profile(name='rule_list')
 def rule_list(request):
     props = get_rules()
     return render(request, 'apis_rilec/rule_list.html', {'object_list': props})
@@ -233,6 +235,7 @@ def group_rules(request):
     props = get_rules('GROUP_RULES')
     return render(request, 'apis_rilec/group_rules.html', {'object': props})
 
+@silk_profile(name='translations')
 @staff_member_required
 def translations(request):
     props = get_rules('TRANSLATIONS')
@@ -309,6 +312,7 @@ def ldapobject_to_ldap(request, pk):
     apply.save()
     return redirect(reverse("apis_rilec:ldapapplybatch_detail", kwargs={"pk": applybatch.id}))
 
+@silk_profile(name='ldapobject_diff_to_ldap')
 @staff_member_required
 def ldapobject_diff_to_ldap(request, pk, pk2): 
     # TODO POST ONLY
@@ -372,21 +376,26 @@ def ldapobjectbatch_diff(request, pk, pk2):
     for obj1 in objects1:
         d = model_to_dict(obj1, fields=id_dict_list)
         for key in id_dict_list:
-            obj1_dicts[key][d.get(key, None)] = obj1
+            val = d.get(key, None)
+            if val is not None:
+                val = val.upper()
+            obj1_dicts[key][val] = obj1
     for key in id_dict_list:
-        obj1_dicts[key][None] = None
+        obj1_dicts[key].pop(None, None)
     ignore_fields = set(DEFAULT_IGNORE_FIELDS)
     ignore_fields.discard('MEMBEROF')
     ignore_fields.add('SAMACCOUNTNAME')
     missing_objs = list()
     added_obj_dns = set(obj1_dicts["dn"].keys())
-    added_obj_dns.discard(None)
     changed_objs = []
     unchanged_objs = []
     for obj2 in objects2:
         obj2_dict = model_to_dict(obj2, fields=id_dict_list)
         for key in id_dict_list:
-            obj1 = obj1_dicts[key].get(obj2_dict.get(key, None), None)
+            val = obj2_dict.get(key, None)
+            if val is not None:
+                val = val.upper()
+            obj1 = obj1_dicts[key].get(val, None)
             if obj1 is not None:
                 break
         if obj1 is not None:
@@ -472,6 +481,7 @@ def ldapapplybatch_list(request):
     objs = LDAPApplyBatch.objects.order_by('-timestamp')
     return render(request, 'apis_rilec/ldapapplybatch_list.html', {'object_list': objs})
 
+@silk_profile(name='ldapapplybatch_detail')
 @staff_member_required
 def ldapapplybatch_detail(request, pk):
     obj = get_object_or_404(LDAPApplyBatch, pk=pk)
