@@ -390,7 +390,7 @@ def ldapobjectbatch_diff(request, pk, pk2):
             if obj1 is not None:
                 break
         if obj1 is not None:
-            added_obj_dns.discard(obj1.dn)
+            added_obj_dns.discard(obj1.dn.upper())
             changelist = obj1.difflist(obj2, noqueries=True)
             changed, removed, unchanged, ignore = [], [], [], []
             for i in changelist:
