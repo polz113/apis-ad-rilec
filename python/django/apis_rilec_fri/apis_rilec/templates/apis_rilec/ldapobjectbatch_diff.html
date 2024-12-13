@@ -18,9 +18,9 @@
             {% for chfield in obj.changed %}
             <ul>
                 <li>{{ chfield.0 }}:
-                    <div><span class="new_val">{{ chfield.1 | join:"</span><span class=\"new_val\">"}}</span></div> 
-                    <div><span class="old_val">{{ chfield.2 | join:"</span><span class=\"old_val\">"}}</span></div>
-                    <div><span class="unchanged_val">{{ chfield.3 | join:"</span><span class=\"unchanged_val\">"}}</span></div>
+                    <div>Nove: <span class="new_val">{{ chfield.1 | join:"</span> <span class=\"new_val\">"}}</span></div> 
+                    <div>Stare: <span class="old_val">{{ chfield.2 | join:"</span> <span class=\"old_val\">"}}</span></div>
+                    <div>Nespremenjene: <span class="unchanged_val">{{ chfield.3 | join:"</span> <span class=\"unchanged_val\">"}}</span></div>
                 </li>
             </ul>
             {% endfor %}
