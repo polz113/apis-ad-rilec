@@ -1689,6 +1689,18 @@ class LDAPObject(models.Model):
         for field in self.fields.order_by('field'):
             ret[field.field].append(field.value)
         return dict(ret)
+    
+    def field_strdict(self):
+        ret = dict()
+        for k, v in self.field_dict().items():
+            l = []
+            for i in v:
+                try:
+                    l.append(str(i, 'utf-8'))
+                except:
+                    l.append(str(i))
+            ret[k] = l
+        return ret
 
     def to_ldap(self, ldap_conn=None,
                 find_by_fields=None, create=True, rename=False, clean_groups=True,
