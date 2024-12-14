@@ -32,7 +32,7 @@
     <ul>
         {% for field, values in object.field_dict.items %}
         <li>
-            {{field}}: {{values}}
+            {{field}}: {% for v in values %}<span>{{v}}</span>{% endfor %}
         </li>
         {% endfor %}
     </ul>
