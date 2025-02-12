@@ -249,6 +249,10 @@
             "type": "defaultdict",
             "rules": [
                 [ "1.11", "Redni"],
+                [ "1.12", "Redni"],
+                [ "1.13", "Redni"],
+                [ "1.14", "Redni"],
+                [ "1.15", "Redni"],
                 [ "1.00", "Izredni"],
                 [ "9.91", "Podjemna pogodba"],
                 [ "9.92", "Student"],
