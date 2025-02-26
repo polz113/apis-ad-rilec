@@ -339,8 +339,10 @@ class DataSource(models.Model):
     subsource = models.JSONField(default=dict, blank=True)
     source = models.CharField(max_length=32, choices=DATA_SOURCES)
     timestamp = models.DateTimeField()
-    data = models.BinaryField()
-    
+    data = models.BinaryField() 
+    def __str__(self):
+        return("{}: {}/{}".format(self.timestamp, self.source, self.subsource))
+
     def parsed_json(self):
         return json.loads(self.data)
 
