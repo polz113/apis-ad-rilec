@@ -19,7 +19,8 @@ class DataSourceAdmin(admin.ModelAdmin):
     actions = ('to_datasets',)
     # list_display = ['str_data']
     readonly_fields = ('str_data',)
-    
+    list_filter = ["source"] 
+    search_fields = ["timestamp"] 
     
     @admin.display(description="Raw data")
     def str_data(self, instance):
