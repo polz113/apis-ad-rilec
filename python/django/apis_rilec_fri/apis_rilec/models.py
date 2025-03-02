@@ -441,7 +441,10 @@ class DataSource(models.Model):
         return ou_relations
     
     def _apis_to_datasets(self):
-        in_data = self.parsed_json()
+        try:
+            in_data = self.parsed_json()
+        except:
+            return
         try:
             timestamp = timezone.datetime.fromisoformat(in_data['TimeStamp'])
         except KeyError:
