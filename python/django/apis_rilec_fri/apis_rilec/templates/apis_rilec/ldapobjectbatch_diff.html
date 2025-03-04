@@ -36,7 +36,7 @@
             </ul>
             {% endfor %}
             <h4>Nespremenjeno</h4>
-            {% for fieldname, fields in obj.in_other %}
+            {% for fieldname, fields in obj.in_both %}
             <ul>
                 <li>
                     <div>{{ fieldname }}:{% for f in fields %}<span class="unchanged_val"> {{f.as_utf}}</span>{% endfor %}</div>
@@ -44,7 +44,7 @@
             </ul>
             {% endfor %}
             <h4>Ignorirano</h4>
-            {% for fieldname, fields in obj.in_other %}
+            {% for fieldname, fields in obj.ignored %}
             <ul>
                 <li>
                     <div>{{ fieldname }}:{% for f in fields %}<span class="unchanged_val"> {{f.as_utf}}</span>{% endfor %}</div>
