@@ -384,10 +384,6 @@ def ldapobjectbatch_diff(request, pk, pk2):
             obj1_dicts[key][val] = obj1
     for key in id_dict_list:
         obj1_dicts[key].pop(None, None)
-    #ignore_fields = set(DEFAULT_IGNORE_FIELDS)
-    #ignore_fields.discard('MEMBEROF')
-    #ignore_fields.add('SAMACCOUNTNAME')
-    # prepare allowed values from IGNORE_FIELDS
     allowed_values = {}
     for i in DEFAULT_IGNORE_FIELDS:
         allowed_values[i] = None
@@ -418,16 +414,26 @@ def ldapobjectbatch_diff(request, pk, pk2):
                 d_groupped.append(l)
             # groupping done
             in_this, in_other, in_both, ignored = d_groupped
-            if len(in_this) > 0 or len(in_other) > 0:
+            keys_in_this = set(k for (k, v) in in_this)
+            changed_in_other = []
+            only_in_other = []
+            for (k, v) in in_other:
+                if k in keys_in_this:
+                    changed_in_other.append((k, v))
+                else:
+                    only_in_other.append((k, v))
+            if len(in_this) > 0 or len(changed_in_other) > 0:
                 changed_objs.append({"obj": obj1, "obj2": obj2,
                                      "in_this": in_this,
-                                     "in_other": in_other,
+                                     "changed_in_other": changed_in_other,
+                                     "only_in_other": only_in_other,
                                      "in_both": in_both,
                                      "ignored": ignored})
             else:
                 unchanged_objs.append({"obj": obj1, "obj2": obj2,
                                      "in_this": [],
-                                     "in_other": [],
+                                     "changed_in_other": changed_in_other,
+                                     "only_in_other": only_in_other,
                                      "unchanged": in_both,
                                      "ignored": ignored})
             """changelist = obj1.difflist(obj2, noqueries=True)

@@ -27,8 +27,16 @@
                 </li>
             </ul>
             {% endfor %}
+            <h4>Spremenjeno</h4>
+            {% for fieldname, fields in obj.changed_in_other %}
+            <ul>
+                <li>
+                    <div>{{ fieldname }}:{% for f in fields %}<span class="old_val"> {{f.as_utf}}</span>{% endfor %}</div>
+                </li>
+            </ul>
+            {% endfor %}
             <h4>Odstranjeno</h4>
-            {% for fieldname, fields in obj.in_other %}
+            {% for fieldname, fields in obj.only_in_other %}
             <ul>
                 <li>
                     <div>{{ fieldname }}:{% for f in fields %}<span class="old_val"> {{f.as_utf}}</span>{% endfor %}</div>
