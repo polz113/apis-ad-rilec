@@ -422,14 +422,14 @@ def ldapobjectbatch_diff(request, pk, pk2):
                 changed_objs.append({"obj": obj1, "obj2": obj2,
                                      "in_this": in_this,
                                      "in_other": in_other,
-                                     "unchanged": in_both,
-                                     "ignore": ignored})
+                                     "in_both": in_both,
+                                     "ignored": ignored})
             else:
                 unchanged_objs.append({"obj": obj1, "obj2": obj2,
                                      "in_this": [],
                                      "in_other": [],
                                      "unchanged": in_both,
-                                     "ignore": ignored})
+                                     "ignored": ignored})
             """changelist = obj1.difflist(obj2, noqueries=True)
             changed, removed, unchanged, ignore = [], [], [], []
             for i in changelist:
