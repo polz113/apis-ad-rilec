@@ -15,6 +15,7 @@ from rest_framework.views import APIView
 from rest_framework_api_key.permissions import HasAPIKey
 from rest_framework.response import Response
 
+import itertools
 import logging
 import ldap
 
@@ -265,7 +266,7 @@ def ldapobject_diff(request, pk, pk2=None):
         obj2 = obj.previous()
     else:
         obj2 = get_object_or_404(LDAPObject, pk=pk2)
-    added, removed, unchanged = obj.diff(obj2)
+    added, removed, unchanged, ignored = obj.diff(obj2)
     added = added.order_by('field')
     removed = removed.order_by('field')
     return render(request, 'apis_rilec/ldapobject_diff.html',
@@ -320,7 +321,7 @@ def ldapobject_diff_to_ldap(request, pk, pk2):
     obj2 = get_object_or_404(LDAPObject, pk=pk2)
     merge_rules = get_rules('MERGE_RULES')
     keep_fields = _get_keep_fields(merge_rules)
-    changed, removed, unchanged = obj.diff(obj2)
+    changed, removed, unchanged, ignored = obj.diff(obj2)
     changed_fields = set(changed.values_list('field', flat=True))
     ignore_fields = set(obj.fields.values_list('field', flat=True)).difference(changed_fields)
     ignore_fields = set(DEFAULT_IGNORE_FIELDS).union(ignore_fields)
@@ -365,12 +366,13 @@ def ldapobjectbatch_diff(request, pk, pk2):
                 i = str(i)
             l.append(i)
         return l
-    id_dict_list = ("dn", "objectSid", "upn", "uid")
     batch1 = get_object_or_404(LDAPObjectBatch, pk=pk)
     batch2 = get_object_or_404(LDAPObjectBatch, pk=pk2)
     objects1 = batch1.ldapobjects.all().prefetch_related('fields')
     objects2 = batch2.ldapobjects.order_by('dn').prefetch_related('fields')
     obj1_dicts = {}
+    # prepare dict for object matching later
+    id_dict_list = ("dn", "objectSid", "upn", "uid")
     for key in id_dict_list:
         obj1_dicts[key] = dict()
     for obj1 in objects1:
@@ -382,14 +384,21 @@ def ldapobjectbatch_diff(request, pk, pk2):
             obj1_dicts[key][val] = obj1
     for key in id_dict_list:
         obj1_dicts[key].pop(None, None)
-    ignore_fields = set(DEFAULT_IGNORE_FIELDS)
-    ignore_fields.discard('MEMBEROF')
-    ignore_fields.add('SAMACCOUNTNAME')
+    #ignore_fields = set(DEFAULT_IGNORE_FIELDS)
+    #ignore_fields.discard('MEMBEROF')
+    #ignore_fields.add('SAMACCOUNTNAME')
+    # prepare allowed values from IGNORE_FIELDS
+    allowed_values = {}
+    for i in DEFAULT_IGNORE_FIELDS:
+        allowed_values[i] = None
+    # TODO handle allowed values for memberof based on autogroups
+    allowed_values.pop('MEMBEROF')
     missing_objs = list()
     added_obj_dns = set(obj1_dicts["dn"].keys())
     changed_objs = []
     unchanged_objs = []
     for obj2 in objects2:
+        # find best matching obj1
         obj2_dict = model_to_dict(obj2, fields=id_dict_list)
         for key in id_dict_list:
             val = obj2_dict.get(key, None)
@@ -400,7 +409,28 @@ def ldapobjectbatch_diff(request, pk, pk2):
                 break
         if obj1 is not None:
             added_obj_dns.discard(obj1.dn.upper())
-            changelist = obj1.difflist(obj2, noqueries=True)
+            # group diffs by field
+            d_groupped = []
+            for i in obj1.diff(obj2, allowed_values):
+                l = []
+                for k, v in itertools.groupby(i, lambda x: x.field):
+                    l.append((k, list(v)))
+                d_groupped.append(l)
+            # groupping done
+            in_this, in_other, in_both, ignored = d_groupped
+            if len(in_this) > 0 or len(in_other) > 0:
+                changed_objs.append({"obj": obj1, "obj2": obj2,
+                                     "in_this": in_this,
+                                     "in_other": in_other,
+                                     "unchanged": in_both,
+                                     "ignore": ignored})
+            else:
+                unchanged_objs.append({"obj": obj1, "obj2": obj2,
+                                     "in_this": [],
+                                     "in_other": [],
+                                     "unchanged": in_both,
+                                     "ignore": ignored})
+            """changelist = obj1.difflist(obj2, noqueries=True)
             changed, removed, unchanged, ignore = [], [], [], []
             for i in changelist:
                 name, in_this, in_other, in_both = i
@@ -422,7 +452,7 @@ def ldapobjectbatch_diff(request, pk, pk2):
                 unchanged_objs.append({"obj": obj1, "obj2": obj2,
                                      "changed": changed,
                                      "unchanged": unchanged,
-                                     "ignore": ignore})
+                                     "ignore": ignore})"""
         else:
             missing_objs.append(obj2)
     added_objs = []

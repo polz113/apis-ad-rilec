@@ -1584,21 +1584,32 @@ class LDAPObject(models.Model):
             return len(my_ids - other_ids) > 0
         return True
 
-    def diff(self, other=None):
+    def diff(self, other=None, allowed_values=None):
         if other is None:
             other = self.previous()
-        new_ids = set(self.fields.values_list('id', flat=True))
-        removed_ids = set()
+        only_in_this = []
+        in_both = []
+        ignored = []
         if other is not None:
-            cur_ids = new_ids
-            other_ids = set(other.fields.values_list('id', flat=True))
-            only_in_this_ids = cur_ids.difference(other_ids)
-            only_in_other_ids = other_ids.difference(cur_ids)
-            in_both_ids = other_ids.intersection(cur_ids)
-        only_in_this = LDAPField.objects.filter(id__in=only_in_this_ids)
-        only_in_other = LDAPField.objects.filter(id__in=only_in_other_ids)
-        in_both = LDAPField.objects.filter(id__in=in_both_ids)
-        return only_in_this, only_in_other, in_both
+            only_in_other = set(other.fields.all())
+            for f in self.fields.all():
+                ignore = False
+                if f.field in allowed_values:
+                    allowed = allowed_values[f.field]
+                    ignore = allowed is None or f.value not in allowed
+                    if ignore:
+                        ignored.append(f)
+                if not ignore:
+                    if f in only_in_other:
+                        only_in_other.discard(f)
+                        in_both.append(f)
+                    else:
+                        only_in_this.append(f)
+        sortf = lambda a: (a.field, a.value, a.id)
+        return sorted(only_in_this, key=sortf),\
+               sorted(only_in_other, key=sortf),\
+               sorted(in_both, key=sortf),\
+               sorted(ignored, key=sortf)
 
     def difflist(self, other=None, noqueries=False):
         if other is None:
