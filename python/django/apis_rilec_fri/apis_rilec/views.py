@@ -415,6 +415,7 @@ def ldapobjectbatch_diff(request, pk, pk2):
             # groupping done
             in_this, in_other, in_both, ignored = d_groupped
             keys_in_this = set(k for (k, v) in in_this)
+            keys_in_this = keys_in_this.union(set(k for (k, v) in in_both))
             changed_in_other = []
             only_in_other = []
             for (k, v) in in_other:
@@ -436,29 +437,6 @@ def ldapobjectbatch_diff(request, pk, pk2):
                                      "only_in_other": only_in_other,
                                      "unchanged": in_both,
                                      "ignored": ignored})
-            """changelist = obj1.difflist(obj2, noqueries=True)
-            changed, removed, unchanged, ignore = [], [], [], []
-            for i in changelist:
-                name, in_this, in_other, in_both = i
-                i = i[0], __to_utf(i[1]), __to_utf(i[2]), __to_utf(i[3])
-                if name in ignore_fields:
-                    ignore.append(i)
-                elif len(in_this) > 0 or (len(in_both) > 0 and len(in_other) > 0):
-                    changed.append(i)
-                elif len(in_other) > 0:
-                    removed.append(i)
-                else:
-                    unchanged.append(i)
-            if len(changed) > 0:
-                changed_objs.append({"obj": obj1, "obj2": obj2,
-                                     "changed": changed,
-                                     "unchanged": unchanged,
-                                     "ignore": ignore})
-            else:
-                unchanged_objs.append({"obj": obj1, "obj2": obj2,
-                                     "changed": changed,
-                                     "unchanged": unchanged,
-                                     "ignore": ignore})"""
         else:
             missing_objs.append(obj2)
     added_objs = []
