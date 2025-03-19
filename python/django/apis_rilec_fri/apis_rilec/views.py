@@ -531,7 +531,7 @@ def ldapobjectbatch_fields_to_ldap(request):
                 if f.id in mod_fields[obj.id]:
                     if f.field == 'MEMBEROF':
                         op_dict[f.value].append((ldap_op, 'member', [real_dn]))
-                    else f.id in mod_fields[obj.id]:
+                    else:
                         op_dict[real_dn].append((ldap_op, f.field, [f.value]))
             messages = ""
             error = False
