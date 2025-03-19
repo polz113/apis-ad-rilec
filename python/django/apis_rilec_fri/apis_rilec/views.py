@@ -528,10 +528,11 @@ def ldapobjectbatch_fields_to_ldap(request):
             # real_dn = obj.dn
             op_dict = defaultdict(list)
             for f in obj.fields.all():
-                if f.field == 'MEMBEROF':
-                    op_dict[f.value].append((ldap_op, 'member', [real_dn]))
-                elif f.id in mod_fields[obj.id]:
-                    op_dict[real_dn].append((ldap_op, f.field, [f.value]))
+                if f.id in mod_fields[obj.id]:
+                    if f.field == 'MEMBEROF':
+                        op_dict[f.value].append((ldap_op, 'member', [real_dn]))
+                    else f.id in mod_fields[obj.id]:
+                        op_dict[real_dn].append((ldap_op, f.field, [f.value]))
             messages = ""
             error = False
             for dn, op_list in op_dict.items():
