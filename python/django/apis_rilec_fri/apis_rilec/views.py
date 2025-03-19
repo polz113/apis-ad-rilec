@@ -487,7 +487,7 @@ def ldapobjectbatch_latest_diff(request):
 def ldapobjectbatch_fields_to_ldap(request):
     if request.method != "POST":
         return redirect(reverse("apis_rilec:ldapobjectbatch_list"))
-    simulate = True
+    simulate = False
     applybatch = LDAPApplyBatch(name="fields to ldap")
     applybatch.save()
     applies = list()
