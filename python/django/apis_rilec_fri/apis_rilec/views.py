@@ -514,7 +514,7 @@ def ldapobjectbatch_fields_to_ldap(request):
             error = True
             messages += f"Failed to rm {dn}\n"
         applies.append(LDAPApply(obj, obj.dn, message))
-    for (postfield, ldap_op) in [("fadd", ldap.MOD_ADD), ("frm", ldap.MOD_DELETE)]:
+    for (postfield, ldap_op) in [("frm", ldap.MOD_DELETE), ("fadd", ldap.MOD_ADD)]:
         mod_fields = defaultdict(set)
         for objfield in request.POST.getlist(postfield, []):
             try:
