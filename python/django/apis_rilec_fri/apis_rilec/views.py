@@ -529,7 +529,7 @@ def ldapobjectbatch_fields_to_ldap(request):
             op_dict = defaultdict(list)
             for f in obj.fields.all():
                 if f.field == 'MEMBEROF':
-                    op_dict[f.value].append((ldap_op, 'member', [real_dn.decode('utf-8')]))
+                    op_dict[f.value].append((ldap_op, 'member', [real_dn]))
                 elif f.id in mod_fields[obj.id]:
                     op_dict[real_dn].append((ldap_op, f.field, [f.value]))
             messages = ""
