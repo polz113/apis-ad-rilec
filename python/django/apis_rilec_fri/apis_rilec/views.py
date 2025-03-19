@@ -482,6 +482,7 @@ def ldapobjectbatch_latest_diff(request):
     pk, pk2 = latest_rilec.id, latest_ldap.id
     return redirect(reverse("apis_rilec:ldapobjectbatch_diff", kwargs={"pk": pk, "pk2": pk2}))
 
+
 @staff_member_required
 def ldapobjectbatch_fields_to_ldap(request):
     if request.method != "POST":
@@ -501,7 +502,6 @@ def ldapobjectbatch_fields_to_ldap(request):
             rename=False, simulate=simulate))
     rmobj_ids = request.POST.getlist("objrm", [])
     for obj in LDAPObject.objects.filter(id__in = rmobj_ids):
-        # TODO: remove LDAP object 
         dn = obj.dn
         try:
             if simulate:
@@ -524,19 +524,17 @@ def ldapobjectbatch_fields_to_ldap(request):
                 pass
         for obj in LDAPObject.objects.filter(
                 id__in = mod_fields.keys()).prefetch_related("fields"):
-            # real_dn = obj.find_in_ldap(ldap_conn)
-            real_dn = obj.dn
+            real_dn = obj.find_in_ldap(ldap_conn)
+            # real_dn = obj.dn
             op_dict = defaultdict(list)
             for f in obj.fields.all():
                 if f.field == 'MEMBEROF':
                     op_dict[f.value].append((ldap_op, 'member', [real_dn.decode('utf-8')]))
                 elif f.id in mod_fields[obj.id]:
                     op_dict[real_dn].append((ldap_op, f.field, [f.value]))
-            print(mod_fields)
             messages = ""
             error = False
             for dn, op_list in op_dict.items():
-                print("About to apply:", op_list)
                 for op in op_list:
                     try:
                         if simulate:
