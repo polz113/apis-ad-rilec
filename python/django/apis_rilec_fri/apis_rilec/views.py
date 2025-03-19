@@ -18,6 +18,7 @@ from rest_framework.response import Response
 import itertools
 import logging
 import ldap
+from collections import defaultdict
 
 if settings.DEBUG:
     from silk.profiling.profiler import silk_profile
@@ -443,7 +444,8 @@ def ldapobjectbatch_diff(request, pk, pk2):
     for dn in sorted(added_obj_dns):
         added_objs.append(obj1_dicts["dn"][dn])
     return render(request, 'apis_rilec/ldapobjectbatch_diff.html',
-                  {'added_objs': added_objs,
+                  {'add_batches': [batch1.id], 'rm_batches': [batch2.id],
+                   'added_objs': added_objs,
                    'changed_objs': changed_objs,
                    'unchanged_objs': unchanged_objs,
                    'missing_objs': missing_objs,
@@ -481,13 +483,77 @@ def ldapobjectbatch_latest_diff(request):
     return redirect(reverse("apis_rilec:ldapobjectbatch_diff", kwargs={"pk": pk, "pk2": pk2}))
 
 @staff_member_required
-def ldapobjectbatch_diff_to_ldap(request, pk, pk2):
-    # TODO POST ONLY
-    obj1 = get_object_or_404(LDAPObjectBatch, pk=pk)
-    obj2 = get_object_or_404(LDAPObjectBatch, pk=pk2)
-    # TODO prepare object pairs
-    # TODO write to ldap
-    return redirect(reverse("apis_rilec:ldapapplybatch_detail", kwargs={"pk": pk}))
+def ldapobjectbatch_fields_to_ldap(request):
+    if request.method != "POST":
+        return redirect(reverse("apis_rilec:ldapobjectbatch_list"))
+    simulate = True
+    applybatch = LDAPApplyBatch(name="fields to ldap")
+    applybatch.save()
+    applies = list()
+    if not simulate:
+        ldap_conn = try_init_ldap(ldap_conn=None)
+    else:
+        ldap_conn = None
+    addobj_ids = request.POST.getlist("objadd", [])
+    for obj in LDAPObject.objects.filter(id__in = addobj_ids).prefetch_related("fields"):
+        applies.append(obj.to_ldap(
+            ldap_conn=ldap_conn,
+            rename=False, simulate=simulate))
+    rmobj_ids = request.POST.getlist("objrm", [])
+    for obj in LDAPObject.objects.filter(id__in = rmobj_ids):
+        # TODO: remove LDAP object 
+        dn = obj.dn
+        try:
+            if simulate:
+                messages += f"ACT: delete {dn}\n"
+            else:
+                messages += f"DELETE: {dn}\n"
+                ldap_conn.delete(dn)
+            messages += "  SUCCESS\n"
+        except Exception as e:
+            error = True
+            messages += f"Failed to rm {dn}\n"
+        applies.append(LDAPApply(obj, obj.dn, message))
+    for (postfield, ldap_op) in [("fadd", ldap.MOD_ADD), ("frm", ldap.MOD_DELETE)]:
+        mod_fields = defaultdict(set)
+        for objfield in request.POST.getlist(postfield, []):
+            try:
+                obj_id, field_id = objfield.split("_")
+                mod_fields[int(obj_id)].add(int(field_id))
+            except:
+                pass
+        for obj in LDAPObject.objects.filter(
+                id__in = mod_fields.keys()).prefetch_related("fields"):
+            # real_dn = obj.find_in_ldap(ldap_conn)
+            real_dn = obj.dn
+            op_dict = defaultdict(list)
+            for f in obj.fields.all():
+                if f.field == 'MEMBEROF':
+                    op_dict[f.value].append((ldap_op, 'member', [real_dn.decode('utf-8')]))
+                elif f.id in mod_fields[obj.id]:
+                    op_dict[real_dn].append((ldap_op, f.field, [f.value]))
+            print(mod_fields)
+            messages = ""
+            error = False
+            for dn, op_list in op_dict.items():
+                print("About to apply:", op_list)
+                for op in op_list:
+                    try:
+                        if simulate:
+                            messages += f"ACT: {dn}: {op}\n"
+                        else:
+                            messages += f"MODIFY: {dn}: {op}\n"
+                            ldap_conn.modify_s(dn, [op])
+                            messages += "  SUCCESS\n"
+                    except Exception as e:
+                        error = True
+                        messages += "Failed to write {}: {}: {}\n".format(dn, op[1], e)
+            applies.append(LDAPApply(ldapobject=obj, messages=messages, error=error))
+    for a in applies:
+        a.batch = applybatch
+    LDAPApply.objects.bulk_create(applies)
+    return redirect(reverse("apis_rilec:ldapapplybatch_detail", kwargs={"pk": applybatch.id}))
+
 
 @silk_profile(name='ldapapplybatch_list')
 @staff_member_required
