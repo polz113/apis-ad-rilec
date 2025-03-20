@@ -32,7 +32,7 @@
                 {% for fieldname, fields in obj.changed_in_other %}
                 <ul>
                     <li>
-                        <div>{{ fieldname }}:{% for f in fields %}<span class="old_val"><input type="checkbox" id="r{{obj.obj.id}}_{{f.id}}" name="frm" value="{{obj.obj.id}}_{{f.id}}"><label for="r{{obj.obj.id}}_{{f.id}}">{{f.as_utf}}</label></span>{% endfor %}</div>
+                        <div>{{ fieldname }}:{% for f in fields %}<span class="old_val"><input type="checkbox" id="r{{obj.obj2.id}}_{{f.id}}" name="frm" value="{{obj.obj2.id}}_{{f.id}}"><label for="r{{obj.obj2.id}}_{{f.id}}">{{f.as_utf}}</label></span>{% endfor %}</div>
                     </li>
                 </ul>
                 {% endfor %}
@@ -40,7 +40,7 @@
                 {% for fieldname, fields in obj.only_in_other %}
                 <ul>
                     <li>
-                        <div>{{ fieldname }}:{% for f in fields %}<span class="old_val"><input type="checkbox" id="r{{obj.obj.id}}_{{f.id}}" name="frm" value="{{obj.obj.id}}_{{f.id}}"><label for="r{{obj.obj.id}}_{{f.id}}">{{f.as_utf}}</label></span>{% endfor %}</div>
+                        <div>{{ fieldname }}:{% for f in fields %}<span class="old_val"><input type="checkbox" id="r{{obj.obj2.id}}_{{f.id}}" name="frm" value="{{obj.obj2.id}}_{{f.id}}"><label for="r{{obj.obj2.id}}_{{f.id}}">{{f.as_utf}}</label></span>{% endfor %}</div>
                     </li>
                 </ul>
                 {% endfor %}
