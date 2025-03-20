@@ -525,15 +525,16 @@ def ldapobjectbatch_fields_to_ldap(request):
         for obj in LDAPObject.objects.filter(
                 id__in = mod_fields.keys()).prefetch_related("fields"):
             real_dn = obj.find_in_ldap(ldap_conn)
+            messages = ""
             # real_dn = obj.dn
             op_dict = defaultdict(list)
             for f in obj.fields.all():
                 if f.id in mod_fields[obj.id]:
+                    messages += f"Data {postfield}: obj.id:{obj.id}, field.id: {f.id}, field: {f}\n"
                     if f.field == 'MEMBEROF':
                         op_dict[f.value].append((ldap_op, 'member', [real_dn]))
                     else:
                         op_dict[real_dn].append((ldap_op, f.field, [f.value]))
-            messages = ""
             error = False
             for dn, op_list in op_dict.items():
                 for op in op_list:
