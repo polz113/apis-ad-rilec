@@ -29,7 +29,7 @@
             ["${ime} ${priimek}", ["unidecode"]]
         ]],
         ["email", [
-            ["${Komunikacija__0105__0010__vrednostNaziv}", ["lowar"]]
+            ["${Komunikacija__0105__0010__vrednostNaziv}", ["lower"]]
         ]],
         ["ad_lokacija", [
             ["${lokacija}", ["studis_sifrant_lokacije", "upper"]],
