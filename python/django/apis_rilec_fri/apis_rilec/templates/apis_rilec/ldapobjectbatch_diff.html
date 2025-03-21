@@ -4,23 +4,43 @@
     <meta charset="utf-8">
     <title>Razlika</title>
     <style>
+.details,
+.show,
+.hide:target {
+  display: none;
+}
+.hide:target + .show,
+.hide:target ~ .details {
+  display: block;
+}
     .new_val { color: black; }
     .old_val { color: darkred; }
     .unchanged_val { color: gray; }
+    #main_buttons { position: fixed; top: 0; border-style: solid }
+    #main_form { padding-top: 2em }
     </style>
 </head>
 <body>
-    <a href="{% url "apis_rilec:ldapobjectbatch_list" %}">Nazaj na seznam</a>
-    <form method="post">{% csrf_token %}
+    <form id="main_form" method="post">{% csrf_token %}
         {% for i in add_batches %}<input type="hidden" name="badd" value="{{i}}">{% endfor %}
         {% for i in rm_batches %}<input type="hidden" name="brm" value="{{i}}">{% endfor %}
-        <div id="main_buttons"><button formaction="{% url "apis_rilec:ldapobjectbatch_fields_to_ldap" %}" type="submit">Zapiši v LDAP</button></div>
-        <div>
+        <div id="main_buttons">
+            <a href="{% url "apis_rilec:index" %}">Nazaj na glavno</a>
+            <a href="#changed_objects">Spremenjeni</a>
+            <a href="#added_objects">Dodani</a>
+            <a href="#removed_objects">Nespremenjeni</a>
+            <a href="#removed_objects">Odstranjeni</a>
+            <button formaction="{% url "apis_rilec:ldapobjectbatch_fields_to_ldap" %}" type="submit">Zapiši v LDAP</button>
+        </div>
+        <div id="changed_objects">
             <h2>Spremenjeni</h2>
             {% for obj in changed_objs %}
             <div>
                 <h3><a href="{% url "apis_rilec:ldapobject_detail" obj.obj.id %}">{{ obj.obj.dn }} {{ obj.obj.upn }}</a></h3>
-                <h4>Dodano</h4>
+                <div>
+                    <a id="hide_dodano_{{obj.obj.id}}" href="#hide_dodano_{{obj.obj.id}}" class="hide">+Dodano</a>
+<a id="show_dodano_{{obj.obj.id}}" href="#show_dodano_{{obj.obj.id}}" class="show">-Dodano</a>
+                <div class="details">
                 {% for fieldname, fields in obj.in_this %}
                 <ul>
                     <li>
@@ -28,6 +48,12 @@
                     </li>
                 </ul>
                 {% endfor %}
+                </div>
+                </div>
+                <div>
+                    <a id="hide_spremenjeno_{{obj.obj.id}}" href="#hide_spremenjeno_{{obj.obj.id}}" class="hide">+Spremenjeno</a>
+<a id="show_spremenjeno_{{obj.obj.id}}" href="#show_spremenjeno_{{obj.obj.id}}" class="show">-Spremenjeno</a>
+                <div class="details">
                 <h4>Spremenjeno</h4>
                 {% for fieldname, fields in obj.changed_in_other %}
                 <ul>
@@ -36,6 +62,12 @@
                     </li>
                 </ul>
                 {% endfor %}
+                </div>
+                </div>
+                <div>
+                    <a id="hide_odstranjeno_{{obj.obj.id}}" href="#hide_odstranjeno_{{obj.obj.id}}" class="hide">+Odstranjeno</a>
+<a id="show_odstranjeno_{{obj.obj.id}}" href="#show_odstranjeno_{{obj.obj.id}}" class="show">-Odstranjeno</a>
+                <div class="details">
                 <h4>Odstranjeno</h4>
                 {% for fieldname, fields in obj.only_in_other %}
                 <ul>
@@ -44,6 +76,12 @@
                     </li>
                 </ul>
                 {% endfor %}
+                </div>
+                </div>
+                <div>
+                    <a id="hide_nespremenjeno_{{obj.obj.id}}" href="#hide_nespremenjeno_{{obj.obj.id}}" class="hide">+Nespremenjeno</a>
+<a id="show_nespremenjeno_{{obj.obj.id}}" href="#show_nespremenjeno_{{obj.obj.id}}" class="show">-Nespremenjeno</a>
+                <div class="details">
                 <h4>Nespremenjeno</h4>
                 {% for fieldname, fields in obj.in_both %}
                 <ul>
@@ -52,6 +90,12 @@
                     </li>
                 </ul>
                 {% endfor %}
+                </div>
+                </div>
+                <div>
+                    <a id="hide_ignorirano_{{obj.obj.id}}" href="#hide_ignorirano_{{obj.obj.id}}" class="hide">+Ignorirano</a>
+<a id="show_ignorirano_{{obj.obj.id}}" href="#show_ignorirano_{{obj.obj.id}}" class="show">-Ignorirano</a>
+                <div class="details">
                 <h4>Ignorirano</h4>
                 {% for fieldname, fields in obj.ignored %}
                 <ul>
@@ -60,10 +104,12 @@
                     </li>
                 </ul>
                 {% endfor %}
+                </div>
+                </div>
             </div>
         {% endfor %}
         </div>
-        <div>
+        <div id="added_objects">
             <h2>Dodani</h2>
             {% for obj in added_objs %}
             <h3>
@@ -127,7 +173,7 @@
         {% endfor %}
         </div>
 
-        <div>
+        <div id="removed_objects">
             <h2>Odstranjeni</h2>
             <ul>
             {% for obj in missing_objs %}
