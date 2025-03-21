@@ -4,15 +4,13 @@
     <meta charset="utf-8">
     <title>Razlika</title>
     <style>
-.details,
-.show,
-.hide:target {
-  display: none;
-}
-.hide:target + .show,
-.hide:target ~ .details {
-  display: block;
-}
+    input.collapser { display: none; } 
+    .wrap-collapsible { margin: 1.2rem 0; } 
+    .lbl-toggle { display: block; transition: all 0.25s ease-out; }
+    .lbl-toggle::before { content: ' '; display: inline-block; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-left: 5px solid currentColor; vertical-align: middle; margin-right: .7rem; transform: translateY(-2px); transition: transform .2s ease-out; }
+    .toggle:checked+.lbl-toggle::before { transform: rotate(90deg) translateX(-3px); }
+    .collapsible-content { max-height: 0px; overflow: hidden; transition: max-height .25s ease-in-out; }
+    .toggle:checked + .lbl-toggle + .collapsible-content { max-height: 100%; }
     .new_val { color: black; }
     .old_val { color: darkred; }
     .unchanged_val { color: gray; }
@@ -37,74 +35,79 @@
             {% for obj in changed_objs %}
             <div>
                 <h3><a href="{% url "apis_rilec:ldapobject_detail" obj.obj.id %}">{{ obj.obj.dn }} {{ obj.obj.upn }}</a></h3>
-                <div>
-                    <a id="hide_dodano_{{obj.obj.id}}" href="#hide_dodano_{{obj.obj.id}}" class="hide">+Dodano</a>
-<a id="show_dodano_{{obj.obj.id}}" href="#show_dodano_{{obj.obj.id}}" class="show">-Dodano</a>
-                <div class="details">
-                {% for fieldname, fields in obj.in_this %}
-                <ul>
-                    <li>
-                        <div>{{ fieldname }}:{% for f in fields %}<span class="new_val"><input type="checkbox" id="a{{obj.obj.id}}_{{f.id}}" name="fadd" value="{{obj.obj.id}}_{{f.id}}"><label for="a{{obj.obj.id}}_{{f.id}}">{{f.as_utf}}</label></span>{% endfor %}</div>
-                    </li>
-                </ul>
-                {% endfor %}
+                <div class="wrap-collapsible">
+                    <input id="collapsible_dodano_{{obj.obj.id}}" class="toggle collapser" type="checkbox" checked="true">
+                    <label for="collapsible_dodano_{{obj.obj.id}}" class="lbl-toggle">Dodano</label>
+                    <div class="collapsible-content">
+                        <div class="content-inner">
+                        {% for fieldname, fields in obj.in_this %}
+                        <ul>
+                            <li>
+                                <div>{{ fieldname }}:{% for f in fields %}<span class="new_val"><input type="checkbox" id="a{{obj.obj.id}}_{{f.id}}" name="fadd" value="{{obj.obj.id}}_{{f.id}}"><label for="a{{obj.obj.id}}_{{f.id}}">{{f.as_utf}}</label></span>{% endfor %}</div>
+                            </li>
+                        </ul>
+                        {% endfor %}
+                        </div>
+                    </div>
                 </div>
+                <div class="wrap-collasible">
+                    <input id="collapsible_spremenjeno_{{obj.obj.id}}" class="toggle collapser" type="checkbox" checked="true">
+                    <label for="collapsible_spremenjeno_{{obj.obj.id}}" class="lbl-toggle">Spremenjeno</label>
+                    <div class="collapsible-content">
+                        <div class="content-inner"> 
+                        {% for fieldname, fields in obj.changed_in_other %}
+                        <ul>
+                            <li>
+                                <div>{{ fieldname }}:{% for f in fields %}<span class="old_val"><input type="checkbox" id="r{{obj.obj2.id}}_{{f.id}}" name="frm" value="{{obj.obj2.id}}_{{f.id}}"><label for="r{{obj.obj2.id}}_{{f.id}}">{{f.as_utf}}</label></span>{% endfor %}</div>
+                            </li>
+                        </ul>
+                        {% endfor %}
+                    </div>
                 </div>
-                <div>
-                    <a id="hide_spremenjeno_{{obj.obj.id}}" href="#hide_spremenjeno_{{obj.obj.id}}" class="hide">+Spremenjeno</a>
-<a id="show_spremenjeno_{{obj.obj.id}}" href="#show_spremenjeno_{{obj.obj.id}}" class="show">-Spremenjeno</a>
-                <div class="details">
-                <h4>Spremenjeno</h4>
-                {% for fieldname, fields in obj.changed_in_other %}
-                <ul>
-                    <li>
-                        <div>{{ fieldname }}:{% for f in fields %}<span class="old_val"><input type="checkbox" id="r{{obj.obj2.id}}_{{f.id}}" name="frm" value="{{obj.obj2.id}}_{{f.id}}"><label for="r{{obj.obj2.id}}_{{f.id}}">{{f.as_utf}}</label></span>{% endfor %}</div>
-                    </li>
-                </ul>
-                {% endfor %}
+                <div class="wrap-collapsible">
+                    <input id="collapsible_odstranjeno_{{obj.obj.id}}" class="toggle collapser" type="checkbox">
+                    <label for="collapsible_odstranjeno_{{obj.obj.id}}" class="lbl-toggle">Odstranjeno</label>
+                    <div class="collapsible-content">
+                        <div class="content-inner">
+                        {% for fieldname, fields in obj.only_in_other %}
+                        <ul>
+                            <li>
+                                <div>{{ fieldname }}:{% for f in fields %}<span class="old_val"><input type="checkbox" id="r{{obj.obj2.id}}_{{f.id}}" name="frm" value="{{obj.obj2.id}}_{{f.id}}"><label for="r{{obj.obj2.id}}_{{f.id}}">{{f.as_utf}}</label></span>{% endfor %}</div>
+                            </li>
+                        </ul>
+                        {% endfor %}
+                        </div>
+                    </div>
                 </div>
+                <div class="wrap-collapsible">
+                    <input id="collapsible_nespremenjeno_{{obj.obj.id}}" class="toggle collapser" type="checkbox">
+                    <label for="collapsible_nespremenjeno_{{obj.obj.id}}" class="lbl-toggle">Nespremenjeno</label>
+                    <div class="collapsible-content">
+                        <div class="content-inner">
+                        {% for fieldname, fields in obj.in_both %}
+                        <ul>
+                            <li>
+                                <div>{{ fieldname }}:{% for f in fields %}<span class="unchanged_val"> {{f.as_utf}}</span>{% endfor %}</div>
+                            </li>
+                        </ul>
+                        {% endfor %}
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <a id="hide_odstranjeno_{{obj.obj.id}}" href="#hide_odstranjeno_{{obj.obj.id}}" class="hide">+Odstranjeno</a>
-<a id="show_odstranjeno_{{obj.obj.id}}" href="#show_odstranjeno_{{obj.obj.id}}" class="show">-Odstranjeno</a>
-                <div class="details">
-                <h4>Odstranjeno</h4>
-                {% for fieldname, fields in obj.only_in_other %}
-                <ul>
-                    <li>
-                        <div>{{ fieldname }}:{% for f in fields %}<span class="old_val"><input type="checkbox" id="r{{obj.obj2.id}}_{{f.id}}" name="frm" value="{{obj.obj2.id}}_{{f.id}}"><label for="r{{obj.obj2.id}}_{{f.id}}">{{f.as_utf}}</label></span>{% endfor %}</div>
-                    </li>
-                </ul>
-                {% endfor %}
-                </div>
-                </div>
-                <div>
-                    <a id="hide_nespremenjeno_{{obj.obj.id}}" href="#hide_nespremenjeno_{{obj.obj.id}}" class="hide">+Nespremenjeno</a>
-<a id="show_nespremenjeno_{{obj.obj.id}}" href="#show_nespremenjeno_{{obj.obj.id}}" class="show">-Nespremenjeno</a>
-                <div class="details">
-                <h4>Nespremenjeno</h4>
-                {% for fieldname, fields in obj.in_both %}
-                <ul>
-                    <li>
-                        <div>{{ fieldname }}:{% for f in fields %}<span class="unchanged_val"> {{f.as_utf}}</span>{% endfor %}</div>
-                    </li>
-                </ul>
-                {% endfor %}
-                </div>
-                </div>
-                <div>
-                    <a id="hide_ignorirano_{{obj.obj.id}}" href="#hide_ignorirano_{{obj.obj.id}}" class="hide">+Ignorirano</a>
-<a id="show_ignorirano_{{obj.obj.id}}" href="#show_ignorirano_{{obj.obj.id}}" class="show">-Ignorirano</a>
-                <div class="details">
-                <h4>Ignorirano</h4>
-                {% for fieldname, fields in obj.ignored %}
-                <ul>
-                    <li>
-                        <div>{{ fieldname }}:{% for f in fields %}<span class="unchanged_val"> {{f.as_utf}}</span>{% endfor %}</div>
-                    </li>
-                </ul>
-                {% endfor %}
-                </div>
+                <div class="wrap-collapsible">
+                    <input id="collapsible_ignorirano_{{obj.obj.id}}" class="toggle collapser" type="checkbox">
+                    <label for="collapsible_ignorirano_{{obj.obj.id}}" class="lbl-toggle">Ignorirano</label>
+                    <div class="collapsible-content">
+                        <div class="content-inner">
+                        {% for fieldname, fields in obj.ignored %}
+                        <ul>
+                            <li>
+                                <div>{{ fieldname }}:{% for f in fields %}<span class="unchanged_val"> {{f.as_utf}}</span>{% endfor %}</div>
+                            </li>
+                        </ul>
+                        {% endfor %}
+                        </div>
+                    </div>
                 </div>
             </div>
         {% endfor %}
