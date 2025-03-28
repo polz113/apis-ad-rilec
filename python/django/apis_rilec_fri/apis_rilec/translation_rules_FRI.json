@@ -37,7 +37,8 @@
         ]],
         ["userPrincipalName", [
             ["${Komunikacija__0105__9007__vrednostNaziv}", ["lower"]],
-            ["${upn}", ["lower"]]
+            ["${upn}", ["lower"]],
+            ["$default_username", ["lower"]]
         ]],
         ["telefon", [
             ["${Komunikacija__0105__0020__vrednostNaziv}", []]
