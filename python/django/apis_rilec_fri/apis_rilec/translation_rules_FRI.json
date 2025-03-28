@@ -379,7 +379,6 @@
         "eduPersonPrincipalName": {"pick": "last"},
         "telephoneNumber": {"order": "${dataset__source}", "pick": "first"},
         "mail": {"order": "${dataset__source}", "pick": "first", "filters": ["keep_ldap"]},
-	"extensionAttribute13": {"pick": "first", "filters": ["keep_ldap"]}
     },
     "USER_RULES": {
         "objectClass": ["top","person","organizationalPerson","user"],
