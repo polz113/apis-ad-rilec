@@ -28,7 +28,7 @@
             ["${OsebniPodatki__0002__0__ime} ${OsebniPodatki__0002__0__priimek}", ["unidecode_fn"]],
             ["${ime} ${priimek}", ["unidecode"]]
         ]],
-        ["ad_lokacija", [¸
+        ["ad_lokacija", [
             ["${lokacija}", ["studis_sifrant_lokacije", "upper"]],
             ["${Komunikacija__0105__9005__vrednostNaziv}", ["upper"]]
         ]],
