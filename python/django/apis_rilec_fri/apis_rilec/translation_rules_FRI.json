@@ -112,7 +112,7 @@
         ]],
         ["habilitacija_txt", [
             [
-                "${Habilitacija__9004__0__habilizacijskiNazivTx}"
+                "${Habilitacija__9004__0__habilizacijskiNazivTx}", []
             ],
             [
                 "${habilitacija}",
