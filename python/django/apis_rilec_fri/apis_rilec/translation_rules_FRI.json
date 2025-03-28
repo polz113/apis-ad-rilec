@@ -105,7 +105,7 @@
             ["${zavod}", ["zavod_prefix_repl"]]
         ]],
         ["email", [
-            ["${default_username}@${clanica_mail_domena}", ["lower"]]
+            ["${default_username}@${clanica_mail_domena}", ["lower"]],
             ["${Komunikacija__0105__0010__vrednostNaziv}", ["lower"]]
         ]],
         ["userPrincipalName", [
