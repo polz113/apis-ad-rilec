@@ -109,7 +109,7 @@
             ["${Komunikacija__0105__0010__vrednostNaziv}", ["lower"]]
         ]],
         ["userPrincipalName", [
-            ["${default_username}@{clanica_ad_domena}", ["lower"]],
+            ["${default_username}@${clanica_ad_domena}", ["lower"]],
             ["${upn}", ["lower"]],
             ["${Komunikacija__0105__9007__vrednostNaziv}", ["lower"]]
         ]],
