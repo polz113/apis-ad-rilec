@@ -28,17 +28,9 @@
             ["${OsebniPodatki__0002__0__ime} ${OsebniPodatki__0002__0__priimek}", ["unidecode_fn"]],
             ["${ime} ${priimek}", ["unidecode"]]
         ]],
-        ["email", [
-            ["${Komunikacija__0105__0010__vrednostNaziv}", ["lower"]]
-        ]],
-        ["ad_lokacija", [
+        ["ad_lokacija", [¸
             ["${lokacija}", ["studis_sifrant_lokacije", "upper"]],
             ["${Komunikacija__0105__9005__vrednostNaziv}", ["upper"]]
-        ]],
-        ["userPrincipalName", [
-            ["${Komunikacija__0105__9007__vrednostNaziv}", ["lower"]],
-            ["${upn}", ["lower"]],
-            ["$default_username", ["lower"]]
         ]],
         ["telefon", [
             ["${Komunikacija__0105__0020__vrednostNaziv}", []]
@@ -96,9 +88,30 @@
             ["${zavod}",
                 ["zavod_domena_repl"]]
         ]],
+        ["clanica_mail_domena", [
+            ["${Ukrep__clanica_Id}",
+                ["clanica_mail_domena_repl"]],
+            ["${zavod}",
+                ["zavod_mail_domena_repl"]]
+        ]],
+        ["clanica_ad_domena", [
+            ["${Ukrep__clanica_Id}",
+                ["clanica_ad_domena_repl"]],
+            ["${zavod}",
+                ["zavod_ad_domena_repl"]]
+        ]],
         ["clanica_prefix", [
             ["${Ukrep__clanica_Id}", ["clanica_prefix_repl"]],
             ["${zavod}", ["zavod_prefix_repl"]]
+        ]],
+        ["email", [
+            ["${default_username}@${clanica_mail_domena}", ["lower"]]
+            ["${Komunikacija__0105__0010__vrednostNaziv}", ["lower"]]
+        ]],
+        ["userPrincipalName", [
+            ["${default_username}@{clanica_ad_domena}", ["lower"]],
+            ["${upn}", ["lower"]],
+            ["${Komunikacija__0105__9007__vrednostNaziv}", ["lower"]]
         ]],
         ["clanica_ime", [
             [
@@ -219,6 +232,30 @@
             "type": "dict",
             "rules": [
                 [ "63", "DC=fri1,DC=uni-lj,DC=si"]
+            ]
+        },
+        "clanica_ad_domena_repl": {
+            "type": "dict",
+            "rules": [
+                [ "2300", "fri1.uni-lj.si"]
+            ]
+        },
+        "zavod_ad_domena_repl": {
+            "type": "dict",
+            "rules": [
+                [ "63", "fri1.uni-lj.si"]
+            ]
+        },
+        "clanica_mail_domena_repl": {
+            "type": "dict",
+            "rules": [
+                [ "2300", "fri.uni-lj.si"]
+            ]
+        },
+        "zavod_mail_domena_repl": {
+            "type": "dict",
+            "rules": [
+                [ "63", "fri.uni-lj.si"]
             ]
         },
         "clanica_prefix_repl": {
