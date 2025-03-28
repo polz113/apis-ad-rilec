@@ -414,7 +414,6 @@
         "schacHomeOrganization": "${clanica_dnsdomena}",
         "accountExpires":"${account_expires_timestamp}",
         "eduPersonAffiliation": "staff",
-	"extensionAttribute13": "O365_FRI",
         "eduPersonPrimaryAffiliation": "staff",
         "schacHomeOrganization":"fri1.uni-lj.si",
         "schacExpiryDate":"${account_expires_schac}",
