@@ -346,6 +346,7 @@
                 [ "31", "asistent"],
                 [ "35", "strokovni sodelavec"],
                 [ "41", "asistent-raziskovalec"],
+                [ "53", "gostujoči učitelj - docent"],
                 [ "63", "gostujoči raziskovalec"],
                 [ "", "Neznana"]
             ]
