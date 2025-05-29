@@ -1141,10 +1141,14 @@ def _apis_relations_to_uid_managers(oud, relationsd, timestamp=None):
     managers = dict()
     for position, uid in position_uid_dict.items():
         # N__1001__AR01 je dejansko nadomescanje, N__1001__A002 je eksplicitni nadrejeni
-        explicit_manager = explicit_managers.get(position, None)
-        if explicit_manager is not None:
-            managers[uid] = position_uid_dict[list(explicit_manager)[0]]
+        try:
+            explicit_manager = explicit_managers[position]
+            explicit_manager = position_uid_dict[list(explicit_manager)[0]]
+            assert explicit_manager is not None:
+            managers[uid] = explicit_manager
             continue
+        except:
+            pass
         ouid = uid_ou_dict.get(uid, None)
         cur_managers = ou_managers.get(ouid, None)
         # print("uid:", uid, "ou:", ouid, "managers:", cur_managers)
@@ -1703,7 +1707,7 @@ class LDAPObject(models.Model):
 
     def field_dict(self):
         ret = defaultdict(list)
-        for field in self.fields.order_by('field'):
+        for field in self.fields.all():
             ret[field.field].append(field.value)
         return dict(ret)
     
@@ -1721,7 +1725,9 @@ class LDAPObject(models.Model):
 
     def to_ldap(self, ldap_conn=None,
                 find_by_fields=None, create=True, rename=False, clean_groups=True,
-                ignore_fields=None, keep_fields=None, clean_group_set=None, simulate=True):
+                ignore_fields=None, keep_fields=None,
+                add_fields=None, rm_fields=None,
+                clean_group_set=None, simulate=True):
         messages = ""
         error = False
         try:
