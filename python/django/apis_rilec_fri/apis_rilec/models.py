@@ -1141,14 +1141,12 @@ def _apis_relations_to_uid_managers(oud, relationsd, timestamp=None):
     managers = dict()
     for position, uid in position_uid_dict.items():
         # N__1001__AR01 je dejansko nadomescanje, N__1001__A002 je eksplicitni nadrejeni
-        try:
-            explicit_manager = explicit_managers[position]
-            managers[uid] = position_uid_dict[list(explicit_manager)[0]]
-            continue
-        except:
-            print("Manager not found:", explicit_managers[position])
-            print("  for OUs:", position_uid_dict)
-            pass
+        explicit_manager = list(explicit_managers.get(position, []))
+        if len(explicit_manager) >= 1:
+            explicit_manager = position_uid_dict.get(explicit_manager[0], None)
+            if explicit_manager is not None:
+                managers[uid] = explicit_manager
+                continue
         ouid = uid_ou_dict.get(uid, None)
         cur_managers = ou_managers.get(ouid, None)
         # print("uid:", uid, "ou:", ouid, "managers:", cur_managers)
