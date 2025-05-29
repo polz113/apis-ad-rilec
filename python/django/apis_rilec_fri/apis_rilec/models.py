@@ -1143,11 +1143,11 @@ def _apis_relations_to_uid_managers(oud, relationsd, timestamp=None):
         # N__1001__AR01 je dejansko nadomescanje, N__1001__A002 je eksplicitni nadrejeni
         try:
             explicit_manager = explicit_managers[position]
-            explicit_manager = position_uid_dict[list(explicit_manager)[0]]
-            assert explicit_manager is not None:
-            managers[uid] = explicit_manager
+            managers[uid] = position_uid_dict[list(explicit_manager)[0]]
             continue
         except:
+            print("Manager not found:", explicit_managers[position])
+            print("  for OUs:", position_uid_dict)
             pass
         ouid = uid_ou_dict.get(uid, None)
         cur_managers = ou_managers.get(ouid, None)
