@@ -431,6 +431,7 @@
         "sAMAccountName": "${default_samaccount}",
         "userPrincipalName": "${userPrincipalName}",
         "mail": "${email}",
+        "proxyAddresses": "smtp:${email}",
         "employeeID": "${uid}",
         "c": "SI",
         "l": "Ljubljana",
