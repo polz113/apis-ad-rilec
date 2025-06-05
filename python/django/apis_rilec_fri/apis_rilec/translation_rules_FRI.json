@@ -104,8 +104,9 @@
             ["${Ukrep__clanica_Id}", ["clanica_prefix_repl"]],
             ["${zavod}", ["zavod_prefix_repl"]]
         ]],
-        ["email", [
+        ["best_email", [
             ["${default_username}@${clanica_mail_domena}", ["lower"]],
+            ["${email}", []],
             ["${Komunikacija__0105__0010__vrednostNaziv}", ["lower"]]
         ]],
         ["userPrincipalName", [
@@ -430,8 +431,8 @@
         "name": "${celoime}",
         "sAMAccountName": "${default_samaccount}",
         "userPrincipalName": "${userPrincipalName}",
-        "mail": "${email}",
-        "proxyAddresses": "smtp:${email}",
+        "mail": "${best_email}",
+        "proxyAddresses": "smtp:${best_email}",
         "employeeID": "${uid}",
         "c": "SI",
         "l": "Ljubljana",
