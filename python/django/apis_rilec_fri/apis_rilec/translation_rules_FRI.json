@@ -106,7 +106,7 @@
         ]],
         ["best_email", [
             ["${default_username}@${clanica_mail_domena}", ["lower"]],
-            ["${email}", []],
+            ["${email}", ["lower"]],
             ["${Komunikacija__0105__0010__vrednostNaziv}", ["lower"]]
         ]],
         ["userPrincipalName", [
