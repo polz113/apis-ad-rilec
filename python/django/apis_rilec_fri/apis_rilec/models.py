@@ -98,7 +98,7 @@ def uid_to_dn(uid, users_by_uid=None, **kwargs):
         if users_by_uid is not None:
             user_data = users_by_uid.get(uid, {'DISTINGUISHEDNAME': None})
             dn = user_data.get('DISTINGUISHEDNAME', None)
-        if dn is None:
+        if dn is None and len(uid) > 0:
             dn = LDAPObject.objects.filter(source='AD', uid=uid).order_by('-timestamp').first().values_list('dn', flat=True)
     except Exception as e:
         # print("Uid_to_dn: ", e)
