@@ -1449,7 +1449,7 @@ def save_rilec(userdata_set, timestamp=None):
             else:
                 field, created = LDAPField.objects.get_or_create(field='MEMBEROF', value=value)
                 fields_to_add.append(field.id)
-        objs.append((obj, fields_to_add))
+        objs.append((obj, list(set(fields_to_add))))
     LDAPObject.objects.bulk_create([i[0] for i in objs])
     all_fields = list()
     for obj, field_ids in objs:
