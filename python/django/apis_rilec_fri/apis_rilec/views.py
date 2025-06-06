@@ -390,7 +390,7 @@ def ldapobjectbatch_diff(request, pk, pk2):
     for i in DEFAULT_IGNORE_FIELDS:
         allowed_values[i] = None
     # TODO handle allowed values for memberof based on autogroups
-    allowed_values.pop('MEMBEROF')
+    allowed_values['MEMBEROF'] = get_groups()
     missing_objs = list()
     added_obj_dns = set(obj1_dicts["dn"].keys())
     changed_objs = []
