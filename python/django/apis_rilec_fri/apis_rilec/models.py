@@ -30,11 +30,7 @@ from urllib.request import Request, urlopen, quote
 
 FIELD_DELIMITER='__'
 DEFAULT_MERGE_RULES = {'pick': 'unique', "filters": []}
-DEFAULT_KEEP_FIELDS = [
-        'PROXYADDRESSES',
-        'BADPASSWORDTIME',
-        'BADPWDCOUNT'
-    ]
+
 DEFAULT_IGNORE_FIELDS = [
         'BADPASSWORDTIME',
         'BADPWDCOUNT'
@@ -1747,7 +1743,8 @@ class LDAPObject(models.Model):
             else:
                 ignore_fields_set = set([i.upper() for i in ignore_fields])
             if keep_fields is None:
-                keep_fields = DEFAULT_KEEP_FIELDS
+                merge_rules = get_rules('MERGE_RULES')
+                keep_fields = _get_keep_fields(merge_rules)
             groups = set(field_dict.pop('MEMBEROF', []))
             if real_dn is None:
                 real_dn = self.dn
