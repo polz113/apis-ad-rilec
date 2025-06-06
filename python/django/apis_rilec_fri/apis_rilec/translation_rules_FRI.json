@@ -418,7 +418,7 @@
         "physicalDeliveryOfficeName": {"pick": "last", "order": "${dataset__source}"},
         "eduPersonPrincipalName": {"pick": "last"},
         "telephoneNumber": {"order": "${dataset__source}", "pick": "first"},
-        "proxyAddresses": {"pick": "distinct", "filters": ["keep_ldap"]},
+        "proxyAddresses": {"pick": "distinct"},
         "mail": {"order": "${dataset__source}", "pick": "first", "filters": ["keep_ldap"]}
     },
     "USER_RULES": {
@@ -434,7 +434,7 @@
         "sAMAccountName": "${default_samaccount}",
         "userPrincipalName": "${userPrincipalName}",
         "mail": "${best_email}",
-        "proxyAddresses": "smtp:${best_email}",
+        "proxyAddresses": "SMTP:${best_email}",
         "employeeID": "${uid}",
         "c": "SI",
         "l": "Ljubljana",
