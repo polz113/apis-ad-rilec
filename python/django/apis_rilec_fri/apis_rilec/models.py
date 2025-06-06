@@ -1594,16 +1594,12 @@ class LDAPObject(models.Model):
         if other is not None:
             only_in_other = set(other.fields.all())
             for f in other.fields.all():
-                if f.field in keep_fields:
-                    ignored.append(f)
-                    only_in_other.discard(f)
-                elif f.field in allowed_values:
+                if f.field in allowed_values:
                     allowed = allowed_values[f.field]
                     ignore = allowed is None or f.value not in allowed
                     if ignore:
                         ignored.append(f)
                         only_in_other.discard(f)
-                
             for f in self.fields.all():
                 ignore = False
                 if f.field in allowed_values:
@@ -1617,6 +1613,10 @@ class LDAPObject(models.Model):
                         in_both.append(f)
                     else:
                         only_in_this.append(f)
+            for f in list(only_in_other):
+                if f.field in keep_fields:
+                    ignored.append(f)
+                    only_in_other.discard(f)
         sortf = lambda a: (a.field, a.value, a.id)
         return sorted(only_in_this, key=sortf),\
                sorted(only_in_other, key=sortf),\
