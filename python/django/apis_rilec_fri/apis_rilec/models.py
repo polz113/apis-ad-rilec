@@ -31,6 +31,7 @@ from urllib.request import Request, urlopen, quote
 FIELD_DELIMITER='__'
 DEFAULT_MERGE_RULES = {'pick': 'unique', "filters": []}
 DEFAULT_KEEP_FIELDS = [
+        'PROXYADDRESS',
         'BADPASSWORDTIME',
         'BADPWDCOUNT'
     ]
@@ -1584,7 +1585,7 @@ class LDAPObject(models.Model):
             return len(my_ids - other_ids) > 0
         return True
 
-    def diff(self, other=None, allowed_values=None):
+    def diff(self, other=None, allowed_values=None, keep_fields=None):
         if other is None:
             other = self.previous()
         only_in_this = []
@@ -1593,12 +1594,16 @@ class LDAPObject(models.Model):
         if other is not None:
             only_in_other = set(other.fields.all())
             for f in other.fields.all():
-                if f.field in allowed_values:
+                if f.field in keep_fields:
+                    ignored.append(f)
+                    only_in_other.discard(f)
+                elif f.field in allowed_values:
                     allowed = allowed_values[f.field]
                     ignore = allowed is None or f.value not in allowed
                     if ignore:
                         ignored.append(f)
                         only_in_other.discard(f)
+                
             for f in self.fields.all():
                 ignore = False
                 if f.field in allowed_values:
