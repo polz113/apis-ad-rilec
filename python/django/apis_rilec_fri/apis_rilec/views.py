@@ -38,7 +38,7 @@ from .models import DataSource, MergedUserData, UserDataField,\
         delete_old_userdata,\
         save_rilec, save_ldap, autogroup_ldapobjects,\
         get_data_studis, apis_to_translations, try_init_ldap,\
-        DEFAULT_IGNORE_FIELDS, DEFAULT_KEEP_FIELDS
+        DEFAULT_IGNORE_FIELDS
 
 # Create your views here
 
