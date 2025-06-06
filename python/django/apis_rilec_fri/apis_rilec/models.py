@@ -31,7 +31,7 @@ from urllib.request import Request, urlopen, quote
 FIELD_DELIMITER='__'
 DEFAULT_MERGE_RULES = {'pick': 'unique', "filters": []}
 DEFAULT_KEEP_FIELDS = [
-        'PROXYADDRESS',
+        'PROXYADDRESSES',
         'BADPASSWORDTIME',
         'BADPWDCOUNT'
     ]
