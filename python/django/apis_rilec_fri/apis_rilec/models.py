@@ -31,12 +31,10 @@ from urllib.request import Request, urlopen, quote
 FIELD_DELIMITER='__'
 DEFAULT_MERGE_RULES = {'pick': 'unique', "filters": []}
 DEFAULT_KEEP_FIELDS = [
-        'MEMBEROF',
         'BADPASSWORDTIME',
         'BADPWDCOUNT'
     ]
 DEFAULT_IGNORE_FIELDS = [
-        'MEMBEROF',
         'BADPASSWORDTIME',
         'BADPWDCOUNT'
     ]
