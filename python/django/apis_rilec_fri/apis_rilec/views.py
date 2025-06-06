@@ -368,6 +368,7 @@ def ldapobjectbatch_diff(request, pk, pk2):
                 i = str(i)
             l.append(i)
         return l
+    keep_fields = _get_keep_fields(merge_rules)
     batch1 = get_object_or_404(LDAPObjectBatch, pk=pk)
     batch2 = get_object_or_404(LDAPObjectBatch, pk=pk2)
     objects1 = batch1.ldapobjects.all().prefetch_related('fields')
@@ -411,7 +412,7 @@ def ldapobjectbatch_diff(request, pk, pk2):
             added_obj_dns.discard(obj1.dn.upper())
             # group diffs by field
             d_groupped = []
-            for i in obj1.diff(obj2, allowed_values):
+            for i in obj1.diff(obj2, allowed_values, keep_fields):
                 l = []
                 for k, v in itertools.groupby(i, lambda x: x.field):
                     l.append((k, list(v)))
