@@ -1608,7 +1608,6 @@ class LDAPObject(models.Model):
                     ignore = allowed is None or f.value not in allowed
                     if ignore:
                         ignored.append(f)
-                        only_in_this.discard(f)
                 if not ignore:
                     if f in only_in_other:
                         only_in_other.discard(f)
