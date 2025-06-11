@@ -1304,10 +1304,11 @@ def ldap_state(timestamp=None, dn_list=None, mark_changed=True):
     return ret
 
 
-def infinite_search(ldap_conn, base, scope, filterstr='(objectClass=*)', attrlist=None, attrsonly=0):
+def infinite_search(ldap_conn, base, scope, filterstr=None, attrlist=None, attrsonly=0):
     PAGESIZE = 500
     # code shamelessly inspired by https://gist.github.com/mattfahrner/c228ead9c516fc322d3a
-
+    if filterstr is None:
+        filterstr = settings.LDAP_SEARCH_FILTERSTR
     lc = SimplePagedResultsControl(True, size=PAGESIZE, cookie='')
     while True:
         msgid = ldap_conn.search_ext(base=base, scope=scope, filterstr=filterstr,
