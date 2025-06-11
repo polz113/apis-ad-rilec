@@ -1308,7 +1308,7 @@ def infinite_search(ldap_conn, base, scope, filterstr=None, attrlist=None, attrs
     PAGESIZE = 500
     # code shamelessly inspired by https://gist.github.com/mattfahrner/c228ead9c516fc322d3a
     if filterstr is None:
-        filterstr = settings.LDAP_SEARCH_FILTERSTR
+        filterstr = settings.LDAP_USER_SEARCH_FILTERSTR
     lc = SimplePagedResultsControl(True, size=PAGESIZE, cookie='')
     while True:
         msgid = ldap_conn.search_ext(base=base, scope=scope, filterstr=filterstr,
