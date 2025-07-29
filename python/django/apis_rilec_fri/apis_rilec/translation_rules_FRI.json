@@ -498,8 +498,8 @@
         [
             {
                 "objectClass": ["top", "group"],
-		"distinguishedName": "CN=FRI-ORG-${avtomatika_lab},OU=Groups,OU=${clanica_prefix},${clanica_domena}",
-		"sAMAccountName": "FRI-ORG-${avtomatika_lab_mail}",
+                "distinguishedName": "CN=FRI-ORG-${avtomatika_lab},OU=Groups,OU=${clanica_prefix},${clanica_domena}",
+                "sAMAccountName": "FRI-ORG-${avtomatika_lab_mail}",
                 "groupType": ["${group_type}"],
                 "mail": ["FRI-ORG-${avtomatika_lab}@fri.uni-lj.si"],
                 "name": ["FRI-ORG-${avtomatika_lab}"]
@@ -554,6 +554,33 @@
                 ],
                 "create_sources": {
                     "vrsta_zaposlitve_id": ["translate_keys", ["vrsta_zaposlitve_repl"]],
+                    "clanica_id": ["translate_keys", ["clanica_domena_repl"]],
+                    "group_type": ["constant", ["global security"]]
+                }
+            }
+        ],
+        [
+            {
+                "objectClass": ["top", "group"],
+                "distinguishedName": "CN=O365_FRI_A1,OU=O365,OU=Storitve,${clanica_domena}",
+                "groupType": "${group_type}",
+                "sAMAccountName": "O365_FRI_A1",
+                "name": "O365_FRI_A1"
+            }, {
+                "parent_templates":[
+                    {
+                        "objectClass": ["top", "organizationalUnit"],
+                        "distinguishedName": "OU=O365,OU=Storitve,${clanica_domena}"
+                    }, {
+                        "objectClass": ["top", "organizationalUnit"],
+                        "distinguishedName": "OU=Storitve,${clanica_domena}"
+                    }
+                ],
+                "create_fields": [
+                    ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
+                    ["group_type", [["${group_type}", ["group_types"]]]]
+                ],
+                "create_sources": {
                     "clanica_id": ["translate_keys", ["clanica_domena_repl"]],
                     "group_type": ["constant", ["global security"]]
                 }
