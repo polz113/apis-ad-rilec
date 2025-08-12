@@ -443,7 +443,7 @@
         "sAMAccountName": "${default_samaccount}",
         "userPrincipalName": "${userPrincipalName}",
         "mail": "${best_email}",
-        "targetAddress": "${onmicrosoft_email}",
+        "targetAddress": "SMTP:${onmicrosoft_email}",
         "proxyAddresses": "SMTP:${best_email}",
         "employeeID": "${uid}",
         "c": "SI",
