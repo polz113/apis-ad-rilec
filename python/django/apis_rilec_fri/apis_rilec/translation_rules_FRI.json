@@ -115,7 +115,7 @@
             ["${Komunikacija__0105__9007__vrednostNaziv}", ["lower"]]
         ]],
         ["onmicrosoft_email", [
-            ["${upn}", ["lower", "onmicrosoft_repl"]]
+            ["${userPrincipalName}", ["lower", "onmicrosoft_repl"]]
         ]],
         ["clanica_ime", [
             [
