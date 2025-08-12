@@ -114,6 +114,9 @@
             ["${upn}", ["lower"]],
             ["${Komunikacija__0105__9007__vrednostNaziv}", ["lower"]]
         ]],
+        ["onmicrosoft_email", [
+            ["${upn}", ["lower", "onmicrosoft_repl"]]
+        ]],
         ["clanica_ime", [
             [
                 "${Ukrep__clanica_Id}", 
@@ -283,6 +286,12 @@
                 [ "63", "Fakulteta za računalništvo in informatiko"]
             ]
         },
+        "onmicrosoft_repl": {
+            "type": "substr",
+            "rules": [
+                ["@fri.uni-lj.si", "@unilj.onmicrosoft.com"]
+            ̉]
+        ],
         "vrsta_zaposlitve_repl": {
             "type": "defaultdict",
             "rules": [
@@ -434,6 +443,7 @@
         "sAMAccountName": "${default_samaccount}",
         "userPrincipalName": "${userPrincipalName}",
         "mail": "${best_email}",
+        "targetAddress": "${onmicrosoft_email}",
         "proxyAddresses": "SMTP:${best_email}",
         "employeeID": "${uid}",
         "c": "SI",
@@ -508,7 +518,7 @@
                 "parent_templates":[
                     {
                         "objectClass": ["top", "organizationalUnit"],
-                        "distinguishedName": "OU=Groups,OU=${clanica_prefix},${clanica_domena}"
+#                        "distinguishedName": "OU=Groups,OU=${clanica_prefix},${clanica_domena}"
                     }, {
                         "objectClass": ["top", "organizationalUnit"],
                         "distinguishedName": "OU=${clanica_prefix},${clanica_domena}"
@@ -554,33 +564,6 @@
                 ],
                 "create_sources": {
                     "vrsta_zaposlitve_id": ["translate_keys", ["vrsta_zaposlitve_repl"]],
-                    "clanica_id": ["translate_keys", ["clanica_domena_repl"]],
-                    "group_type": ["constant", ["global security"]]
-                }
-            }
-        ],
-        [
-            {
-                "objectClass": ["top", "group"],
-                "distinguishedName": "CN=O365_FRI_A1,OU=O365,OU=Storitve,${clanica_domena}",
-                "groupType": "${group_type}",
-                "sAMAccountName": "O365_FRI_A1",
-                "name": "O365_FRI_A1"
-            }, {
-                "parent_templates":[
-                    {
-                        "objectClass": ["top", "organizationalUnit"],
-                        "distinguishedName": "OU=O365,OU=Storitve,${clanica_domena}"
-                    }, {
-                        "objectClass": ["top", "organizationalUnit"],
-                        "distinguishedName": "OU=Storitve,${clanica_domena}"
-                    }
-                ],
-                "create_fields": [
-                    ["clanica_domena", [["${clanica_id}", ["clanica_domena_repl"]]]],
-                    ["group_type", [["${group_type}", ["group_types"]]]]
-                ],
-                "create_sources": {
                     "clanica_id": ["translate_keys", ["clanica_domena_repl"]],
                     "group_type": ["constant", ["global security"]]
                 }
