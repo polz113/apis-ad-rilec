@@ -289,7 +289,7 @@
         "onmicrosoft_repl": {
             "type": "substr",
             "rules": [
-                ["@fri.uni-lj.si", "@unilj.onmicrosoft.com"]
+                ["@fri1.uni-lj.si", "@unilj.onmicrosoft.com"]
             ]
         },
         "vrsta_zaposlitve_repl": {
