@@ -290,8 +290,8 @@
             "type": "substr",
             "rules": [
                 ["@fri.uni-lj.si", "@unilj.onmicrosoft.com"]
-            ̉]
-        ],
+            ]
+        },
         "vrsta_zaposlitve_repl": {
             "type": "defaultdict",
             "rules": [
@@ -518,7 +518,7 @@
                 "parent_templates":[
                     {
                         "objectClass": ["top", "organizationalUnit"],
-#                        "distinguishedName": "OU=Groups,OU=${clanica_prefix},${clanica_domena}"
+                        "distinguishedName": "OU=Groups,OU=${clanica_prefix},${clanica_domena}"
                     }, {
                         "objectClass": ["top", "organizationalUnit"],
                         "distinguishedName": "OU=${clanica_prefix},${clanica_domena}"
