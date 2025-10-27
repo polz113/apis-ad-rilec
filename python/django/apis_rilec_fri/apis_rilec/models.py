@@ -161,7 +161,7 @@ def _tzdate(date):
     return timezone.make_aware(t)
 
 
-def try_init_ldap(ldap_conn=None):,true
+def try_init_ldap(ldap_conn=None):
     if ldap_conn is not None:
         return ldap_conn
     try:
