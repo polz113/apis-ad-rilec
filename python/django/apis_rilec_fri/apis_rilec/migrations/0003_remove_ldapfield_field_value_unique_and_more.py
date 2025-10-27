@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("apis_rilec", "0003_remove_ldapfield_field_value_unique_and_more"),
+        ("apis_rilec", "0002_ldapobject_apis_rilec__uid_2d6ff4_idx_and_more"),
     ]
 
     operations = [
