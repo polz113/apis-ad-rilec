@@ -1,6 +1,6 @@
 from django.db import models
 from django.db.models import Q, F, Window
-from django.db.models.functions import DenseRank
+from django.db.models.functions import DenseRank, MD5
 from django.utils import timezone
 from django.utils.datastructures import MultiValueDict
 from django.conf import settings
@@ -161,7 +161,7 @@ def _tzdate(date):
     return timezone.make_aware(t)
 
 
-def try_init_ldap(ldap_conn=None):
+def try_init_ldap(ldap_conn=None):,true
     if ldap_conn is not None:
         return ldap_conn
     try:
@@ -1816,7 +1816,7 @@ class LDAPField(models.Model):
                 # models.Index(fields=['field', 'value']),
         ]
         constraints = [
-            models.UniqueConstraint(name="field_value_unique", fields=['field', 'value'])
+            models.UniqueConstraint(name="field_value_unique", fields=['field', MD5('value')])
         ]
     def as_utf(self):
         return self.value.decode('utf-8')
