@@ -1816,7 +1816,7 @@ class LDAPField(models.Model):
                 # models.Index(fields=['field', 'value']),
         ]
         constraints = [
-            models.UniqueConstraint(name="field_value_unique", fields=['field', MD5('value')])
+            models.UniqueConstraint("field", MD5('value'), name="field_value_unique")
         ]
     def as_utf(self):
         return self.value.decode('utf-8')
