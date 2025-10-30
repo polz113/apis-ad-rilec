@@ -52,7 +52,7 @@ class UserDataFieldInline(admin.TabularInline):
 class OldUserdataFilter(admin.SimpleListFilter):
     # Human-readable title which will be displayed in the
     # right admin sidebar just above the filter options.
-    title = _("Used in MultiuserData")
+    title = _("Used in MergedUserData")
 
     # Parameter for the filter that will be used in the URL query.
     parameter_name = "old_unused"
@@ -90,7 +90,7 @@ class UserDataAdmin(admin.ModelAdmin):
         UserDataFieldInline,
     ]
     list_filter = [OldUserdataFilter]
-    search_fields = ["timestamp", "uid", "sub_id"] 
+    search_fields = ["uid", "sub_id"] 
 
 
 class LDAPObjectAdmin(admin.ModelAdmin):
