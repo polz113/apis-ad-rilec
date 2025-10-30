@@ -90,6 +90,7 @@ class UserDataAdmin(admin.ModelAdmin):
         UserDataFieldInline,
     ]
     list_filter = [OldUserdataFilter]
+    search_fields = ["timestamp", "uid", "sub_id"] 
 
 
 class LDAPObjectAdmin(admin.ModelAdmin):
