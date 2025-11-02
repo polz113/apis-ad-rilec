@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand, CommandError
-from apis_rilec.models import DataSource, apis_to_translations
+from apis_rilec.models import DataSource, apis_to_translations, delete_old_userdata
 
 
 class Command(BaseCommand):
