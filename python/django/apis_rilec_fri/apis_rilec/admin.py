@@ -17,14 +17,22 @@ from .models import DataSource, DataSet,\
 # Register your models here.
 class DataSetAdmin(admin.ModelAdmin):
     raw_id_fields = ('source',)
-    readonly_fields = ('source', 'data_links', 'source_data')
+    readonly_fields = ('source', 'userdata_links', 'oudata_links', 'source_data')
 
     @admin.display(description="UserData")
-    def data_links(self, instance):
+    def userdata_links(self, instance):
         return format_html_join(
             mark_safe("<br>"),
             """<a href="{}">{}: {}({})</a>""",
             [(reverse("admin:apis_rilec_userdata_change", args=(d.id,)), d.id, d.uid, d.sub_id) for d in instance.userdata_set.all()],
+        )
+ 
+    @admin.display(description="OUData")
+    def oudata_links(self, instance):
+        return format_html_join(
+            mark_safe("<br>"),
+            """<a href="{}">{}</a>""",
+            [(reverse("admin:apis_rilec_oudata_change", args=(d.id,)), d.id) for d in instance.oudata_set.all()],
         )
     
     @admin.display(description="Source data")
