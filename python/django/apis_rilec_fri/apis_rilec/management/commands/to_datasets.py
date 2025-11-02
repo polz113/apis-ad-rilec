@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand, CommandError
-from apis_rilec.models import Datasource, apis_to_translations
+from apis_rilec.models import DataSource, apis_to_translations
 
 
 class Command(BaseCommand):
