@@ -289,7 +289,7 @@
         "onmicrosoft_repl": {
             "type": "substr",
             "rules": [
-                ["@fri1.uni-lj.si", "@unilj.onmicrosoft.com"]
+                ["@fri1.uni-lj.si", "@mail.unilj.onmicrosoft.com"]
             ]
         },
         "vrsta_zaposlitve_repl": {
@@ -445,7 +445,7 @@
         "userPrincipalName": "${userPrincipalName}",
         "mail": "${best_email}",
         "targetAddress": "SMTP:${onmicrosoft_email}",
-        "proxyAddresses": "SMTP:${best_email}",
+        "proxyAddresses": ["SMTP:${best_email}", "smtp:${onmicrosoft_email}"],
         "mailnickname": "${default_username}",
         "msExchRecipientDisplayType": "-2147483642",
         "msExchRecipientTypeDetails": "2147483648",
