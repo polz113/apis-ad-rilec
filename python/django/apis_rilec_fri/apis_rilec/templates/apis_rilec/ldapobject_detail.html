@@ -30,7 +30,7 @@
         <button formaction="{% url "apis_rilec:ldapobject_to_ldap" object.id %}" type="submit">Zapiši v LDAP</button>
     </form> 
     <ul>
-        {% for field, values in object.field_strdict.items|sort %}
+        {% for field, values in object.field_string_list %}
         <li>
             {{field}}: {% for v in values %}<span>{{v}}</span> {% endfor %}
         </li>
