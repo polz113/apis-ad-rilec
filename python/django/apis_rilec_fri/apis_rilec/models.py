@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Q, F, Window
 from django.db.models.functions import DenseRank, MD5
 from django.utils import timezone
@@ -7,7 +7,6 @@ from django.conf import settings
 from django.utils.text import slugify
 from django.urls import reverse
 from django.core.exceptions import ObjectDoesNotExist
-
 from unidecode import unidecode
 
 import traceback
@@ -435,6 +434,7 @@ class DataSource(models.Model):
             ou_relations.append(our)
         return ou_relations
     
+    @transaction.atomic
     def _apis_to_datasets(self):
         try:
             in_data = self.parsed_json()
@@ -475,13 +475,9 @@ class DataSource(models.Model):
             ud, ud_created = mud.data.get_or_create(uid=uid, sub_id=sub_id,
                                                     defaults={'dataset': ds})
             if not ud_created:
-                if ud.dataset == ds:
-                    ud.fields.all().delete()
-                else:
-                    mud.data.remove(ud)
-                    ud = UserData(uid=uid, sub_id=sub_uid, dataset=ds)
-                    ud.save()
-                    mud.data.add(ud)
+                ud.fields.all().delete()
+                ud.dataset=ds
+                ud.save()
             else:
                 mud.data.add(ud)
             for fields in fieldlist:
