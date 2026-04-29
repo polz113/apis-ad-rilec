@@ -2,7 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 from django.conf import settings
 from django.http import HttpResponse, JsonResponse, StreamingHttpResponse, Http404
-from django.db.models import Value
+from django.db.models import Value, Prefetch
 from django.utils.datastructures import MultiValueDict
 from django.utils import timezone
 from itertools import chain, groupby
@@ -31,6 +31,7 @@ else:
 
 from .models import DataSource, MergedUserData, UserDataField,\
         LDAPObject, LDAPObjectBatch, LDAPObjectField,\
+        LDAPField,\
         LDAPApply, LDAPApplyBatch,\
         dicts_to_ldapuser, dicts_to_ldapgroups, ldap_state,\
         get_rules, _get_keep_fields,\
@@ -495,11 +496,22 @@ def ldapobjectbatch_diff_by_object(request, pk, pk2):
     keep_fields = _get_keep_fields(merge_rules)
     batch1 = get_object_or_404(LDAPObjectBatch, pk=pk)
     batch2 = get_object_or_404(LDAPObjectBatch, pk=pk2)
-    objects1 = batch1.ldapobjects.all().prefetch_related('fields')
-    objects2 = batch2.ldapobjects.order_by('dn').prefetch_related('fields')
+    id_dict_list = ("objectGUID", "objectSid", "upn", "dn", "uid")
+    field_queryset = LDAPField.objects.all()
+    fields_list = []
+    for i in request.GET.getlist("field"):
+        fields_list.append(i.upper())
+    if len(fields_list):
+        fields_list += [ i.upper for i in id_dict_list ]
+        field_queryset = field_queryset.filter(field__in = fields_list)
+    objects1 = batch1.ldapobjects.all().prefetch_related(
+        Prefetch('fields', queryset=field_queryset)
+    )
+    objects2 = batch2.ldapobjects.order_by('dn').prefetch_related(
+        Prefetch('fields', queryset=field_queryset)
+    )
     obj1_dicts = {}
     # prepare dict for object matching later
-    id_dict_list = ("dn", "objectSid", "upn", "uid")
     for key in id_dict_list:
         obj1_dicts[key] = dict()
     for obj1 in objects1:
@@ -514,7 +526,6 @@ def ldapobjectbatch_diff_by_object(request, pk, pk2):
     allowed_values = {}
     for i in DEFAULT_IGNORE_FIELDS:
         allowed_values[i] = None
-    # TODO handle allowed values for memberof based on autogroups
     allowed_values['MEMBEROF'] = set([ j.encode("utf-8")
         for i in get_groups()
             for j in i['distinguishedName']])
