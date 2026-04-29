@@ -1609,6 +1609,7 @@ class LDAPObject(models.Model):
             for f in list(only_in_other):
                 if f.field in keep_fields:
                     ignored.append(f)
+                    only_in_this.discard(f)
                     only_in_other.discard(f)
         sortf = lambda a: (a.field, a.value, a.id)
         return sorted(only_in_this, key=sortf),\
