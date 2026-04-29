@@ -2,10 +2,11 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 from django.conf import settings
 from django.http import HttpResponse, JsonResponse, StreamingHttpResponse, Http404
-from django.db.models import F
+from django.db.models import Value
 from django.utils.datastructures import MultiValueDict
 from django.utils import timezone
-from itertools import chain
+from itertools import chain, groupby
+from heapq import merge
 from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
 from django.forms.models import model_to_dict
@@ -15,10 +16,9 @@ from rest_framework.views import APIView
 from rest_framework_api_key.permissions import HasAPIKey
 from rest_framework.response import Response
 
-import itertools
 import logging
 import ldap
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 
 if settings.DEBUG:
     from silk.profiling.profiler import silk_profile
@@ -30,7 +30,7 @@ else:
 
 
 from .models import DataSource, MergedUserData, UserDataField,\
-        LDAPObject, LDAPObjectBatch,\
+        LDAPObject, LDAPObjectBatch, LDAPObjectField,\
         LDAPApply, LDAPApplyBatch,\
         dicts_to_ldapuser, dicts_to_ldapgroups, ldap_state,\
         get_rules, _get_keep_fields,\
@@ -355,10 +355,132 @@ def ldapobjectbatch_detail(request, pk):
                    'prev_rilec': prev_rilec,
                    'prev_same': prev_same})
 
-
 @silk_profile(name='ldapobjectbatch_diff')
 @staff_member_required
 def ldapobjectbatch_diff(request, pk, pk2):
+    def __to_utf(x):
+        l = []
+        for i in x:
+            try:
+                i = i.decode('utf-8')
+            except:
+                i = str(i)
+            l.append(i)
+        return l
+    merge_rules = get_rules('MERGE_RULES')
+    keep_fields = _get_keep_fields(merge_rules)
+    batch1 = get_object_or_404(LDAPObjectBatch, pk=pk)
+    batch2 = get_object_or_404(LDAPObjectBatch, pk=pk2)
+    fields1 = LDAPObjectField.objects.select_related(
+            'ldapobject', 'ldapfield',
+        ).filter(
+            ldapobject__ldapobjectbatch = batch1
+        ).order_by(
+            "ldapobject__dn", "ldapfield__field", "ldapfield__value",
+        #).iterator()
+        ).annotate(
+            batch_id = Value(batch1.id)
+        ).iterator()
+    fields2 = LDAPObjectField.objects.select_related(
+            'ldapobject', 'ldapfield',
+        ).filter(
+            ldapobject__ldapobjectbatch = batch2
+        ).order_by(
+            "ldapobject__dn", "ldapfield__field", "ldapfield__value",
+        #).iterator()
+        ).annotate(
+            batch_id = Value(batch2.id)
+        ).iterator()
+    FakeField = namedtuple("FakeField", ["field", "value"])
+    FakeLdapObject = namedtuple("FakeLdapObject", ["dn"])
+    FakeObjectField = namedtuple("FakeObjectField", ["ldapobject", "ldapfield", "batch_id"])
+    added_objs, changed_objs, unchanged_objs, missing_objs = [], [], [], []
+    key = lambda x: (x.ldapobject.dn, x.ldapfield.field, x.ldapfield.value)
+    by_dn = groupby(merge(fields1, fields2, key=key), lambda x: x.ldapobject.dn)
+    for dn, flist in by_dn:
+        obj1, obj2 = None, None
+        only_in_obj1, only_in_obj2 = [], []
+        changed_in_obj2, in_both = [], []
+        in_obj1_vals, in_obj2_vals, in_both_vals = [], [], []
+        prev_f = None
+        guard = FakeObjectField(
+                    FakeLdapObject(""),
+                    FakeField("", ""),
+                    None)
+        for f in chain(flist, [guard]):
+            if f.batch_id == batch1.id:
+                if obj1 is None:
+                    obj1 = f.ldapobject
+            elif f.batch_id == batch2.id:
+                if obj2 is None:
+                    obj2 = f.ldapobject
+            val = f.ldapfield.value
+            if prev_f is not None and f.ldapfield.field == prev_f.ldapfield.field:
+                if val == prev_f.ldapfield.value:
+                    assert f.ldapobject != prev_f.ldapobject
+                    # in_both
+                    if prev_f.ldapobject == obj1:
+                        in_both_vals.append(in_obj1_vals.pop())
+                    else:
+                        assert prev_f.ldapobject == obj2
+                        in_both_vals.append(in_obj2_vals.pop())
+                elif f.ldapobject == obj1:
+                    in_obj1_vals.append(val)
+                else:
+                    in_obj2_vals.append(val)
+            else: # handle changed_in_other, etc.
+                if len(in_obj1_vals):
+                    only_in_obj1.append((prev_f.ldapfield.field, in_obj1_vals))
+                if len(in_obj2_vals):
+                    if len(in_obj1_vals):
+                        changed_in_obj2.append((prev_f.ldapfield.field, in_obj2_vals))
+                    else:
+                        only_in_obj2.append((prev_f.ldapfield.field, in_obj2_vals))
+                if f.ldapobject == obj1:
+                    in_obj1_vals = [ val ]
+                else:
+                    in_obj2_vals = [ val ]
+            prev_f = f
+        if obj1 is None:
+            missing_objs.append(obj2)
+        elif obj2 is None:
+            added_objs.append(obj1)
+        else:
+            if len(only_in_obj1) > 0 or len(changed_in_obj2) > 0:
+                changed_objs.append({"obj": obj1,
+                                     "obj2": obj2,
+                                     "in_this": only_in_obj1,
+                                     "changed_in_other": changed_in_obj2,
+                                     "only_in_other": only_in_obj2,
+                                     "in_both": in_both,
+                                     "ignored": ignored})
+            else:
+                unchanged_objs.append({"obj": obj1, 
+                                       "obj2": obj2,
+                                       "in_this": [],
+                                       "changed_in_other": changed_in_obj2,
+                                       "only_in_other": only_in_obj2,
+                                       "in_both": in_both,
+                                       "ignored": ignored})
+    #added_objs = []
+    #for dn in sorted(added_obj_dns):
+    #    added_objs.append(obj1_dicts["dn"][dn])
+    return render(request, 'apis_rilec/ldapobjectbatch_diff.html',
+                  {'add_batches': [batch1.id], 'rm_batches': [batch2.id],
+                   'added_objs': added_objs,
+                   'changed_objs': changed_objs,
+                   'unchanged_objs': unchanged_objs,
+                   'missing_objs': missing_objs,
+                   })
+
+
+
+
+
+
+@silk_profile(name='ldapobjectbatch_olddiff')
+@staff_member_required
+def ldapobjectbatch_olddiff(request, pk, pk2):
     def __to_utf(x):
         l = []
         for i in x:
@@ -415,7 +537,7 @@ def ldapobjectbatch_diff(request, pk, pk2):
             d_groupped = []
             for i in obj1.diff(obj2, allowed_values, keep_fields):
                 l = []
-                for k, v in itertools.groupby(i, lambda x: x.field):
+                for k, v in groupby(i, lambda x: x.field):
                     l.append((k, list(v)))
                 d_groupped.append(l)
             # groupping done
