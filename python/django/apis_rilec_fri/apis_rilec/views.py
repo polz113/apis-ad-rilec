@@ -355,6 +355,7 @@ def ldapobjectbatch_detail(request, pk):
                    'prev_rilec': prev_rilec,
                    'prev_same': prev_same})
 
+
 @silk_profile(name='ldapobjectbatch_diff')
 @staff_member_required
 def ldapobjectbatch_diff(request, pk, pk2):
@@ -423,9 +424,9 @@ def ldapobjectbatch_diff(request, pk, pk2):
                         assert prev_f.ldapobject == obj2
                         in_both_vals.append(in_obj2_vals.pop())
                 elif f.ldapobject == obj1:
-                    in_obj1_vals.append(val)
+                    in_obj1_vals.append(f.ldapfield)
                 else:
-                    in_obj2_vals.append(val)
+                    in_obj2_vals.append(ldapfield)
             else: # handle changed_in_other, etc.
                 if len(in_obj1_vals):
                     only_in_obj1.append((prev_f.ldapfield.field, in_obj1_vals))
@@ -435,9 +436,9 @@ def ldapobjectbatch_diff(request, pk, pk2):
                     else:
                         only_in_obj2.append((prev_f.ldapfield.field, in_obj2_vals))
                 if f.ldapobject == obj1:
-                    in_obj1_vals = [ val ]
+                    in_obj1_vals = [ f.ldapfield ]
                 else:
-                    in_obj2_vals = [ val ]
+                    in_obj2_vals = [ f.ldapfield ]
             prev_f = f
         if obj1 is None:
             missing_objs.append(obj2)
@@ -470,10 +471,6 @@ def ldapobjectbatch_diff(request, pk, pk2):
                    'unchanged_objs': unchanged_objs,
                    'missing_objs': missing_objs,
                    })
-
-
-
-
 
 
 @silk_profile(name='ldapobjectbatch_olddiff')
