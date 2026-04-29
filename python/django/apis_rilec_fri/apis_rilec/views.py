@@ -377,7 +377,6 @@ def ldapobjectbatch_diff(request, pk, pk2):
             ldapobject__ldapobjectbatch = batch1
         ).order_by(
             "ldapobject__dn", "ldapfield__field", "ldapfield__value",
-        #).iterator()
         ).annotate(
             batch_id = Value(batch1.id)
         ).iterator()
@@ -387,7 +386,6 @@ def ldapobjectbatch_diff(request, pk, pk2):
             ldapobject__ldapobjectbatch = batch2
         ).order_by(
             "ldapobject__dn", "ldapfield__field", "ldapfield__value",
-        #).iterator()
         ).annotate(
             batch_id = Value(batch2.id)
         ).iterator()
@@ -400,7 +398,7 @@ def ldapobjectbatch_diff(request, pk, pk2):
     for dn, flist in by_dn:
         obj1, obj2 = None, None
         only_in_obj1, only_in_obj2 = [], []
-        changed_in_obj2, in_both = [], []
+        changed_in_obj2, in_both, ignored = [], [], []
         in_obj1_vals, in_obj2_vals, in_both_vals = [], [], []
         prev_f = None
         guard = FakeObjectField(
