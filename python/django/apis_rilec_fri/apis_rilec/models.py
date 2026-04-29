@@ -1586,7 +1586,10 @@ class LDAPObject(models.Model):
         ignored = []
         if other is not None:
             only_in_other = set(other.fields.all())
+            kept_in_other = set()
             for f in other.fields.all():
+                if f.field in keep_fields:
+                    kept_in_other.add(f.field)
                 if f.field in allowed_values:
                     allowed = allowed_values[f.field]
                     ignore = allowed is None or f.value not in allowed
@@ -1598,7 +1601,7 @@ class LDAPObject(models.Model):
                 if f.field in allowed_values:
                     allowed = allowed_values[f.field]
                     ignore = allowed is None or f.value not in allowed
-                ignore = ignore or (f.field in keep_fields and f in only_in_other)
+                ignore = ignore or f.field in kept_in_other
                 if ignore:
                     ignored.append(f)
                 if not ignore:
