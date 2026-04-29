@@ -426,7 +426,7 @@ def ldapobjectbatch_diff(request, pk, pk2):
                 elif f.ldapobject == obj1:
                     in_obj1_vals.append(f.ldapfield)
                 else:
-                    in_obj2_vals.append(ldapfield)
+                    in_obj2_vals.append(f.ldapfield)
             else: # handle changed_in_other, etc.
                 if len(in_obj1_vals):
                     only_in_obj1.append((prev_f.ldapfield.field, in_obj1_vals))
