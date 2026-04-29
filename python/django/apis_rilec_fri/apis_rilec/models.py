@@ -1598,7 +1598,7 @@ class LDAPObject(models.Model):
                 if f.field in allowed_values:
                     allowed = allowed_values[f.field]
                     ignore = allowed is None or f.value not in allowed
-                ignore = ignore or (f.field in keep_fields and f.field in only_in_other)
+                ignore = ignore or (f.field in keep_fields and f in only_in_other)
                 if ignore:
                     ignored.append(f)
                 if not ignore:
