@@ -429,7 +429,11 @@
         "telephoneNumber": {"order": "${dataset__source}", "pick": "first"},
         "proxyAddresses": {"pick": "distinct", "filters": ["keep_ldap"]},
         "targetAddress": {"order": "${dataset__source}", "pick": "first", "filters": ["keep_ldap"]},
-        "mail": {"order": "${dataset__source}", "pick": "first", "filters": ["keep_ldap"]}
+        "mail": {"order": "${dataset__source}", "pick": "first", "filters": ["keep_ldap"]},
+        "MSExchRecipientDisplayType": {"pick": "first", "filters": ["keep_ldap"]},
+        "MSExchRecipientTypeDetails": {"pick": "first", "filters": ["keep_ldap"]},
+        "MSExchRemoteRecipientType": {"pick": "first", "filters": ["keep_ldap"]},
+        "MSExchRemoteRecipientControl": {"pick": "first", "filters": ["keep_ldap"]}
     },
     "USER_RULES": {
         "objectClass": ["top","person","organizationalPerson","user"],
