@@ -1,36 +1,19 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <title>Razlika</title>
-    <style>
-    input.collapser { display: none; } 
-    .wrap-collapsible { margin: 1.2rem 0; } 
-    .lbl-toggle { display: block; transition: all 0.25s ease-out; }
-    .lbl-toggle::before { content: ' '; display: inline-block; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-left: 5px solid currentColor; vertical-align: middle; margin-right: .7rem; transform: translateY(-2px); transition: transform .2s ease-out; }
-    .toggle:checked+.lbl-toggle::before { transform: rotate(90deg) translateX(-3px); }
-    .collapsible-content { max-height: 0px; overflow: hidden; transition: max-height .25s ease-in-out; }
-    .toggle:checked + .lbl-toggle + .collapsible-content { max-height: 100%; }
-    .new_val { color: black; }
-    .old_val { color: darkred; }
-    .unchanged_val { color: gray; }
-    #main_buttons { position: fixed; top: 0; border-style: solid }
-    #main_form { padding-top: 2em }
-    </style>
-</head>
-<body>
+{% extends "base.html" %}
+
+{% block title %}Razlika{% endblock %}
+{% block body %}
     <form id="main_form" method="post">{% csrf_token %}
         {% for i in add_batches %}<input type="hidden" name="badd" value="{{i}}">{% endfor %}
         {% for i in rm_batches %}<input type="hidden" name="brm" value="{{i}}">{% endfor %}
-        <div id="main_buttons">
+        <header id="main_buttons">
             <a href="{% url "apis_rilec:index" %}">Nazaj na glavno</a>
             <a href="#changed_objects">Spremenjeni</a>
             <a href="#added_objects">Dodani</a>
             <a href="#unchanged_objects">Nespremenjeni</a>
             <a href="#removed_objects">Odstranjeni</a>
             <button formaction="{% url "apis_rilec:ldapobjectbatch_fields_to_ldap" %}" type="submit">Zapiši v LDAP</button>
-        </div>
-        <div id="changed_objects">
+        </header>
+        <section id="changed_objects">
             <h2>Spremenjeni</h2>
             {% for obj in changed_objs %}
             <div>
@@ -112,8 +95,8 @@
                 </div>
             </div>
         {% endfor %}
-        </div>
-        <div id="added_objects">
+        </section>
+        <section id="added_objects">
             <h2>Dodani</h2>
             {% for obj in added_objs %}
             <h3>
@@ -127,8 +110,8 @@
                 {% endfor %}
             </div>
             {% endfor %}
-        </div>
-        <div id="unchanged_objects">
+        </section>
+        <section id="unchanged_objects">
             <h2>Nespremenjeni</h2>
             {% for obj in unchanged_objs %}
             <div>
@@ -151,9 +134,9 @@
                 {% endfor %}
             </div>
         {% endfor %}
-        </div>
+        </section>
 
-        <div id="removed_objects">
+        <section id="removed_objects">
             <h2>Odstranjeni</h2>
             <ul>
             {% for obj in missing_objs %}
@@ -161,7 +144,6 @@
                 <a href="{% url "apis_rilec:ldapobject_detail" obj.id %}">{{ obj }}</a></li>
             {% endfor %}
             </ul>
-        </div>
+        </section>
     </form> 
-</body>
-</html>
+{% endblock %}
