@@ -1,0 +1,22 @@
+<div class="attempt {{success|yesno:"success,fail   "}}">
+    <div>
+        <span class="candidate">{{candidate}}</span> 
+        <span class="status">
+            {% if error %}
+            ERROR
+            {% else %}
+            {{success|yesno:"AVAILABLE,UNAVAILABLE"}}
+            {% endif %}
+        </span>
+    </div>
+    {% if error %}
+        <div class="log">
+        {{error}}
+        </div>
+    {%endif %}
+    {% for result in results %}
+        <div class="log">
+        {{result}}
+        </div>
+    {% endfor %}
+</div>

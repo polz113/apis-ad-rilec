@@ -1,15 +1,16 @@
+import pprint
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 from django.conf import settings
-from django.http import HttpResponse, JsonResponse, StreamingHttpResponse, Http404
-from django.db.models import Value, Prefetch
+from django.http import JsonResponse, StreamingHttpResponse, Http404
+from django.db.models import Prefetch
 from django.utils.datastructures import MultiValueDict
 from django.utils import timezone
 from itertools import chain, groupby
-from heapq import merge
 from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
 from django.forms.models import model_to_dict
+from django.template.loader import render_to_string
 
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
@@ -18,7 +19,7 @@ from rest_framework.response import Response
 
 import logging
 import ldap
-from collections import defaultdict, namedtuple
+from collections import defaultdict
 
 if settings.DEBUG:
     from silk.profiling.profiler import silk_profile
@@ -232,11 +233,10 @@ def generic_rule_detail(request, rules_part):
         props = get_rules(rules_part)
     except:
         props = dict()
-    return render(request, 'apis_rilec/generic_rule_detail.html', {'object': props, 'rules_part': rules_part})
+    return render(request, 'apis_rilec/generic_rule_detail.html', {'object': pprint.pformat(props), 'rules_part': rules_part})
 
 def group_rules(request):
-    props = get_rules('GROUP_RULES')
-    return render(request, 'apis_rilec/group_rules.html', {'object': props})
+    return generic_rule_detail(request, "GROUP_RULES")
 
 @silk_profile(name='translations')
 @staff_member_required
@@ -379,124 +379,6 @@ def ldapobjectbatch_diff_by_field(request, pk, pk2):
     keep_fields = _get_keep_fields(merge_rules)
     batch1 = get_object_or_404(LDAPObjectBatch, pk=pk)
     batch2 = get_object_or_404(LDAPObjectBatch, pk=pk2)
-    fields1 = LDAPObjectField.objects.select_related(
-            'ldapobject', 'ldapfield',
-        ).filter(
-            ldapobject__ldapobjectbatch = batch1
-        ).order_by(
-            "ldapobject__dn", "ldapfield__field", "ldapfield__value",
-        ).annotate(
-            batch_id = Value(batch1.id)
-        ).iterator()
-    fields2 = LDAPObjectField.objects.select_related(
-            'ldapobject', 'ldapfield',
-        ).filter(
-            ldapobject__ldapobjectbatch = batch2
-        ).order_by(
-            "ldapobject__dn", "ldapfield__field", "ldapfield__value",
-        ).annotate(
-            batch_id = Value(batch2.id)
-        ).iterator()
-    FakeField = namedtuple("FakeField", ["field", "value"])
-    FakeLdapObject = namedtuple("FakeLdapObject", ["dn"])
-    FakeObjectField = namedtuple("FakeObjectField", ["ldapobject", "ldapfield", "batch_id"])
-    added_objs, changed_objs, unchanged_objs, missing_objs = [], [], [], []
-    key = lambda x: (x.ldapobject.dn, x.ldapfield.field, x.ldapfield.value)
-    by_dn = groupby(merge(fields1, fields2, key=key), lambda x: x.ldapobject.dn)
-    for dn, flist in by_dn:
-        obj1, obj2 = None, None
-        only_in_obj1, only_in_obj2 = [], []
-        changed_in_obj2, in_both, ignored = [], [], []
-        in_obj1_vals, in_obj2_vals, in_both_vals = [], [], []
-        prev_f = None
-        guard = FakeObjectField(
-                    FakeLdapObject(""),
-                    FakeField("", ""),
-                    None)
-        for f in chain(flist, [guard]):
-            if f.batch_id == batch1.id:
-                if obj1 is None:
-                    obj1 = f.ldapobject
-            elif f.batch_id == batch2.id:
-                if obj2 is None:
-                    obj2 = f.ldapobject
-            val = f.ldapfield.value
-            if prev_f is not None and f.ldapfield.field == prev_f.ldapfield.field:
-                if val == prev_f.ldapfield.value:
-                    assert f.ldapobject != prev_f.ldapobject
-                    # in_both
-                    if prev_f.ldapobject == obj1:
-                        in_both_vals.append(in_obj1_vals.pop())
-                    else:
-                        assert prev_f.ldapobject == obj2
-                        in_both_vals.append(in_obj2_vals.pop())
-                elif f.ldapobject == obj1:
-                    in_obj1_vals.append(f.ldapfield)
-                else:
-                    in_obj2_vals.append(f.ldapfield)
-            else: # handle changed_in_other, etc.
-                if len(in_obj1_vals):
-                    only_in_obj1.append((prev_f.ldapfield.field, in_obj1_vals))
-                if len(in_obj2_vals):
-                    if len(in_obj1_vals):
-                        changed_in_obj2.append((prev_f.ldapfield.field, in_obj2_vals))
-                    else:
-                        only_in_obj2.append((prev_f.ldapfield.field, in_obj2_vals))
-                if f.ldapobject == obj1:
-                    in_obj1_vals = [ f.ldapfield ]
-                else:
-                    in_obj2_vals = [ f.ldapfield ]
-            prev_f = f
-        if obj1 is None:
-            missing_objs.append(obj2)
-        elif obj2 is None:
-            added_objs.append(obj1)
-        else:
-            if len(only_in_obj1) > 0 or len(changed_in_obj2) > 0:
-                changed_objs.append({"obj": obj1,
-                                     "obj2": obj2,
-                                     "in_this": only_in_obj1,
-                                     "changed_in_other": changed_in_obj2,
-                                     "only_in_other": only_in_obj2,
-                                     "in_both": in_both,
-                                     "ignored": ignored})
-            else:
-                unchanged_objs.append({"obj": obj1, 
-                                       "obj2": obj2,
-                                       "in_this": [],
-                                       "changed_in_other": changed_in_obj2,
-                                       "only_in_other": only_in_obj2,
-                                       "in_both": in_both,
-                                       "ignored": ignored})
-    #added_objs = []
-    #for dn in sorted(added_obj_dns):
-    #    added_objs.append(obj1_dicts["dn"][dn])
-    return render(request, 'apis_rilec/ldapobjectbatch_diff.html',
-                  {'add_batches': [batch1.id], 'rm_batches': [batch2.id],
-                   'added_objs': added_objs,
-                   'changed_objs': changed_objs,
-                   'unchanged_objs': unchanged_objs,
-                   'missing_objs': missing_objs,
-                   })
-
-
-@silk_profile(name='ldapobjectbatch_diff_by_object')
-@staff_member_required
-def ldapobjectbatch_diff_by_object(request, pk, pk2):
-    def __to_utf(x):
-        l = []
-        for i in x:
-            try:
-                i = i.decode('utf-8')
-            except:
-                i = str(i)
-            l.append(i)
-        return l
-    merge_rules = get_rules('MERGE_RULES')
-    keep_fields = _get_keep_fields(merge_rules)
-    batch1 = get_object_or_404(LDAPObjectBatch, pk=pk)
-    batch2 = get_object_or_404(LDAPObjectBatch, pk=pk2)
-    id_dict_list = ("objectGUID", "objectSid", "upn", "dn", "uid")
     field_queryset = LDAPField.objects.all()
     fields_list = []
     for i in request.GET.getlist("field"):
@@ -711,3 +593,78 @@ def ldapapply_detail(request, pk):
     obj = get_object_or_404(LDAPApply, pk=pk)
     return render(request, 'apis_rilec/ldapapply_detail.html',
                   {'object': obj})
+
+
+def username_availability(request):
+    DOMAINS = ['fri1.uni-lj.si', 'fri.uni-lj.si']
+    def generator():
+        yield render_to_string("apis_rilec/username_availability.html", request=request, context={
+            "domains": DOMAINS,
+        })
+        
+        localpart = request.GET.get("localpart")
+        if not localpart:
+            return
+        max_checks = 20
+
+        yield '<div class="container">'
+        yield '<div class="log">Connecting to LDAP... </div>'
+        
+        ldap_conn = try_init_ldap(None)
+        escape = ldap.filter.escape_filter_chars
+        
+        for i in range(max_checks):
+            candidate = localpart if i == 0 else f"{localpart}{i}"
+            tried_emails = [f"{candidate}@{d}" for d in DOMAINS]
+
+            # Build an OR filter covering all relevant attributes.
+            subs = []
+            for full in tried_emails:
+                subs.append(f'(userPrincipalName={escape(full)})')
+                subs.append(f'(eduPersonPrincipalName={escape(full)})')
+                subs.append(f'(mail={escape(full)})')
+                subs.append(f'(proxyAddresses=*{escape(full)}*)')
+            subs.append(f'(samAccountName={escape(candidate)})')
+            subs.append(f'(mailNickname={escape(candidate)})')
+            filterstr = '(|' + ''.join(subs) + ')'
+
+            yield f'<div class="log">LDAP query: <br>{filterstr}</div>'
+            
+            success = False
+            error_msg = ''
+            try:
+                ldap_res = ldap_conn.search_s(
+                    settings.LDAP_USER_SEARCH_BASE,
+                    settings.LDAP_USER_SEARCH_SCOPE,
+                    filterstr=filterstr,
+                    attrlist=[
+                        'userPrincipalName',
+                        'eduPersonPrincipalName',
+                        'mail',
+                        'samAccountName',
+                        'mailNickname',
+                        'proxyAddresses',
+                    ],
+                )
+                ldap_count = len(ldap_res) if ldap_res else 0
+                success = ldap_count == 0
+            except Exception as e:
+                error_msg = str(e)
+                ldap_res = None
+
+            part_context = {
+                'candidate': candidate,
+                'success': success,
+                'error': error_msg,
+                'results': ldap_res,
+            }
+            # Render the fragment and yield it as bytes.
+            yield render_to_string('apis_rilec/username_availability_part.html', part_context)
+
+            # Stop streaming if an error occurred or we found a free candidate.
+            if error_msg or success:
+                break
+
+        yield '</div>'
+
+    return StreamingHttpResponse(generator(), content_type='text/html')

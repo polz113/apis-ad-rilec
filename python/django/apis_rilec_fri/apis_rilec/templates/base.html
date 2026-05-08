@@ -7,6 +7,14 @@
       <link rel="stylesheet" href="{% static 'apis_rilec/style.css' %}">
 </head>
 <body>
-	{% block body %}{% endblock %}
+	{% block body %}
+	<main>
+	    {% block main %}
+			<div class="container">
+			{% block container %}{% endblock %}
+			</div>
+		{% endblock %}
+	</main>
+	{% endblock %}
 </body>
 </html>

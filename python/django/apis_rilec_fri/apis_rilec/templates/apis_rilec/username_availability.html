@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Username availability{% endblock %}
+
+{% block body %}
+<style>
+.search-form {
+    margin-bottom: 1rem;
+}
+.log {
+    opacity: .8;
+    font-family: monospace;
+    margin: .6em 0;
+}
+.attempt {
+    padding: .5rem;
+    margin-top: .8rem;
+    border-radius: 3px;
+}
+.attempt.success {
+    background: rgba(0,255,0,.2);
+}
+.attempt.fail {
+    background: rgba(255,0,0,.2);
+}
+.attempt .candidate {
+}
+.attempt .status {
+    font-weight: bold;
+}
+</style>
+<div class="container">
+  <h1 class="title">Check username availability</h1>
+
+  <form method="get" action="{% url 'apis_rilec:username_availability' %}" class="search-form">
+    <label for="localpart">Local part:</label>
+    <input id="localpart" name="localpart" type="text" value="{{ request.GET.localpart }}" placeholder="npr. ime.priimek" />
+    <span>@
+      {% for domain in domains %}
+          {{domain}}{% if not forloop.last %}, {% endif %}
+        {% endfor %}
+    </span>
+    <button type="submit" class="submit-btn">Check</button>
+  </form>
+</div>
+{% endblock %}

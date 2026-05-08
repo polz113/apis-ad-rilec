@@ -39,6 +39,5 @@ urlpatterns = [
     path('ldapapplybatch/', views.ldapapplybatch_list, name='ldapapplybatch_list'),
     path('ldapapplybatch/<int:pk>', views.ldapapplybatch_detail, name='ldapapplybatch_detail'),
     path('ldapapply/<int:pk>', views.ldapapply_detail, name='ldapapply_detail'),
- 
+    path('username_availability', views.username_availability, name='username_availability'),
 ]
-
