@@ -9,6 +9,7 @@
             {% endif %}
         </span>
     </div>
+    {% if debug %}
     {% if error %}
         <div class="log">
         {{error}}
@@ -19,4 +20,5 @@
         {{result}}
         </div>
     {% endfor %}
+    {% endif %}
 </div>

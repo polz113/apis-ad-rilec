@@ -41,6 +41,14 @@
         {% endfor %}
     </span>
     <button type="submit" class="submit-btn">Check</button>
+    <div style="opacity: .3; font-size: .8em">
+        <input id="debug" name="debug" type="checkbox"/>
+        <label for="debug">Show debugging info</label>
+    </div>
+
+    <div class="attempts">
+        {{results_html}}
+    </div>
   </form>
 </div>
 {% endblock %}

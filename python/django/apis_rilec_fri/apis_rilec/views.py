@@ -12,6 +12,7 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.forms.models import model_to_dict
 from django.template.loader import render_to_string
 
+from django.utils.safestring import mark_safe
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework_api_key.permissions import HasAPIKey
@@ -597,18 +598,16 @@ def ldapapply_detail(request, pk):
 
 def username_availability(request):
     DOMAINS = ['fri1.uni-lj.si', 'fri.uni-lj.si']
-    def generator():
-        yield render_to_string("apis_rilec/username_availability.html", request=request, context={
-            "domains": DOMAINS,
-        })
-        
-        localpart = request.GET.get("localpart")
-        if not localpart:
-            return
+    # Building HTML in the view because legacy (see blame)
+    results_html = ''
+    
+    localpart = request.GET.get("localpart")
+    if localpart:
         max_checks = 20
 
-        yield '<div class="container">'
-        yield '<div class="log">Connecting to LDAP... </div>'
+        debug = request.GET.get("debug", "off") in ("on", "yes", "true", "True", "1")
+        if debug:
+            results_html += '<div class="log">Connecting to LDAP... </div>'
         
         ldap_conn = try_init_ldap(None)
         escape = ldap.filter.escape_filter_chars
@@ -628,7 +627,8 @@ def username_availability(request):
             subs.append(f'(mailNickname={escape(candidate)})')
             filterstr = '(|' + ''.join(subs) + ')'
 
-            yield f'<div class="log">LDAP query: <br>{filterstr}</div>'
+            if debug:
+                results_html += f'<div class="log">LDAP query: <br>{filterstr}</div>'
             
             success = False
             error_msg = ''
@@ -657,14 +657,17 @@ def username_availability(request):
                 'success': success,
                 'error': error_msg,
                 'results': ldap_res,
+                'debug': debug,
             }
             # Render the fragment and yield it as bytes.
-            yield render_to_string('apis_rilec/username_availability_part.html', part_context)
+            results_html += render_to_string('apis_rilec/username_availability_part.html', part_context)
 
-            # Stop streaming if an error occurred or we found a free candidate.
+            # Stop trying if an error occurred or we found a free candidate.
             if error_msg or success:
                 break
 
-        yield '</div>'
 
-    return StreamingHttpResponse(generator(), content_type='text/html')
+    return render(request, 'apis_rilec/username_availability.html', {
+        'domains': DOMAINS,
+        'results_html': mark_safe(results_html),
+    })
