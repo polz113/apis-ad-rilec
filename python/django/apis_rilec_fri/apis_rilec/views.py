@@ -361,12 +361,6 @@ def ldapobjectbatch_detail(request, pk):
 @silk_profile(name='ldapobjectbatch_diff')
 @staff_member_required
 def ldapobjectbatch_diff(request, pk, pk2):
-    return ldapobjectbatch_diff_by_object(request, pk, pk2)
-
-
-@silk_profile(name='ldapobjectbatch_diff_by_field')
-@staff_member_required
-def ldapobjectbatch_diff_by_field(request, pk, pk2):
     def __to_utf(x):
         l = []
         for i in x:
