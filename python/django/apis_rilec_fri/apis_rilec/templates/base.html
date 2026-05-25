@@ -1,10 +1,20 @@
+{% load static %}
 <!DOCTYPE html>
 <html>
 <head>
       <meta charset="utf-8">
       <title>{% block title %}{% endblock %}</title>
+      <link rel="stylesheet" href="{% static 'apis_rilec/style.css' %}">
 </head>
 <body>
-	{% block body %}{% endblock %}
+	{% block body %}
+	<main>
+	    {% block main %}
+			<div class="container">
+			{% block container %}{% endblock %}
+			</div>
+		{% endblock %}
+	</main>
+	{% endblock %}
 </body>
 </html>

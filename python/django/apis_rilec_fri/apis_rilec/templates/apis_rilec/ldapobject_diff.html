@@ -1,10 +1,7 @@
-<!DOCTYPE html>
-<html>
-<head>
-      <meta charset="utf-8">
-      <title>Podrobnosti</title>
-</head>
-<body>
+{% extends "base.html" %}
+
+{% block title %}Podrobnosti{% endblock %}
+{% block body %}
     <a href="{% url "apis_rilec:ldapobject_list" %}">Nazaj na seznam</a>
     <div>
 	<h1>{{object.source}} - {{object.timestamp}}</h1>
@@ -76,6 +73,4 @@
 	{% endfor %}
 	</ul>
     </div>
-
-</body>
-</html>
+{% endblock %}
