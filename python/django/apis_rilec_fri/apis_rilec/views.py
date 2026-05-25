@@ -2,7 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 from django.conf import settings
 from django.http import HttpResponse, JsonResponse, StreamingHttpResponse, Http404
-from django.db.models import Value, Prefetch
+from django.db.models import Value, Prefetch, F
 from django.utils.datastructures import MultiValueDict
 from django.utils import timezone
 from itertools import chain, groupby
