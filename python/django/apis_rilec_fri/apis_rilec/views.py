@@ -374,6 +374,7 @@ def ldapobjectbatch_diff(request, pk, pk2):
     keep_fields = _get_keep_fields(merge_rules)
     batch1 = get_object_or_404(LDAPObjectBatch, pk=pk)
     batch2 = get_object_or_404(LDAPObjectBatch, pk=pk2)
+    id_dict_list = ("objectGUID", "objectSid", "upn", "dn", "uid")
     field_queryset = LDAPField.objects.all()
     fields_list = []
     for i in request.GET.getlist("field"):
