@@ -97,14 +97,12 @@ Uporablja node.js. Zaenkrat dejansko ne obstaja.
 
 ## Impressum
 
-Apis-Rilec
-
+Apis-Rilec  
 Vmesnik za prenos podatkov APIS - AD
 
-Ljubljana, 2020
-
+Ljubljana, 2020  
 UL FRI
 
 **Avtorji**
 
-Gašper Fele-Žorž
+Gašper Fele-Žorž  
