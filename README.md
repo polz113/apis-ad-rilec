@@ -98,11 +98,9 @@ Uporablja node.js. Zaenkrat dejansko ne obstaja.
 ## Impressum
 
 Apis-Rilec
-
 Vmesnik za prenos podatkov APIS - AD
 
 Ljubljana, 2020
-
 UL FRI
 
 **Avtorji**
